@@ -13,8 +13,10 @@
  *     定义文档（proposal.md / detail-design.md）中存在
  *  5. 需求模块覆盖率：proposal 定义的每个 FR 模块（FR-XXX-01 等）必须
  *     至少被 detail-design.md 引用一次（模块级，保证设计无遗漏）
+ *  6. 任务文件（docs/tasks/）：checkbox 格式合法；每个模块文件必须在
+ *     progress.md 登记；progress 链接的文件存在；任务文件内 FR/NFR 引用有效
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md'];
@@ -88,6 +90,39 @@ if (docs[DESIGN_DOC]) {
   const missing = [...modules].filter((mod) => ![...designFrs].some((id) => id.startsWith(mod + '-')));
   if (missing.length) fail(`${DESIGN_DOC} 未覆盖需求模块：${missing.join(', ')}`);
   else pass(`FR 模块覆盖率 100%（${modules.size} 个模块）`);
+}
+
+// ---- 任务文件校验（docs/tasks/）----
+const TASKS_DIR = 'docs/tasks';
+const tasksDirAbs = join(process.cwd(), TASKS_DIR);
+if (existsSync(tasksDirAbs)) {
+  const taskFiles = readdirSync(tasksDirAbs).filter((f) => f.endsWith('.md'));
+  const hasProgress = taskFiles.includes('progress.md');
+  if (!hasProgress) fail('缺少 docs/tasks/progress.md');
+
+  const progressText = hasProgress
+    ? readFileSync(join(tasksDirAbs, 'progress.md'), 'utf8')
+    : '';
+
+  for (const f of taskFiles) {
+    const rel = `${TASKS_DIR}/${f}`;
+    const text = readFileSync(join(tasksDirAbs, f), 'utf8');
+    const badCb = (text.match(/^- \[(?!\s\]|x\])/gm) || []).length;
+    if (badCb) fail(`${rel} 有 ${badCb} 处格式错误的 checkbox（应为「- [ ]」或「- [x]」）`);
+    if (f !== 'progress.md' && hasProgress && !progressText.includes(`(${f})`))
+      fail(`${rel} 未在 progress.md 中登记`);
+    for (const id of idsIn(text, FR_RE)) if (!defined.fr.has(id)) fail(`${rel} 引用了不存在的 ${id}`);
+    for (const id of idsIn(text, NFR_RE)) if (!defined.nfr.has(id)) fail(`${rel} 引用了不存在的 ${id}`);
+  }
+
+  for (const m of progressText.matchAll(/\]\(([^)]+\.md)\)/g)) {
+    if (!taskFiles.includes(m[1])) fail(`progress.md 链接了不存在的任务文件 ${m[1]}`);
+  }
+
+  if (hasProgress && !failed) {
+    const moduleFiles = taskFiles.filter((f) => f !== 'progress.md');
+    pass(`任务文件校验通过（${moduleFiles.length} 个模块 + progress.md）`);
+  }
 }
 
 console.log(failed ? '\n校验失败：请修复上述问题后再提交。' : '\n文档校验全部通过。');
