@@ -1,0 +1,40 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+out/
+release/
+*.tsbuildinfo
+
+# 包管理器日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 环境变量（保留示例文件）
+.env
+.env.*
+!.env.example
+
+# 测试覆盖率
+coverage/
+
+# 编辑器与系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# 引擎编辑器本地备份（FR-EDTR-01 自动快照，不入库）
+.editor-backups/
+
+# ZCode 会话/工具产物
+.zcode/
+
+# Vite 本地文件
+*.local

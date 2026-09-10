@@ -1,0 +1,19 @@
+# 统一换行符：仓库内一律 LF，避免 Windows/macOS/CI 之间抖动
+* text=auto eol=lf
+
+# Windows 专属脚本保留 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制资源（游戏包素材）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
