@@ -17,7 +17,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const REQUIRED = ['docs/proposal.md'];
+const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md'];
 const DEFINITION_DOC = 'docs/proposal.md'; // FR/NFR/OQ 编号的权威定义处
 const DESIGN_DOC = 'docs/detail-design.md';
 
@@ -51,7 +51,7 @@ for (const [rel, text] of Object.entries(docs)) {
 if (!failed) pass('标题/围栏/占位符检查通过');
 
 // ---- 编号提取与交叉引用 ----
-const FR_RE = /\bFR-[A-Z]+-\d+\b/g;
+const FR_RE = /\bFR-[A-Z0-9]+-\d+\b/g;
 const NFR_RE = /\bNFR-\d+\b/g;
 const OQ_RE = /\bOQ-\d+\b/g;
 const DD_RE = /\bDD-\d+\b/g;
