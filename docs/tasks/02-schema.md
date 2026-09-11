@@ -18,7 +18,7 @@
 
 ### B. 系统域（M1 前）
 - [x] `item.ts`（类型/堆叠/装备/服装 garment）+ `body.ts`（parts/pronouns）+ `shop.ts`
-- [ ] `achievement.ts` / `perk.ts` / `ending.ts` / `loop.ts` / `tags.ts` / `stats-page.ts`
+- [x] `achievement.ts` / `perk.ts` / `ending.ts` / `loop.ts` / `tags.ts` / `stats-page.ts`
 - [ ] `save.ts`（SaveBlob + SerializedState 校验）+ `profile.ts`
 
 ### C. 质量门禁

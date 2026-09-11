@@ -69,3 +69,22 @@ export { bodyDefSchema, bodyPartDefSchema, pronounsDefSchema } from './body.js';
 export type { BodyDef, BodyPartDef, PronounsDef } from './body.js';
 export { shopDefSchema, shopEntrySchema } from './shop.js';
 export type { ShopDef, ShopEntry } from './shop.js';
+
+// ---- AchievementDef / PerkDef / EndingDef / LoopConfig / ContentTagsDef / StatsPageDef ----
+export { achievementDefSchema } from './achievement.js';
+export type { AchievementDef } from './achievement.js';
+export { perkDefSchema } from './perk.js';
+export type { PerkDef } from './perk.js';
+export { endingDefSchema, endingGalleryInfoSchema } from './ending.js';
+export type { EndingDef, EndingGalleryInfo } from './ending.js';
+export { loopCategorySchema, loopConfigSchema, loopPolicySchema } from './loop.js';
+export type { LoopCategory, LoopConfig, LoopPolicy } from './loop.js';
+export { contentTagDefSchema, contentTagsDefSchema } from './tags.js';
+export type { ContentTagDef, ContentTagsDef } from './tags.js';
+export {
+  statsEntrySchema,
+  statsEntryStyleSchema,
+  statsGroupSchema,
+  statsPageDefSchema,
+} from './stats-page.js';
+export type { StatsEntry, StatsEntryStyle, StatsGroup, StatsPageDef } from './stats-page.js';
