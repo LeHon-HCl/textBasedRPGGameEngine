@@ -17,7 +17,7 @@
 - [x] 按 §10.4 建立 `shared/src`、`engine/src` 子目录占位与 `index.ts` 导出约定
 
 ### B. 测试与质量工具链
-- [ ] Vitest 接入 shared/engine（workspace 共享配置），第一个冒烟测试通过
+- [x] Vitest 接入 shared/engine（workspace 共享配置），第一个冒烟测试通过
 - [ ] ESLint + Prettier：`no-restricted-imports` 强制依赖规则 R1/R2（shared 零依赖、engine 禁 React/DOM）
 - [ ] CI（GitHub Actions）：lint + test + `node scripts/validate-docs.mjs` 三步门禁
 
