@@ -56,6 +56,16 @@ export function evalExpr(expr: CompiledExpr, ctx: EvalContext): unknown {
   return evaluate(expr.ast, ctx, expr.source);
 }
 
+/**
+ * 顶层条件求值入口（if / show_if / require 等布尔语境，DD-01 / §2.3）：
+ * 对**最终结果**真值化——undefined / null / false / 0 / '' / NaN 为假。
+ * 仅此入口做结果真值化；表达式内部的严格性不受影响（除零、类型不匹配、
+ * 封闭域缺 key 照常抛 EVAL_ERROR），算术语境必须走 evalExpr。
+ */
+export function evalCondition(expr: CompiledExpr, ctx: EvalContext): boolean {
+  return truthy(evaluate(expr.ast, ctx, expr.source));
+}
+
 function evaluate(node: ExprNode, ctx: EvalContext, source: string): unknown {
   switch (node.kind) {
     case 'num':
