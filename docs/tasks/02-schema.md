@@ -24,7 +24,7 @@
 ### C. 质量门禁
 - [x] 每个 schema ≥1 正例（进入 mini-game 夹具或独立 fixture）+ ≥1 负例（fixtures/negatives 复用）
 - [x] schema 快照测试（防意外破坏，NFR-12「只增不改」的守护）
-- [ ] refId 元数据在关键引用字段落位（scene 跳转、bag.itemId、npc 引用等，供 21 号迁移改写）
+- [x] refId 元数据在关键引用字段落位（scene 跳转、bag.itemId、npc 引用等，供 21 号迁移改写）
 
 ## 完成定义
 - [ ] 全部子任务勾选，schema 测试全绿；`pnpm -w build` 产出类型可被 engine 导入
