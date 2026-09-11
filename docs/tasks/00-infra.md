@@ -18,7 +18,7 @@
 
 ### B. 测试与质量工具链
 - [x] Vitest 接入 shared/engine（workspace 共享配置），第一个冒烟测试通过
-- [ ] ESLint + Prettier：`no-restricted-imports` 强制依赖规则 R1/R2（shared 零依赖、engine 禁 React/DOM）
+- [x] ESLint + Prettier：`no-restricted-imports` 强制依赖规则 R1/R2（shared 零依赖、engine 禁 React/DOM）
 - [ ] CI（GitHub Actions）：lint + test + `node scripts/validate-docs.mjs` 三步门禁
 
 ### C. 公共夹具
@@ -29,4 +29,4 @@
 ## 完成定义
 - [ ] 全部子任务勾选，`pnpm -w lint && pnpm -w test` 全绿
 - [ ] CI 首次运行通过
-- [ ] 依赖规则违规能被 lint 阻断（写一个故意违规的临时用例验证后删除）
+- [x] 依赖规则违规能被 lint 阻断（写一个故意违规的临时用例验证后删除）

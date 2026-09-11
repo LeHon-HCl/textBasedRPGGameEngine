@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.zcode/
+pnpm-lock.yaml
+docs/
+scripts/
+fixtures/
+**/*.md
