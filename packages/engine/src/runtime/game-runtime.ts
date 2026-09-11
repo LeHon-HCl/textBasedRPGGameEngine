@@ -6,6 +6,8 @@ import type {
   ExprFunctionRegistry,
   Rng,
   RngState,
+  SaveBlob,
+  SerializedState,
 } from '@game/shared';
 import { applyPatches, enablePatches, freeze, produce } from 'immer';
 import type { Patch, WritableDraft } from 'immer';
@@ -15,6 +17,8 @@ import {
   buildExprScope,
   defaultTimeView,
   recomputeDerived,
+  restoreState,
+  serializeState,
 } from '../state/index.js';
 import type { GameState } from '../state/index.js';
 import { createBuiltinFunctionRegistry, evalExpr, truthy } from '../expr-eval/index.js';
@@ -288,6 +292,27 @@ export class GameRuntime {
       true,
     );
     return { ok: true, restoredLabel: target.label };
+  }
+
+  /**
+   * 存档序列化（§3.1 serialize，DD-09）：输出 SerializedState 投影（02 号
+   * schema 终验，A2 契约）。RNG 状态由调用方随 SaveBlob 组装（`rng.getState()`，
+   * SaveBlob.rngState；20 号 SaveService 的装配面）。
+   */
+  serialize(): SerializedState {
+    return serializeState(this.#state);
+  }
+
+  /**
+   * 读档恢复（§3.1 restore，DD-09/DD-10）：以 blob.state 重建 GameState
+   * （SAVE_CORRUPT 终验 + 独立副本）、注入 blob.rngState 到运行时 Rng
+   * （同档行为确定可回放）；版本三元组取自 blob（FR-MIGR-01）。
+   * 回滚栈跨档无效，恢复时清空（FR-READ-03 边界）。
+   */
+  restore(blob: SaveBlob): void {
+    this.#state = freeze(restoreState(blob), true);
+    this.#rng.setState(blob.rngState);
+    this.#snapshots = [];
   }
 
   // —— 事务内部管线 ————————————————————————————————————————————————————
