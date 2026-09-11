@@ -8,4 +8,17 @@
  */
 export { collectPackage, computeAssetId, PACKAGE_PATHS } from './collect.js';
 export { InMemoryPackageSource } from './source-memory.js';
-export type { CollectedPackage, Diagnostic, PackageSource, SceneFileInfo } from './types.js';
+export { parsePackage } from './parse.js';
+export { validatePackage } from './validate.js';
+export type {
+  CollectedPackage,
+  CompiledScene,
+  Diagnostic,
+  LocalePack,
+  LocaleValue,
+  PackageDomains,
+  PackageSource,
+  ParsedPackage,
+  SceneFileInfo,
+  ValidatedPackage,
+} from './types.js';

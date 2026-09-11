@@ -1,5 +1,6 @@
 import { parse } from 'yaml';
 import type { Lang } from '@game/shared';
+import { compareDiagnostics } from './diagnostics.js';
 import type { CollectedPackage, Diagnostic, PackageSource, SceneFileInfo } from './types.js';
 
 /**
@@ -188,16 +189,7 @@ export async function collectPackage(source: PackageSource): Promise<CollectedPa
   };
 }
 
-/** 诊断排序（确定性输出，供测试与编辑器复现）：文件 → messageKey */
-function compareDiagnostics(a: Diagnostic, b: Diagnostic): number {
-  const fileA = a.where['file'] ?? '';
-  const fileB = b.where['file'] ?? '';
-  if (fileA !== fileB) return fileA < fileB ? -1 : 1;
-  const keyA = a.where['messageKey'] ?? '';
-  const keyB = b.where['messageKey'] ?? '';
-  if (keyA !== keyB) return keyA < keyB ? -1 : 1;
-  return JSON.stringify(a.where) < JSON.stringify(b.where) ? -1 : 1;
-}
+/** 诊断排序（确定性输出，供测试与编辑器复现）：见 diagnostics.ts */
 
 function extensionOf(path: string): string {
   const dot = path.lastIndexOf('.');
