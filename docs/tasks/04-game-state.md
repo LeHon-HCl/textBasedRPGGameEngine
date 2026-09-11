@@ -12,19 +12,19 @@
 ## 任务清单
 
 ### A. 状态树
-- [ ] `GameState` 类型全量（§3.1 字段清单）+ `newGameState(def, perkEffects)` 初始化（含 bootstrap.perks）
-- [ ] `SerializedState` 投影与 schema 对齐（save.ts）+ 往返测试
-- [ ] 派生属性 `recomputeDerived`（触碰域触发 + 循环依赖已在加载期排除）+ 单测
+- [x] `GameState` 类型全量（§3.1 字段清单）+ `newGameState(def, perkEffects)` 初始化（含 bootstrap.perks）
+- [x] `SerializedState` 投影与 schema 对齐（save.ts）+ 往返测试
+- [x] 派生属性 `recomputeDerived`（触碰域触发 + 循环依赖已在加载期排除）+ 单测
 
 ### B. 事务与事件
-- [ ] `GameRuntime.exec`：immer produce、逐指令执行、失败反向回滚（EFFECT_FAILED 含 instruction 序号）
-- [ ] `ExecOutcome` 组装：patches / jumps / events；`EngineEvent` 联合类型全集 + on/emit 总线
-- [ ] ExecContext（source/where/rng）贯穿与调试字段验证
+- [x] `GameRuntime.exec`：immer produce、逐指令执行、失败反向回滚（EFFECT_FAILED 含 instruction 序号）
+- [x] `ExecOutcome` 组装：patches / jumps / events；`EngineEvent` 联合类型全集 + on/emit 总线
+- [x] ExecContext（source/where/rng）贯穿与调试字段验证
 
 ### C. 快照与序列化
-- [ ] `checkpoint/rollback`：structuredClone 快照栈（默认深 5）、恢复后状态一致性测试
-- [ ] 快照体积 > 5MB 告警分支测试
-- [ ] `serialize/restore`（含 rngState，DD-09）+ 回放测试（同种子同操作序列 → 同终态）
+- [x] `checkpoint/rollback`：structuredClone 快照栈（默认深 5）、恢复后状态一致性测试
+- [x] 快照体积 > 5MB 告警分支测试
+- [x] `serialize/restore`（含 rngState，DD-09）+ 回放测试（同种子同操作序列 → 同终态）
 
 ## 完成定义
-- [ ] 全部子任务勾选；事务原子性/回滚/序列化测试全绿（不依赖其他子系统）
+- [x] 全部子任务勾选；事务原子性/回滚/序列化测试全绿（不依赖其他子系统）
