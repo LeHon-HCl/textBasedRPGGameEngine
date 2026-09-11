@@ -15,7 +15,7 @@ import {
 import type { GameState } from '../state/index.js';
 import { createBuiltinFunctionRegistry, evalExpr, truthy } from '../expr-eval/index.js';
 import type { EffectContext, EffectExecutor, ExecContext, ExecOutcome } from './exec-context.js';
-import type { EngineEvent } from './engine-events.js';
+import type { EngineEvent, StatChangedEvent, Unsubscribe } from './engine-events.js';
 
 /**
  * GameRuntime 状态事务核心（设计 §3.1，DD-06 交互中枢；04 任务 B1）。
@@ -79,6 +79,7 @@ export class GameRuntime {
   readonly #timeView: TimeViewProvider;
   readonly #metaProvider: () => MetaView;
   readonly #executor: EffectExecutor | undefined;
+  readonly #listeners: Map<EngineEvent['type'], Set<(event: EngineEvent) => void>> = new Map();
 
   constructor(options: GameRuntimeOptions) {
     this.#state = freeze(options.state, true);
@@ -106,11 +107,14 @@ export class GameRuntime {
    * - 逐指令 produce：指令 i 的定位 where = {...ctx.where, instruction: i}；
    * - 失败：反向应用已应用补丁后抛 EFFECT_FAILED（where 携带 source/scene/
    *   event/battle/instruction，原错误挂 cause）；
-   * - 成功：返回 ExecOutcome（jumps 供调用方消费；patches 为全事务补丁集，
-   *   含派生属性重算产生的补丁）。
+   * - 成功：提交状态 → 从补丁派生 stat_changed 事件（FR-STAT-04）→ 事务
+   *   事件按 emit 序 + 补丁序统一送达 on() 总线 → 返回 ExecOutcome（jumps
+   *   供调用方消费；patches 为全事务补丁集，含派生重算补丁）。
+   *   失败事务的半途事件不送达（事件面与状态面同批原子）。
    */
   exec(effects: readonly EffectData[], ctx: ExecContext): ExecOutcome {
     validateExecContext(ctx);
+    const base = this.#state;
     const frame: TransactionFrame = { jumps: [], events: [], patches: [] };
     const appliedInverse: Patch[][] = [];
     let work = this.#state;
@@ -151,7 +155,36 @@ export class GameRuntime {
     }
 
     this.#state = work;
+    // 事务提交后装配事件流：stat_changed 由补丁派生（from 取事务前值），
+    // 与指令 emit 的事件合并后一次性送达总线（回滚不撤销已送达事件，
+    // FR-READ-03 与 Profile 解耦的边界）
+    frame.events.push(...statChangedFromPatches(base, frame.patches));
+    for (const event of frame.events) {
+      this.#dispatch(event);
+    }
     return { jumps: frame.jumps, events: frame.events, patches: frame.patches };
+  }
+
+  /**
+   * 事件订阅总线（§3.1 GameRuntime.on）：按事件 type 订阅，返回退订句柄。
+   * 送达时机：事务提交后（见 exec）；同一事件按订阅加入顺序通知全部监听者，
+   * 监听器异常被隔离（§10.2：错误边界在宿主层，不打断引擎事务）。
+   */
+  on<T extends EngineEvent['type']>(
+    type: T,
+    handler: (event: Extract<EngineEvent, { type: T }>) => void,
+  ): Unsubscribe {
+    let listeners = this.#listeners.get(type);
+    if (listeners === undefined) {
+      listeners = new Set();
+      this.#listeners.set(type, listeners);
+    }
+    const typed = handler as (event: EngineEvent) => void;
+    listeners.add(typed);
+    const bucket = listeners;
+    return () => {
+      bucket.delete(typed);
+    };
   }
 
   /** 条件求值入口（选项 show_if、事件 require 等统一走这里，§3.1）：原值返回 */
@@ -264,6 +297,19 @@ export class GameRuntime {
     });
     return evalExpr(expr, { state: scope, rng, registry: this.#registry });
   }
+
+  /** 事件送达：按类型通知全部监听者（监听器异常隔离，加入顺序通知） */
+  #dispatch(event: EngineEvent): void {
+    const listeners = this.#listeners.get(event.type);
+    if (listeners === undefined) return;
+    for (const handler of [...listeners]) {
+      try {
+        handler(event);
+      } catch {
+        // 监听器异常不外溢：UI/宿主层错误边界自理（§10.2），引擎事务不受影响
+      }
+    }
+  }
 }
 
 // —— 模块级辅助（无状态纯函数） ————————————————————————————————————————
@@ -314,4 +360,45 @@ function touchedFromPatches(patches: readonly Patch[]): DerivedTriggerDomain[] {
     if (token !== undefined) found.add(token);
   }
   return [...found];
+}
+
+/**
+ * 从事务补丁派生 stat_changed 事件（FR-STAT-04）：player.attrs 的数值写入
+ * 逐条产出（同属性多次变更 = 多条增量，按补丁序，from 为上一条变更后的值）；
+ * immer add 语义即新增键 → from 0。派生属性重算补丁（player/derived）不在
+ * attrs 域，天然不产生事件。
+ */
+function statChangedFromPatches(base: GameState, patches: readonly Patch[]): StatChangedEvent[] {
+  const events: StatChangedEvent[] = [];
+  const current = {
+    ...((lookupPath(base, ['player', 'attrs']) as Record<string, number> | undefined) ?? {}),
+  };
+  for (const patch of patches) {
+    if (patch.op !== 'replace' && patch.op !== 'add') continue;
+    const path = patch.path;
+    if (path.length !== 3 || path[0] !== 'player' || path[1] !== 'attrs') continue;
+    const attr = path[2];
+    if (typeof attr !== 'string' || typeof patch.value !== 'number') continue;
+    const previous = current[attr];
+    const from = typeof previous === 'number' ? previous : 0;
+    current[attr] = patch.value;
+    events.push({
+      type: 'stat_changed',
+      attr,
+      from,
+      to: patch.value,
+      delta: patch.value - from,
+    });
+  }
+  return events;
+}
+
+/** 按路径段读取嵌套值（stat_changed 的 from 查询用） */
+function lookupPath(root: unknown, path: readonly (string | number)[]): unknown {
+  let current: unknown = root;
+  for (const segment of path) {
+    if (typeof current !== 'object' || current === null) return undefined;
+    current = (current as Record<string, unknown>)[String(segment)];
+  }
+  return current;
 }

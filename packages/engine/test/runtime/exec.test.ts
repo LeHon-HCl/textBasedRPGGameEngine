@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EngineError, createRng } from '@game/shared';
-import type { AttrDefs, EffectData, Rng } from '@game/shared';
-import { compileExpr, createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
+import type { EffectData, Rng } from '@game/shared';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
 import type {
@@ -11,172 +10,14 @@ import type {
   ExecOutcome,
 } from '../../src/runtime/exec-context.js';
 import type { JumpTarget } from '../../src/runtime/exec-context.js';
-
-/**
- * GameRuntime.exec 事务管线用例（04 任务 B1，设计 §3.1 时序图）。
- *
- * 以测试专用桩执行器驱动真实管线（效果注册表本体是 05 号的事）：
- * - 原子性：任一指令抛错 → 反向应用已应用补丁 → EFFECT_FAILED{instruction=i}，
- *   状态保持原对象，半途产出不外泄；
- * - 补丁 / 跳转 / 事件三类产出与 ExecContext（source/where/rng）贯穿；
- * - 派生属性触碰域重算与同事务可见性。
- */
-
-const BASE_VERSIONS = { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.0.1' };
-
-const REGISTRY = createBuiltinFunctionRegistry();
-
-/** 桩执行器规格：failOn 指定抛错键；record 逐指令捕获 EffectContext */
-interface StubSpec {
-  failOn?: string;
-  record?: EffectContext[];
-  childOutcomes?: ExecOutcome[];
-}
-
-/** 构造测试专用 EffectExecutor：解释少量 EffectData 形态 + 可配置失败 */
-function stubExecutor(spec: StubSpec = {}): EffectExecutor {
-  const record = spec.record ?? [];
-  const childOutcomes = spec.childOutcomes ?? [];
-  return {
-    resolve(instruction: EffectData) {
-      const key = Object.keys(instruction)[0] as string;
-      if (key === spec.failOn) {
-        return {
-          execute() {
-            throw new Error(`stub failure: ${key}`);
-          },
-        };
-      }
-      return {
-        ...(key === 'goto'
-          ? { jumps: [{ type: 'scene', scene: (instruction as { goto: string }).goto }] as const }
-          : key === 'ending'
-            ? {
-                jumps: [
-                  { type: 'ending', ending: (instruction as { ending: string }).ending },
-                ] as const,
-              }
-            : {}),
-        execute(ctx: EffectContext) {
-          record.push(ctx);
-          applyStub(key, instruction, ctx, childOutcomes);
-        },
-      };
-    },
-  };
-}
-
-function applyStub(
-  key: string,
-  instruction: EffectData,
-  ctx: EffectContext,
-  childOutcomes: ExecOutcome[],
-): void {
-  switch (key) {
-    case 'flag': {
-      const arg = (instruction as { flag: { name: string; value?: boolean } }).flag;
-      ctx.draft.world.flags[arg.name] = arg.value ?? true;
-      return;
-    }
-    case 'set': {
-      const arg = (instruction as { set: { key: string; value: string | number | boolean } }).set;
-      if (arg.key.startsWith('attr.')) {
-        ctx.draft.player.attrs[arg.key.slice(5)] = Number(arg.value);
-      } else if (arg.key.startsWith('flag.')) {
-        ctx.draft.world.flags[arg.key.slice(5)] = arg.value;
-      } else {
-        throw new Error(`stub set unsupported key: ${arg.key}`);
-      }
-      return;
-    }
-    case 'money': {
-      const arg = (instruction as { money: Record<string, string | number> }).money;
-      for (const [currency, amount] of Object.entries(arg)) {
-        ctx.draft.player.wallet[currency] =
-          (ctx.draft.player.wallet[currency] ?? 0) + Number(amount);
-      }
-      return;
-    }
-    case 'equip': {
-      const arg = (instruction as { equip: { item: string } }).equip;
-      ctx.draft.player.equip['weapon'] = arg.item;
-      return;
-    }
-    case 'set_body': {
-      const arg = (instruction as { set_body: { part: string; value: string } }).set_body;
-      ctx.draft.player.body[arg.part] = arg.value;
-      return;
-    }
-    case 'notify': {
-      const arg = (instruction as { notify: { textKey: string; vars?: Record<string, unknown> } })
-        .notify;
-      ctx.emit({ type: 'notify', textKey: arg.textKey, vars: arg.vars });
-      return;
-    }
-    case 'call': {
-      const arg = (instruction as { call: { fn: string; with?: Record<string, unknown> } }).call;
-      if (arg.fn === 'test.push_status') {
-        ctx.draft.player.statuses.push({ id: 'rage' });
-        return;
-      }
-      if (arg.fn === 'test.child') {
-        const outcome = ctx.child(
-          [{ notify: { textKey: 'ui.child' } }, { flag: { name: 'child_flag', value: true } }],
-          { source: 'script', where: { scene: 'scene_child' }, rng: ctx.rng },
-        );
-        childOutcomes.push(outcome);
-        return;
-      }
-      if (arg.fn === 'test.child_boom') {
-        ctx.child([{ call: { fn: 'test.sub_boom' } }], {
-          source: 'script',
-          where: { scene: 'scene_child' },
-          rng: ctx.rng,
-        });
-        return;
-      }
-      if (arg.fn === 'test.eval_hp') {
-        const value = ctx.evalExpr(compileExpr('attr.hp + 1', REGISTRY));
-        ctx.draft.world.flags['hp_seen'] = String(value);
-        return;
-      }
-      if (arg.fn === 'test.eval_max_hp') {
-        const value = ctx.evalExpr(compileExpr('attr.max_hp', REGISTRY));
-        ctx.draft.world.flags['max_hp_seen'] = String(value);
-        return;
-      }
-      throw new Error(`stub failure: ${arg.fn}`);
-    }
-    case 'goto':
-    case 'ending':
-      return; // 跳转类：目标已在 resolve 的静态 jumps 声明，execute 不改状态
-    default:
-      throw new Error(`stub unsupported instruction: ${key}`);
-  }
-}
-
-/** 构造运行时（缺省桩执行器 + 固定种子 Rng） */
-function makeRuntime(init?: {
-  bootstrap?: Parameters<typeof newGameState>[0];
-  attrDefs?: AttrDefs;
-  executor?: EffectExecutor;
-  rng?: Rng;
-}): GameRuntime {
-  const state = newGameState(
-    init?.bootstrap ?? { versions: BASE_VERSIONS, attrs: { hp: 30, con: 2 } },
-    createRng(42),
-  );
-  return new GameRuntime({
-    state,
-    rng: init?.rng ?? createRng(1),
-    attrDefs: init?.attrDefs,
-    effectExecutor: init?.executor ?? stubExecutor(),
-  });
-}
-
-function makeCtx(overrides?: Partial<ExecContext>): ExecContext {
-  return { source: 'choice', where: { scene: 'scene_tavern' }, rng: createRng(42), ...overrides };
-}
+import {
+  BASE_VERSIONS,
+  MAX_HP_ATTR_DEFS,
+  compile,
+  makeCtx,
+  makeRuntime,
+  stubExecutor,
+} from './fixtures.js';
 
 describe('04-B1 GameRuntime.exec：成功事务与 ExecOutcome 装配', () => {
   it('指令依次执行，产出 immer 补丁；提交新状态而原状态对象不变', () => {
@@ -195,7 +36,9 @@ describe('04-B1 GameRuntime.exec：成功事务与 ExecOutcome 装配', () => {
       ['world', 'flags', 'door_opened'],
     ]);
     expect(outcome.jumps).toEqual([]);
-    expect(outcome.events).toEqual([]);
+    expect(outcome.events).toEqual([
+      { type: 'stat_changed', attr: 'hp', from: 30, to: 5, delta: -25 },
+    ]);
   });
 
   it('空效果批：状态原对象不变、产出为空', () => {
@@ -330,7 +173,7 @@ describe('04-B1 ExecContext 贯穿与 draft 生命周期', () => {
     const rt = makeRuntime();
     rt.exec([{ set: { key: 'attr.hp', value: 5 } }, { call: { fn: 'test.eval_hp' } }], makeCtx());
     expect(rt.state.world.flags['hp_seen']).toBe('6');
-    expect(rt.eval(compileExpr('attr.hp', REGISTRY))).toBe(5);
+    expect(rt.eval(compile('attr.hp'))).toBe(5);
   });
 
   it('child：子效果在同一 draft 生效，子批 events 并入父事务、patches 不重复计数', () => {
@@ -363,12 +206,6 @@ describe('04-B1 ExecContext 贯穿与 draft 生命周期', () => {
 });
 
 describe('04-B1 派生属性触碰域重算（事务内一致性）', () => {
-  const ATTR_DEFS: AttrDefs = {
-    numeric: {},
-    level: {},
-    derived: { max_hp: { formula: '10 + attr.con * 3' } },
-  };
-
   function makeDerivedRuntime(executor?: EffectExecutor): GameRuntime {
     return makeRuntime({
       bootstrap: {
@@ -376,7 +213,7 @@ describe('04-B1 派生属性触碰域重算（事务内一致性）', () => {
         attrs: { hp: 30, con: 2 },
         derivedFormulas: { max_hp: '10 + attr.con * 3' },
       },
-      attrDefs: ATTR_DEFS,
+      attrDefs: MAX_HP_ATTR_DEFS,
       executor,
     });
   }
@@ -430,16 +267,16 @@ describe('04-B1 派生属性触碰域重算（事务内一致性）', () => {
 describe('04-B1 GameRuntime.eval / evalCondition 公开入口', () => {
   it('eval 返回表达式原值（作用域来自当前已提交状态）', () => {
     const rt = makeRuntime();
-    expect(rt.eval(compileExpr('attr.hp + attr.con', REGISTRY))).toBe(32);
-    expect(rt.eval(compileExpr('time.day', REGISTRY))).toBe(1);
-    expect(rt.eval(compileExpr('slot()', REGISTRY))).toBe('0');
+    expect(rt.eval(compile('attr.hp + attr.con'))).toBe(32);
+    expect(rt.eval(compile('time.day'))).toBe(1);
+    expect(rt.eval(compile('slot()'))).toBe('0');
   });
 
   it('evalCondition 顶层真值化（DD-01：undefined/0/空串为假）', () => {
     const rt = makeRuntime();
-    expect(rt.evalCondition(compileExpr('attr.hp > 10', REGISTRY))).toBe(true);
-    expect(rt.evalCondition(compileExpr('flag("not_set")', REGISTRY))).toBe(false);
-    expect(rt.evalCondition(compileExpr('0', REGISTRY))).toBe(false);
+    expect(rt.evalCondition(compile('attr.hp > 10'))).toBe(true);
+    expect(rt.evalCondition(compile('flag("not_set")'))).toBe(false);
+    expect(rt.evalCondition(compile('0'))).toBe(false);
   });
 });
 
@@ -464,7 +301,7 @@ describe('04-B1 构造契约', () => {
       }),
       metaProvider: () => ({ points: 15, purchasedPerks: [{ id: 'iron_will', at: 0 }] }),
     });
-    expect(rt.eval(compileExpr('weekday()', REGISTRY))).toBe('market');
-    expect(rt.eval(compileExpr('points()', REGISTRY))).toBe(15);
+    expect(rt.eval(compile('weekday()'))).toBe('market');
+    expect(rt.eval(compile('points()'))).toBe(15);
   });
 });
