@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/index.js';
-import type { Rng } from '../src/index.js';
+import { createRng, EngineError } from '../src/index.js';
+import type { Rng, WeightedEntry } from '../src/index.js';
 
 /**
  * canonical mulberry32（DD-09 默认算法）在种子 42 下的前 100 个输出值。
@@ -80,5 +80,200 @@ describe('createRng（mulberry32，设计 §2.5 / DD-09）', () => {
     ] as const) {
       expect(typeof rng[method]).toBe('function');
     }
+  });
+});
+
+/** 断言 fn 抛出携带指定 messageKey 的 EngineError（INTERNAL） */
+function expectInternalError(fn: () => unknown, messageKey: string): void {
+  let caught: unknown;
+  try {
+    fn();
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(EngineError);
+  const engineError = caught as EngineError;
+  expect(engineError.code).toBe('INTERNAL');
+  expect(engineError.messageKey).toBe(messageKey);
+}
+
+describe('int 边界（设计 §2.5）', () => {
+  it('min = max 时恒返回该值（不消耗随机性语义仍确定）', () => {
+    const rng = createRng(42);
+    for (let i = 0; i < 10; i++) {
+      expect(rng.int(5, 5)).toBe(5);
+    }
+  });
+
+  it('int(1,6) 与钉死的 next() 序列按 min + floor(next * range) 对应', () => {
+    const rng = createRng(42);
+    const expected = MULBERRY32_SEED_42_FIRST_100.map((v) => 1 + Math.floor(v * 6));
+    const dice = Array.from({ length: 100 }, () => rng.int(1, 6));
+    expect(dice).toEqual(expected);
+  });
+
+  it('区间内各取值均可达且不越界（0..3，1000 抽）', () => {
+    const rng = createRng(9);
+    const seen = new Set<number>();
+    for (let i = 0; i < 1000; i++) {
+      const value = rng.int(0, 3);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(3);
+      expect(Number.isInteger(value)).toBe(true);
+      seen.add(value);
+    }
+    expect(seen).toEqual(new Set([0, 1, 2, 3]));
+  });
+
+  it.each([
+    { label: 'min > max', min: 3, max: 1 },
+    { label: '非整数下界', min: 0.5, max: 3 },
+    { label: '非整数上界', min: 0, max: 2.5 },
+  ])('非法区间（$label）抛 EngineError/INTERNAL', ({ min, max }) => {
+    const rng = createRng(42);
+    expectInternalError(() => rng.int(min, max), 'error.rng.intBounds');
+  });
+});
+
+describe('pick 边界（设计 §2.5）', () => {
+  it('单元素池恒返回该元素', () => {
+    const rng = createRng(42);
+    for (let i = 0; i < 10; i++) {
+      expect(rng.pick(['only'])).toBe('only');
+    }
+  });
+
+  it('等概率抽取与钉死的 next() 序列按 floor(next * length) 对应', () => {
+    const rng = createRng(42);
+    const pool = ['heads', 'tails'] as const;
+    const expected = MULBERRY32_SEED_42_FIRST_100.slice(0, 20).map(
+      (v) => pool[Math.floor(v * 2)] as string,
+    );
+    const picks = Array.from({ length: 20 }, () => rng.pick(pool));
+    expect(picks).toEqual(expected);
+  });
+
+  it('空池抛 EngineError/INTERNAL（不返回 undefined）', () => {
+    const rng = createRng(42);
+    expectInternalError(() => rng.pick([]), 'error.rng.emptyPool');
+  });
+});
+
+describe('weighted 边界（设计 §2.5）', () => {
+  it('权重 0 的条目永不被选中（有其他正权重时）', () => {
+    const rng = createRng(42);
+    const entries: readonly WeightedEntry<string>[] = [
+      { item: 'never', weight: 0 },
+      { item: 'always', weight: 5 },
+    ];
+    for (let i = 0; i < 100; i++) {
+      expect(rng.weighted(entries)).toBe('always');
+    }
+  });
+
+  it('按权重比例分配：权重 1:3 时稀有项与常见项都出现且常见项更多', () => {
+    const rng = createRng(123);
+    const entries: readonly WeightedEntry<string>[] = [
+      { item: 'rare', weight: 1 },
+      { item: 'common', weight: 3 },
+    ];
+    const counts = { rare: 0, common: 0 };
+    for (let i = 0; i < 2000; i++) {
+      counts[rng.weighted(entries) as 'rare' | 'common'] += 1;
+    }
+    expect(counts.rare).toBeGreaterThan(0);
+    expect(counts.common).toBeGreaterThan(counts.rare);
+  });
+
+  it('首抽结果与钉死的 next() 序列按 roll = next * total、累计权重命中对应', () => {
+    const rng = createRng(42);
+    // v0 = 0.6011…，total = 4，roll ≈ 2.4044 → 落入累计 [1, 4) 的 second
+    expect(
+      rng.weighted([
+        { item: 'first', weight: 1 },
+        { item: 'second', weight: 3 },
+      ]),
+    ).toBe('second');
+  });
+
+  it('空池抛 EngineError/INTERNAL', () => {
+    const rng = createRng(42);
+    expectInternalError(() => rng.weighted([]), 'error.rng.emptyPool');
+  });
+
+  it('权重为负抛 EngineError/INTERNAL（带条目定位）', () => {
+    const rng = createRng(42);
+    expectInternalError(
+      () =>
+        rng.weighted([
+          { item: 'ok', weight: 1 },
+          { item: 'bad', weight: -0.5 },
+        ]),
+      'error.rng.negativeWeight',
+    );
+  });
+
+  it('全 0 权重（总权重 ≤ 0）抛 EngineError/INTERNAL', () => {
+    const rng = createRng(42);
+    expectInternalError(
+      () =>
+        rng.weighted([
+          { item: 'a', weight: 0 },
+          { item: 'b', weight: 0 },
+        ]),
+      'error.rng.zeroWeightTotal',
+    );
+    expectInternalError(
+      () => rng.weighted([{ item: 'a', weight: 0 }]),
+      'error.rng.zeroWeightTotal',
+    );
+  });
+
+  it('非有限权重（NaN / Infinity）抛 EngineError/INTERNAL', () => {
+    const rng = createRng(42);
+    expectInternalError(
+      () => rng.weighted([{ item: 'a', weight: Number.NaN }]),
+      'error.rng.negativeWeight',
+    );
+    expectInternalError(
+      () => rng.weighted([{ item: 'a', weight: Number.POSITIVE_INFINITY }]),
+      'error.rng.negativeWeight',
+    );
+  });
+});
+
+describe('chance 边界（设计 §2.5）', () => {
+  it('p = 0 恒为 false', () => {
+    const rng = createRng(42);
+    for (let i = 0; i < 100; i++) {
+      expect(rng.chance(0)).toBe(false);
+    }
+  });
+
+  it('p = 1 恒为 true', () => {
+    const rng = createRng(42);
+    for (let i = 0; i < 100; i++) {
+      expect(rng.chance(1)).toBe(true);
+    }
+  });
+
+  it('p = 0.5 时真假均出现且比例接近（1000 抽）', () => {
+    const rng = createRng(2024);
+    let truthy = 0;
+    for (let i = 0; i < 1000; i++) {
+      if (rng.chance(0.5)) truthy += 1;
+    }
+    expect(truthy).toBeGreaterThan(400);
+    expect(truthy).toBeLessThan(600);
+  });
+
+  it.each([
+    { label: 'p < 0', p: -0.1 },
+    { label: 'p > 1', p: 1.5 },
+    { label: 'NaN', p: Number.NaN },
+    { label: 'Infinity', p: Number.POSITIVE_INFINITY },
+  ])('非法概率（$label）抛 EngineError/INTERNAL', ({ p }) => {
+    const rng = createRng(42);
+    expectInternalError(() => rng.chance(p), 'error.rng.chanceProbability');
   });
 });
