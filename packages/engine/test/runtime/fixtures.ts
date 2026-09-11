@@ -146,6 +146,11 @@ function applyStub(
         ctx.draft.world.flags['max_hp_seen'] = String(value);
         return;
       }
+      if (arg.fn === 'test.eval_rand') {
+        const value = ctx.evalExpr(compile('randInt(1, 100)'));
+        ctx.draft.world.flags['rand_seen'] = String(value);
+        return;
+      }
       throw new Error(`stub failure: ${arg.fn}`);
     }
     default:
