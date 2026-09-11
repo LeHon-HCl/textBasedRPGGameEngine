@@ -1,0 +1,5 @@
+enter: 集市比想象中安静，摊贩们压低了嗓子谈价。
+stall: 旧书摊上摊着半页手抄的镇志，纸角被雨气洇软。
+choice:
+  listen_rumor: 凑近听摊贩的低语
+  back_arrival: 回石板路口

@@ -1,0 +1,13 @@
+# 镇口：无跳转的考察选项与回跳选项
+id: town_gate
+area: old_town
+segments:
+  - key: scenes.town_gate.guard
+  - key: scenes.town_gate.wall
+choices:
+  - id: inspect_wall
+    textKey: scenes.town_gate.choice.inspect_wall
+    showIf: 'attr.insight >= 5'
+  - id: back_market
+    textKey: scenes.town_gate.choice.back_market
+    next: market_street

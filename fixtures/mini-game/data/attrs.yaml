@@ -1,0 +1,19 @@
+# 属性定义（AttrDefs，设计 §2.4）：最小集，供场景条件表达式引用（DD-01 变量域）。
+numeric:
+  hp:
+    min: 0
+    max: 100
+    init: 100
+    show: true
+  stamina:
+    min: 0
+    max: 50
+    init: 30
+    show: true
+  insight:
+    min: 0
+    max: 20
+    init: 0
+    show: true
+level: {}
+derived: {}

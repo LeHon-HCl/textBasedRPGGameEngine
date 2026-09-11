@@ -1,0 +1,13 @@
+# 入口场景：石板路口（DD-02：一场景一文件，文件位于 data/scenes/<areaId>/ 下）
+id: arrival
+area: old_town
+segments:
+  - key: scenes.arrival.open
+  - key: scenes.arrival.rain
+choices:
+  - id: go_market
+    textKey: scenes.arrival.choice.go_market
+    next: market_street
+  - id: go_gate
+    textKey: scenes.arrival.choice.go_gate
+    next: town_gate

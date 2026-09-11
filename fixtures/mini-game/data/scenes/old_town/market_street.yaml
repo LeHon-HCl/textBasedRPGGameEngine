@@ -1,0 +1,14 @@
+# 集市：含条件选项（showIf 引用 attrs.yaml 声明的 insight）
+id: market_street
+area: old_town
+segments:
+  - key: scenes.market_street.enter
+  - key: scenes.market_street.stall
+choices:
+  - id: listen_rumor
+    textKey: scenes.market_street.choice.listen_rumor
+    showIf: 'attr.insight > 0'
+    next: town_gate
+  - id: back_arrival
+    textKey: scenes.market_street.choice.back_arrival
+    next: arrival

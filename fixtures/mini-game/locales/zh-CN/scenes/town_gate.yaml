@@ -1,0 +1,5 @@
+guard: 镇门口的老卫兵抱着长枪打盹，枪缨垂到地上。
+wall: 斑驳的镇墙上刻着模糊的旧徽记。
+choice:
+  inspect_wall: 仔细辨认墙上的徽记
+  back_market: 回集市
