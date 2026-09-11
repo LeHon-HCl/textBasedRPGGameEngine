@@ -138,7 +138,7 @@ export function newGameState(bootstrap: NewGameBootstrap, rng: Rng): GameState {
     npcs: buildNpcs(bootstrap.npcs),
     factions: { ...bootstrap.factions },
     quests: {},
-    seen: { scenes: [], gallery: [], endings: [], codex: [] },
+    seen: { scenes: [], gallery: [], cg: [], endings: [], codex: [] },
     readStats: {
       playSeconds: 0,
       eventCounts: {},

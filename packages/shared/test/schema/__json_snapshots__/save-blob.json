@@ -362,6 +362,13 @@
               "type": "array",
               "items": {
                 "type": "string",
+                "refKind": "scene"
+              }
+            },
+            "cg": {
+              "type": "array",
+              "items": {
+                "type": "string",
                 "refKind": "media"
               }
             },
@@ -380,7 +387,7 @@
               }
             }
           },
-          "required": ["scenes", "gallery", "endings", "codex"],
+          "required": ["scenes", "gallery", "cg", "endings", "codex"],
           "additionalProperties": false
         },
         "readStats": {

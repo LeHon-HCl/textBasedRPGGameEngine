@@ -653,6 +653,21 @@
                   "properties": {
                     "kind": {
                       "type": "string",
+                      "const": "cg"
+                    },
+                    "id": {
+                      "type": "string",
+                      "refKind": "media"
+                    }
+                  },
+                  "required": ["kind", "id"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
                       "const": "ending"
                     },
                     "id": {

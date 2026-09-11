@@ -97,8 +97,10 @@ export type QuestState = z.infer<typeof questStateSchema>;
 const seenStateSchema = z.strictObject({
   /** 已读场景（FR-READ-01 已读跳过数据源） */
   scenes: z.array(refId('scene')),
-  /** CG 解锁位（FR-GAL-03） */
-  gallery: z.array(refId('media')),
+  /** 场景回想解锁（FR-GAL-01，unlock{kind:'gallery'} 写入；勘误 2026-09-12：原误标 media） */
+  gallery: z.array(refId('scene')),
+  /** CG 解锁位（FR-GAL-03，媒体显示自动登记或 unlock{kind:'cg'}） */
+  cg: z.array(refId('media')),
   /** 本档结局记录（跨存档收集在 Profile.endings） */
   endings: z.array(gameIdSchema),
   /** 百科解锁（FR-XTRA-06 预留） */

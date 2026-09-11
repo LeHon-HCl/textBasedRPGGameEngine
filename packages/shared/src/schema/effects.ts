@@ -102,9 +102,10 @@ const backParams = z.null();
 const endingParams = gameIdSchema;
 const loopTransitionParams = z.null();
 
-/** 回想/结局/百科/成就标记（§3.3 unlock：seen 域）；gallery 引用场景、achievement 引用成就 */
+/** 回想/CG/结局/百科/成就标记（§3.3 unlock：seen 域）；gallery 引用场景、cg 引用媒体、achievement 引用成就 */
 const unlockParams = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('gallery'), id: refId('scene') }),
+  z.strictObject({ kind: z.literal('cg'), id: refId('media') }),
   z.strictObject({ kind: z.literal('ending'), id: gameIdSchema }),
   z.strictObject({ kind: z.literal('codex'), id: gameIdSchema }),
   z.strictObject({ kind: z.literal('achievement'), id: refId('achievement') }),

@@ -89,8 +89,8 @@ export function createCallDef(ctx: BuiltinDefContext): ErasedEffectDef {
  *   `quests` 状态域。阶段序与缺省「下一阶段」由任务目录（QuestDef.stages）
  *   推导；**效果钩子与 completeWhen 驱动的状态机评估归 11 号**——本模块只做
  *   最简状态写入与阶段合法性校验；
- * - `unlock`（FR-GAL-03 / FR-XTRA-06）：gallery/endings/codex 写入 `seen`
- *   域（幂等：已存在不重复写入），achievement 入 Profile（引擎不持有
+ * - `unlock`（FR-GAL-01/03 / FR-XTRA-06）：gallery（场景回想）/cg/endings/codex
+ *   写入 `seen` 域（幂等：已存在不重复写入），achievement 入 Profile（引擎不持有
  *   Profile，D7，宿主经 unlock 事件路由）；事件恒发（订阅面与状态面解耦）；
  * - `media`（DD-05）：仅产出 MediaIntent 事件，engine 不接触音频/图像；
  * - `notify`（FR-UI-07）：文本键 + 插值变量（宽松求值：字符串先按表达式，
@@ -237,6 +237,8 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
       switch (arg.kind) {
         case 'gallery':
           return { reads: [], writes: ['seen.gallery'] };
+        case 'cg':
+          return { reads: [], writes: ['seen.cg'] };
         case 'ending':
           return { reads: [], writes: ['seen.endings'] };
         case 'codex':

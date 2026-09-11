@@ -97,7 +97,7 @@ describe('04-A1 newGameState：最小 bootstrap 产出 §3.1 全字段状态树'
     expect(state.npcs).toEqual({});
     expect(state.factions).toEqual({});
     expect(state.quests).toEqual({});
-    expect(state.seen).toEqual({ scenes: [], gallery: [], endings: [], codex: [] });
+    expect(state.seen).toEqual({ scenes: [], gallery: [], cg: [], endings: [], codex: [] });
   });
 
   it('readStats 全零起步（FR-STAP-03）', () => {

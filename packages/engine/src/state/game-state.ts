@@ -97,7 +97,7 @@ export interface GameState {
   npcs: Record<GameId, NpcState>;
   factions: Record<GameId, number>;
   quests: Record<GameId, QuestState>;
-  seen: { scenes: string[]; gallery: string[]; endings: string[]; codex: string[] };
+  seen: { scenes: string[]; gallery: string[]; cg: string[]; endings: string[]; codex: string[] };
   readStats: ReadStats;
   settings: PlayerSettings;
   checkpoints: CheckpointMeta[];

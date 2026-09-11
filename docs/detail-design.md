@@ -347,7 +347,9 @@ export interface GameState {
   npcs: Record<GameId, NpcState>;     // {favor, stage, met, flags{}}
   factions: Record<GameId, number>;
   quests: Record<GameId, QuestState>; // {state, stage, objectives{}, startedDay}
-  seen: { scenes: string[]; gallery: string[]; endings: string[]; codex: string[] };
+  seen: { scenes: string[]; gallery: string[]; cg: string[]; endings: string[]; codex: string[] };
+  // 2026-09-12 勘误补齐：gallery=场景回想（refKind 'scene'，FR-GAL-01，unlock 指令写入）；
+  // cg=插图集合（refKind 'media'，FR-GAL-03/FR-MEDIA-04，媒体显示自动登记）。原文漏分两个图鉴域。
   readStats: ReadStats;               // FR-STAP-03
   settings: PlayerSettings;           // 语言/文本/过滤/主题（FR-UI-05）
   checkpoints: CheckpointMeta[];      // 回滚栈元数据（负载存内存，不入档）

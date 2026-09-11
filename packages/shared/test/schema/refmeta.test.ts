@@ -94,7 +94,8 @@ describe('refId(kind) 元数据在关键引用字段落位（设计 §2.1，02 �
 
     const seen = serializedStateSchema.shape.seen;
     expect(refKindOf(seen.shape.scenes.element)).toBe('scene');
-    expect(refKindOf(seen.shape.gallery.element)).toBe('media');
+    expect(refKindOf(seen.shape.gallery.element)).toBe('scene');
+    expect(refKindOf(seen.shape.cg.element)).toBe('media');
   });
 
   it('profile：achievements 记录键 → achievement（FR-MIGR-06 定向改写入口）', () => {

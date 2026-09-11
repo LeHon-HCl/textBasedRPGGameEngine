@@ -35,7 +35,7 @@ export interface NotifyEvent {
 }
 
 /** 解锁对象类别（§3.3 unlock 指令参数面） */
-export type UnlockKind = 'gallery' | 'ending' | 'codex' | 'achievement';
+export type UnlockKind = 'gallery' | 'cg' | 'ending' | 'codex' | 'achievement';
 
 /** 回想/结局/百科/成就标记（seen 域解锁；结局入 Profile 由宿主路由，§5.4） */
 export interface UnlockEvent {

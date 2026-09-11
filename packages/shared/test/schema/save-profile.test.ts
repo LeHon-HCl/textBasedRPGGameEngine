@@ -37,7 +37,8 @@ const VALID_STATE = {
   },
   seen: {
     scenes: ['arrival', 'market_street'],
-    gallery: ['cg_market'],
+    gallery: ['town_gate'],
+    cg: ['cg_market'],
     endings: [],
     codex: [],
   },
