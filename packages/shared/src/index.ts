@@ -32,3 +32,17 @@ export { EngineError, isEngineError, serializeError } from './errors.js';
 export type { Rng, RngState, WeightedEntry } from './rng.js';
 /** @since 0.1.0 */
 export { createRng } from './rng.js';
+
+// ---- schema（设计 §2.4：游戏包全部数据域的 Zod schema 单一来源，02 号模块） --
+/** @since 0.1.0 */
+export {
+  exprOrNumberSchema,
+  exprSchema,
+  gameIdSchema,
+  manifestSchema,
+  mediaRefSchema,
+  semverSchema,
+  textKeySchema,
+} from './schema/index.js';
+/** @since 0.1.0 */
+export type { Manifest } from './schema/index.js';

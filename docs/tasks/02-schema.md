@@ -12,7 +12,7 @@
 ## 任务清单
 
 ### A. 核心域（M0 必需）
-- [ ] `manifest.ts`：版本三元组、语言列表、内容标签、redirects、credits + 非法样例测试
+- [x] `manifest.ts`：版本三元组、语言列表、内容标签、redirects、credits + 非法样例测试
 - [ ] `attrs.ts`（numeric/level/derived 三形态）+ `scene.ts`（segments/choices/effects/tags）+ `area.ts`
 - [ ] `event.ts`（trigger 三型/冷却/once/mutex）+ `quest.ts`（阶段/奖励/冲突）+ `npc.ts`（日程/好感阈值）+ `faction.ts`
 
