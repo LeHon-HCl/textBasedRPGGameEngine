@@ -5,7 +5,7 @@
 
 | 目录 | 缺陷 | 预期诊断编码（shared §2.2 ErrCode） | 触发方式 |
 |---|---|---|---|
-| `dangling-ref/` | 选项跳转指向不存在的场景 | `DANGLING_REF` | `locked_door` 的选项 `next: nowhere_hall` |
+| `dangling-ref/` | 选项跳转指向不存在的场景 | `DANGLING_REF` | `locked_door` 的选项 `goto: nowhere_hall` |
 | `dup-id/` | 两个场景文件声明同一场景 ID | `DUP_ID` | `east_gate/checkpoint.yaml` 与 `west_gate/checkpoint.yaml` 均 `id: checkpoint` |
 | `bad-expr/` | 条件表达式括号不配平（非法表达式） | `EXPR_COMPILE` | `shrine` 选项 `showIf` 表达式缺右括号 |
 

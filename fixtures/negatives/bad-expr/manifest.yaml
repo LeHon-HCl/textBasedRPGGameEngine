@@ -1,5 +1,5 @@
 # 负例：非法表达式（预期诊断 EXPR_COMPILE，DD-01）
-gameId: negative-bad-expr
+gameId: negative_bad_expr
 entryScene: shrine
 mainLang: zh-CN
 langs:

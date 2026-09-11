@@ -1,0 +1,30 @@
+# 事件池（EventDef，设计 §2.4 / FR-XPLR）：condition 型与 random 型各 1 条
+- id: ev_wall_whisper
+  where:
+    area: old_town
+    location: gate
+  when:
+    slots: [evening, night]
+  trigger:
+    type: condition
+    require: '!flag.wall_rubbing_taken && npc.old_guard.met'
+  priority: 10
+  mutexGroup: wall_line
+  tags: [general]
+  scene: ev_wall_whisper_scene
+- id: ev_market_rumor
+  where:
+    area: old_town
+    location: market
+  when:
+    slots: [morning, afternoon]
+  trigger:
+    type: random
+    weight: 5
+    require: '!flag.heard_rumor'
+    cooldown:
+      days: 2
+    once: save
+  priority: 0
+  tags: [general]
+  scene: ev_market_rumor_scene

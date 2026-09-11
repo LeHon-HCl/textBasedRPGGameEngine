@@ -1,0 +1,8 @@
+# 统计页（StatsPageDef，设计 §2.4 / FR-STAP-01）：表达式条目 + 文本键条目
+groups:
+  - id: overview
+    nameKey: stats.overview.name
+    entries:
+      - { expr: 'attr.hp', style: bar }
+      - { expr: 'faction.town', style: bar }
+      - { key: stats.overview.playtime, style: text }

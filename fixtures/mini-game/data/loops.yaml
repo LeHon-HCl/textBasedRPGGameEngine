@@ -1,0 +1,9 @@
+# 周目继承/重置清单（LoopConfig，设计 §2.4 / FR-LOOP-04）：先整体 reset，再逐类 apply inherit
+openingScene: arrival
+inherit:
+  attrs: inherit
+  favor: inherit
+  flags: { whitelist: [heard_rumor, wall_rubbing_taken] }
+  items: { keepRatio: 'wallet.town_silver * 0.1' }
+reset:
+  body: reset

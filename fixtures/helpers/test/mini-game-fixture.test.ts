@@ -40,7 +40,7 @@ describe('fixtures/mini-game v1（公共正例夹具，设计 §1.3 原则 6）'
   it('manifest 具备包加载所需的最小字段，entryScene 指向存在的场景', () => {
     const manifest = parsed.get(`${ROOT}/manifest.yaml`);
     expect(manifest).toMatchObject({
-      gameId: 'mini-game',
+      gameId: 'mini_game',
       mainLang: 'zh-CN',
       langs: ['zh-CN'],
       schemaVersion: 1,
@@ -49,8 +49,8 @@ describe('fixtures/mini-game v1（公共正例夹具，设计 §1.3 原则 6）'
     expect(typeof entry === 'string' && sceneIds.has(entry)).toBe(true);
   });
 
-  it('1 个区域下共 3 个场景，目录名与 scene.area 一致（DD-02）', () => {
-    expect(scenes).toHaveLength(3);
+  it('1 个区域下共 5 个场景，目录名与 scene.area 一致（DD-02）', () => {
+    expect(scenes).toHaveLength(5);
     for (const { path, summary } of scenes) {
       const areaDir = path.split('/').at(-2);
       expect(areaDir).toBe('old_town');
@@ -65,11 +65,11 @@ describe('fixtures/mini-game v1（公共正例夹具，设计 §1.3 原则 6）'
     expect(duplicates.size).toBe(0);
   });
 
-  it('全部 choice.next 跳转目标可解析（DANGLING_REF 检测面为空）', () => {
+  it('全部 choice.goto 跳转目标可解析（DANGLING_REF 检测面为空）', () => {
     expect(findDanglingJumps(sceneIds, scenes.map((scene) => scene.summary))).toEqual([]);
   });
 
-  it('词典 zh-CN 覆盖 3 个场景引用的全部文本键（FR-L10N-02 命名空间镜像）', () => {
+  it('词典 zh-CN 覆盖 5 个场景引用的全部文本键（FR-L10N-02 命名空间镜像）', () => {
     expect(scenes.flatMap((scene) => scene.summary.textKeys).length).toBeGreaterThan(0);
     expect(findMissingTextKeys(localeKeys, scenes.map((scene) => scene.summary))).toEqual([]);
   });

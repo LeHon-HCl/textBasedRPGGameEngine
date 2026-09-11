@@ -1,5 +1,5 @@
 # 负例：场景 ID 重复（预期诊断 DUP_ID）
-gameId: negative-dup-id
+gameId: negative_dup_id
 entryScene: checkpoint
 mainLang: zh-CN
 langs:

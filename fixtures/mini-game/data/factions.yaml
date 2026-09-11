@@ -1,0 +1,7 @@
+# 阵营（FactionDef，设计 §2.4 / FR-NPCR-04）：镇民声望与波段阈值
+- id: town
+  nameKey: factions.town.name
+  init: 0
+  thresholds:
+    - { id: hostile, at: -20, nameKey: factions.town.hostile }
+    - { id: welcoming, at: 10, nameKey: factions.town.welcoming }

@@ -1,0 +1,11 @@
+# 事件场景 ev_wall_whisper 的子会话（§4.2）：拓下徽记后经 back 返回主会话
+id: ev_wall_whisper_scene
+area: old_town
+segments:
+  - key: scenes.ev_wall_whisper_scene.open
+choices:
+  - id: take_rubbing
+    textKey: scenes.ev_wall_whisper_scene.choice.take
+    effects:
+      - flag: { name: wall_rubbing_taken }
+      - back: null

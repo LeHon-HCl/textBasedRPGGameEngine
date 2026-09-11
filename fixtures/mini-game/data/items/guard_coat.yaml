@@ -1,0 +1,10 @@
+# 服装（ItemDef garment，设计 §2.4 / FR-ITEM-04）：部位 × 层（1 内 2 中 3 外）× 遮挡度开放字段
+id: guard_coat
+nameKey: items.guard_coat.name
+descKey: items.guard_coat.desc
+type: garment
+garment:
+  part: torso
+  layer: 2
+  coverage: 80
+price: 12

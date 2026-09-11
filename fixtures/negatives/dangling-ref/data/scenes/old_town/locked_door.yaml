@@ -5,4 +5,4 @@ segments:
 choices:
   - id: force_open
     textKey: scenes.locked_door.choice.force_open
-    next: nowhere_hall
+    goto: nowhere_hall

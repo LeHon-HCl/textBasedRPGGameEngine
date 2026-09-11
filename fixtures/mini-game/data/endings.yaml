@@ -1,0 +1,8 @@
+# 结局（EndingDef，设计 §2.4 / FR-LOOP-02 / FR-GAL-02）：离开旧镇后进入下一周目
+- id: quiet_town
+  nameKey: endings.quiet_town.name
+  reachWhen: 'flag.left_town && time.day >= 7'
+  textKey: endings.quiet_town.text
+  nextLoop: true
+  galleryInfo:
+    hintKey: endings.quiet_town.hint

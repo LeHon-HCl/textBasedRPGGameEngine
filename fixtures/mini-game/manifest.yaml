@@ -1,7 +1,7 @@
 # fixtures/mini-game —— 公共正例夹具 v1（设计 §1.3 原则 6、§3.4 独立测试）
 # 用途：所有加载器/运行时/编辑器测试共享的最小游戏包。
 # 纯 YAML 数据；Zod schema 校验由 02 号模块落地后在此生效。
-gameId: mini-game
+gameId: mini_game
 entryScene: arrival
 mainLang: zh-CN
 langs:

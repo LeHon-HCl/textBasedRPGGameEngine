@@ -7,7 +7,7 @@ segments:
 choices:
   - id: go_market
     textKey: scenes.arrival.choice.go_market
-    next: market_street
+    goto: market_street
   - id: go_gate
     textKey: scenes.arrival.choice.go_gate
-    next: town_gate
+    goto: town_gate

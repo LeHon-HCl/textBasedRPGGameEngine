@@ -1,0 +1,16 @@
+# 事件场景 ev_market_rumor 的子会话：听取传闻标记 heard_rumor，离开回到集市
+id: ev_market_rumor_scene
+area: old_town
+segments:
+  - key: scenes.ev_market_rumor_scene.open
+  - key: scenes.ev_market_rumor_scene.close
+    showIf: 'flag.heard_rumor'
+choices:
+  - id: listen_closer
+    textKey: scenes.ev_market_rumor_scene.choice.listen
+    effects:
+      - flag: { name: heard_rumor }
+      - back: null
+  - id: leave
+    textKey: scenes.ev_market_rumor_scene.choice.leave
+    goto: market_street

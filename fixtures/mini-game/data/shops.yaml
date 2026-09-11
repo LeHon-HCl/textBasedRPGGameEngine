@@ -1,0 +1,9 @@
+# 商店（ShopDef，设计 §2.4 / FR-ECON-02）：买价表达式引用声望实现动态定价
+- id: market_stall
+  nameKey: shops.market_stall.name
+  entries:
+    - { item: warm_bun, stock: 5, restock: 2 }
+    - { item: guard_coat, showIf: 'faction.town >= 0' }
+  priceBuy: 'faction.town >= 10 ? 8 : 10'
+  priceSell: '4'
+  currency: town_silver

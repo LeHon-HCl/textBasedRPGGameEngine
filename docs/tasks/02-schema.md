@@ -22,7 +22,7 @@
 - [x] `save.ts`（SaveBlob + SerializedState 校验）+ `profile.ts`
 
 ### C. 质量门禁
-- [ ] 每个 schema ≥1 正例（进入 mini-game 夹具或独立 fixture）+ ≥1 负例（fixtures/negatives 复用）
+- [x] 每个 schema ≥1 正例（进入 mini-game 夹具或独立 fixture）+ ≥1 负例（fixtures/negatives 复用）
 - [ ] schema 快照测试（防意外破坏，NFR-12「只增不改」的守护）
 - [ ] refId 元数据在关键引用字段落位（scene 跳转、bag.itemId、npc 引用等，供 21 号迁移改写）
 

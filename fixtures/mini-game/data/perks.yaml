@@ -1,0 +1,8 @@
+# 开局增益（PerkDef，设计 §2.4 / FR-ACHV-06）：新档经 bootstrap.perks 结算效果
+- id: street_smart
+  nameKey: perks.street_smart.name
+  descKey: perks.street_smart.desc
+  cost: 3
+  effects:
+    - add: { key: 'attr.insight', amount: 2 }
+  repeatable: false

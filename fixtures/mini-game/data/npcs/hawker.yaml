@@ -1,0 +1,6 @@
+# NPC「旧书摊摊贩」（NpcDef 最简形态）：无立绘与好感，仅日程声明
+id: hawker
+nameKey: npcs.hawker.name
+schedule:
+  - at: { slots: [morning, afternoon, evening] }
+    location: market

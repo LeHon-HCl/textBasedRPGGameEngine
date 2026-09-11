@@ -1,0 +1,3 @@
+# 内容分级标签（ContentTagsDef，设计 §2.4 / FR-CGRD-01）：manifest.contentTags 声明引用
+tags:
+  - { id: general, nameKey: tags.general.name, defaultOn: true }

@@ -1,0 +1,11 @@
+# 身体部位模板（BodyDef，设计 §2.4 / FR-BODY-01/04）：取值中性，语义由游戏表达式与文本赋予
+parts:
+  ears:
+    values: [normal, pointed]
+    default: normal
+pronouns:
+  rule: by_part
+  part: ears
+  map:
+    normal: [他, 她]
+    pointed: [她, 她]

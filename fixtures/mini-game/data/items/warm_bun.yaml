@@ -1,0 +1,10 @@
+# 消耗品（ItemDef，设计 §2.4 / FR-ITEM-01/02）：堆叠 + 使用效果 + 基准价
+id: warm_bun
+nameKey: items.warm_bun.name
+descKey: items.warm_bun.desc
+type: consumable
+stack: 5
+useEffect:
+  effects:
+    - add: { key: 'attr.hp', amount: 10 }
+price: 5

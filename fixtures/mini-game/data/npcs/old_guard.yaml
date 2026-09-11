@@ -1,0 +1,15 @@
+# NPC「老卫兵」（NpcDef，设计 §2.4 / FR-NPCR）：日程 × 时段出场 + 好感阈值分段
+id: old_guard
+nameKey: npcs.old_guard.name
+schedule:
+  - at: { slots: [morning, afternoon] }
+    location: gate
+  - at: { slots: [evening, night] }
+    location: market
+    showIf: 'faction.town >= 0'
+favor:
+  min: -20
+  max: 60
+  stages:
+    - { id: stranger, at: 0, nameKey: npcs.favor.stranger }
+    - { id: friendly, at: 20, nameKey: npcs.favor.friendly }

@@ -12,7 +12,7 @@
 export interface SceneSummary {
   id: string;
   area: string;
-  /** 全部 choice.next 跳转目标 */
+  /** 全部 choice.goto 跳转目标 */
   jumps: string[];
   /** 全部引用的文本键（段落 key 与选项 textKey） */
   textKeys: string[];
@@ -61,8 +61,8 @@ export function summarizeScene(data: unknown): SceneSummary {
     if (!isRecord(choice)) continue;
     const textKey = asString(choice['textKey']);
     if (textKey) textKeys.push(textKey);
-    const next = asString(choice['next']);
-    if (next) jumps.push(next);
+    const goto = asString(choice['goto']);
+    if (goto) jumps.push(goto);
     const showIf = asString(choice['showIf']);
     if (showIf) exprs.push(showIf);
   }

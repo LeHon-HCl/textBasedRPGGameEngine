@@ -1,5 +1,5 @@
 # 负例：悬空跳转（预期诊断 DANGLING_REF）
-gameId: negative-dangling-ref
+gameId: negative_dangling_ref
 entryScene: locked_door
 mainLang: zh-CN
 langs:

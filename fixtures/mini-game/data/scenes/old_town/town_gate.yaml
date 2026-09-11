@@ -1,4 +1,4 @@
-# 镇口：无跳转的考察选项与回跳选项
+# 镇口：考察选项（效果 + 条件）与回跳选项；徽记线索与任务「墙中徽记」联动
 id: town_gate
 area: old_town
 segments:
@@ -7,7 +7,9 @@ segments:
 choices:
   - id: inspect_wall
     textKey: scenes.town_gate.choice.inspect_wall
-    showIf: 'attr.insight >= 5'
+    showIf: 'attr.insight >= 2'
+    effects:
+      - add: { key: 'attr.insight', amount: 2 }
   - id: back_market
     textKey: scenes.town_gate.choice.back_market
-    next: market_street
+    goto: market_street

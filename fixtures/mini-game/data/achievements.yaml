@@ -1,0 +1,15 @@
+# 成就（AchievementDef，设计 §2.4 / FR-ACHV-01）：普通型与进度型各 1 条
+- id: first_rumor
+  nameKey: achievements.first_rumor.name
+  when: 'flag.heard_rumor'
+  points: 5
+  type: normal
+  group: exploration
+- id: sharp_eye
+  nameKey: achievements.sharp_eye.name
+  when: 'attr.insight >= 20'
+  points: 10
+  type: progress
+  progressExpr: 'attr.insight'
+  goal: 20
+  group: exploration

@@ -1,0 +1,13 @@
+# 旧镇区域（AreaDef，设计 §2.4 / FR-XPLR-01/02）：地点解锁条件与移动消耗供地图面板使用
+id: old_town
+nameKey: areas.old_town.name
+locations:
+  market:
+    nameKey: areas.old_town.market
+    moveCost: 1
+    mapPos: [120, 80]
+  gate:
+    nameKey: areas.old_town.gate
+    unlockIf: 'attr.insight >= 2'
+    moveCost: 1
+    mapPos: [220, 60]

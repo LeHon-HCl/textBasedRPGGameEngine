@@ -1,0 +1,15 @@
+# 任务「墙中徽记」（QuestDef，设计 §2.4 / FR-QUEST）：两阶段推进 + 效果奖励
+id: wall_rubbing
+giver: old_guard
+acceptIf: 'flag.heard_rumor'
+stages:
+  - id: inspect_wall
+    objectiveKey: quests.wall_rubbing.obj_inspect
+    completeWhen: 'flag.wall_rubbing_taken'
+  - id: report
+    objectiveKey: quests.wall_rubbing.obj_report
+    completeWhen: 'npc.old_guard.talked'
+rewards:
+  - money: { town_silver: 20 }
+  - favor: { npc: old_guard, amount: 15 }
+failWhen: 'time.day > 10 && !flag.wall_rubbing_taken'

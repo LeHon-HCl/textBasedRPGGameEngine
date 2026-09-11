@@ -1,4 +1,4 @@
-# 集市：含条件选项（showIf 引用 attrs.yaml 声明的 insight）
+# 集市：条件选项（showIf）+ 效果序列（effects）+ 跳转（goto，FR-NARR-02）
 id: market_street
 area: old_town
 segments:
@@ -7,8 +7,11 @@ segments:
 choices:
   - id: listen_rumor
     textKey: scenes.market_street.choice.listen_rumor
-    showIf: 'attr.insight > 0'
-    next: town_gate
+    showIf: 'attr.stamina > 0'
+    effects:
+      - add: { key: 'attr.insight', amount: 2 }
+      - flag: { name: heard_rumor }
+    goto: town_gate
   - id: back_arrival
     textKey: scenes.market_street.choice.back_arrival
-    next: arrival
+    goto: arrival
