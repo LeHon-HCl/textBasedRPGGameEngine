@@ -6,6 +6,7 @@ import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
 import type { ExecContext } from '../../src/runtime/exec-context.js';
 import { EffectRegistry } from '../../src/effects/registry.js';
+import { createBuiltinEffectRegistry } from '../../src/effects/builtins/index.js';
 import type { EffectInstructionDef, EffectRegistryOptions } from '../../src/effects/types.js';
 
 /**
@@ -65,6 +66,16 @@ export function makeEffectRuntime(init: EffectRuntimeInit = {}): {
     effectExecutor: registry,
   });
   return { rt, registry };
+}
+
+/** 构造装配全量内置指令的运行时（B 组用例；registryOptions 注入目录与配置） */
+export function makeBuiltinRuntime(
+  init: Omit<EffectRuntimeInit, 'registry' | 'builtins'> = {},
+): ReturnType<typeof makeEffectRuntime> {
+  return makeEffectRuntime({
+    ...init,
+    registry: createBuiltinEffectRegistry(init.registryOptions),
+  });
 }
 
 /** 构造事务上下文（choice 来源 + 固定种子 Rng + 场景定位） */

@@ -1,4 +1,4 @@
-import { EngineError } from '@game/shared';
+import { EngineError, isEngineError } from '@game/shared';
 import type {
   AttrDefs,
   CompiledExpr,
@@ -453,7 +453,13 @@ function internalInvalidContext(detail: string): EngineError {
   });
 }
 
-/** 指令失败的统一包装（EFFECT_FAILED：where 定位 + cause 保留原始错误） */
+/**
+ * 指令失败的统一包装（EFFECT_FAILED：where 定位 + cause 保留原始错误）。
+ * sourceExpr 从 cause 链提升（§3.3「指令失败统一包装
+ * EFFECT_FAILED{where.instruction=i, sourceExpr}」）：指令级归因错误自带
+ * sourceExpr；求值器错误的 where.expr（DD-01 表达式原文）同义提升——UI
+ * 错误卡片直接展示失败的表达式（FR-DEBG-07、NFR-23）。
+ */
 function effectFailed(ctx: ExecContext, index: number, cause: unknown): EngineError {
   const where: Record<string, string> = { source: ctx.source };
   const { scene, event, battle } = ctx.where;
@@ -461,12 +467,24 @@ function effectFailed(ctx: ExecContext, index: number, cause: unknown): EngineEr
   if (event !== undefined) where['event'] = event;
   if (battle !== undefined) where['battle'] = battle;
   where['instruction'] = String(index);
+  const sourceExpr = findSourceExpr(cause, 0);
+  if (sourceExpr !== undefined) where['sourceExpr'] = sourceExpr;
   return new EngineError({
     code: 'EFFECT_FAILED',
     where,
     messageKey: 'error.runtime.effectFailed',
     cause,
   });
+}
+
+/** cause 链向上查找首个表达式原文（sourceExpr / expr 同义；深度封顶防循环引用） */
+function findSourceExpr(cause: unknown, depth: number): string | undefined {
+  if (depth > 5 || !(cause instanceof Error)) return undefined;
+  if (isEngineError(cause)) {
+    const own = cause.where['sourceExpr'] ?? cause.where['expr'];
+    if (own !== undefined) return own;
+  }
+  return findSourceExpr(cause.cause, depth + 1);
 }
 
 /** 从补丁路径提取派生触发域（patch.path[0] === 'player' 的下一级映射） */
