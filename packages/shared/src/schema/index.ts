@@ -20,3 +20,28 @@ export {
 // ---- Manifest（包根清单） ---------------------------------------------------
 export { manifestSchema } from './manifest.js';
 export type { Manifest } from './manifest.js';
+
+// ---- 效果指令（§3.3 指令联合，25 个内置 id + call 扩展） -------------------
+export {
+  effectDataSchema,
+  effectListSchema,
+  effectParamSchemas,
+  effectSchemas,
+} from './effects.js';
+export type {
+  BattleEffectParams,
+  CheckEffectParams,
+  EffectData,
+  EffectList,
+  EffectSeq,
+} from './effects.js';
+
+// ---- AttrDefs（属性定义） ---------------------------------------------------
+export { attrDefsSchema } from './attrs.js';
+export type { AttrDefs, DerivedAttrDef, LevelAttrDef, NumericAttrDef } from './attrs.js';
+
+// ---- SceneDef / AreaDef（场景与区域） ---------------------------------------
+export { choiceSchema, sceneDefSchema, sceneMediaSchema, segmentSchema } from './scene.js';
+export type { ChoiceDef, SceneDef, SegmentDef } from './scene.js';
+export { areaDefSchema, locationDefSchema } from './area.js';
+export type { AreaDef, LocationDef } from './area.js';

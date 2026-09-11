@@ -46,3 +46,34 @@ export {
 } from './schema/index.js';
 /** @since 0.1.0 */
 export type { Manifest } from './schema/index.js';
+/** @since 0.1.0 */
+export {
+  areaDefSchema,
+  attrDefsSchema,
+  choiceSchema,
+  effectDataSchema,
+  effectListSchema,
+  effectParamSchemas,
+  effectSchemas,
+  locationDefSchema,
+  sceneDefSchema,
+  sceneMediaSchema,
+  segmentSchema,
+} from './schema/index.js';
+/** @since 0.1.0 */
+export type {
+  AreaDef,
+  AttrDefs,
+  BattleEffectParams,
+  CheckEffectParams,
+  ChoiceDef,
+  DerivedAttrDef,
+  EffectData,
+  EffectList,
+  EffectSeq,
+  LevelAttrDef,
+  LocationDef,
+  NumericAttrDef,
+  SceneDef,
+  SegmentDef,
+} from './schema/index.js';
