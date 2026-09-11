@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "where": {
+      "type": "object",
+      "properties": {
+        "area": {
+          "type": "string",
+          "refKind": "area"
+        },
+        "location": {
+          "type": "string",
+          "refKind": "location"
+        }
+      },
+      "required": ["area"],
+      "additionalProperties": false
+    },
+    "when": {
+      "type": "object",
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "weekdays": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "trigger": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "condition"
+            },
+            "require": {
+              "type": "string",
+              "minLength": 1
+            },
+            "once": {
+              "type": "string",
+              "enum": ["loop", "save"]
+            }
+          },
+          "required": ["type", "require"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "random"
+            },
+            "weight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "require": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cooldown": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "slots": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "once": {
+              "type": "string",
+              "enum": ["loop", "save"]
+            }
+          },
+          "required": ["type", "weight"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "explore"
+            },
+            "weight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "require": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cooldown": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "slots": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "once": {
+              "type": "string",
+              "enum": ["loop", "save"]
+            }
+          },
+          "required": ["type", "weight"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "mutexGroup": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "scene": {
+      "type": "string",
+      "refKind": "scene"
+    }
+  },
+  "required": ["id", "where", "when", "trigger", "scene"],
+  "additionalProperties": false
+}

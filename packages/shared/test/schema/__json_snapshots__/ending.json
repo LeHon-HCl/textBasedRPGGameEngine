@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "nameKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "reachWhen": {
+      "type": "string",
+      "minLength": 1
+    },
+    "textKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "nextLoop": {
+      "type": "boolean"
+    },
+    "final": {
+      "type": "boolean"
+    },
+    "galleryInfo": {
+      "type": "object",
+      "properties": {
+        "titleKey": {
+          "type": "string",
+          "minLength": 1,
+          "refKind": "text"
+        },
+        "hintKey": {
+          "type": "string",
+          "minLength": 1,
+          "refKind": "text"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "nameKey", "reachWhen", "textKey"],
+  "additionalProperties": false
+}

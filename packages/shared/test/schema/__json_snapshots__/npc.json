@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "nameKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "sprites": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "refKind": "media"
+      }
+    },
+    "schedule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "object",
+            "properties": {
+              "slots": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "weekdays": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "location": {
+            "type": "string",
+            "refKind": "location"
+          },
+          "showIf": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["at", "location"],
+        "additionalProperties": false
+      }
+    },
+    "favor": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "at": {
+                "type": "number"
+              },
+              "nameKey": {
+                "type": "string",
+                "minLength": 1,
+                "refKind": "text"
+              }
+            },
+            "required": ["id", "at", "nameKey"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["min", "max", "stages"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "nameKey"],
+  "additionalProperties": false
+}

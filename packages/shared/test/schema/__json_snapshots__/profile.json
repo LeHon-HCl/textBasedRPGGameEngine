@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "achievements": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "refKind": "achievement"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "unlockedAt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "progress": {
+            "type": "object",
+            "properties": {
+              "cur": {
+                "type": "number"
+              },
+              "goal": {
+                "type": "number"
+              }
+            },
+            "required": ["cur", "goal"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["unlockedAt"],
+        "additionalProperties": false
+      }
+    },
+    "points": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "purchasedPerks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["id", "at"],
+        "additionalProperties": false
+      }
+    },
+    "endings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    }
+  },
+  "required": ["schemaVersion", "achievements", "points", "purchasedPerks", "endings"],
+  "additionalProperties": false
+}

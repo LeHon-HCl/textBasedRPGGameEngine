@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "gameId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "entryScene": {
+      "type": "string",
+      "refKind": "scene"
+    },
+    "mainLang": {
+      "type": "string",
+      "minLength": 1
+    },
+    "langs": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "contentTags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "gameVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-]+)?(?:\\+[0-9A-Za-z-]+)?$"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "minEngineVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-]+)?(?:\\+[0-9A-Za-z-]+)?$"
+    },
+    "redirects": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "credits": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "gameId",
+    "entryScene",
+    "mainLang",
+    "langs",
+    "contentTags",
+    "gameVersion",
+    "schemaVersion",
+    "minEngineVersion",
+    "redirects",
+    "credits"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "openingScene": {
+      "type": "string",
+      "refKind": "scene"
+    },
+    "inherit": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "attrs",
+          "skills",
+          "items",
+          "outfit",
+          "body",
+          "favor",
+          "factions",
+          "flags",
+          "quests",
+          "seen",
+          "time"
+        ]
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "inherit"
+          },
+          {
+            "type": "string",
+            "const": "reset"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "keepRatio": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["keepRatio"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "whitelist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["whitelist"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "blacklist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["blacklist"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "reset": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "attrs",
+          "skills",
+          "items",
+          "outfit",
+          "body",
+          "favor",
+          "factions",
+          "flags",
+          "quests",
+          "seen",
+          "time"
+        ]
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "inherit"
+          },
+          {
+            "type": "string",
+            "const": "reset"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "keepRatio": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["keepRatio"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "whitelist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["whitelist"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "blacklist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["blacklist"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": ["openingScene"],
+  "additionalProperties": false
+}

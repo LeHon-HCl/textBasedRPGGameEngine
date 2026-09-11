@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "nameKey": {
+            "type": "string",
+            "minLength": 1,
+            "refKind": "text"
+          },
+          "defaultOn": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "nameKey", "defaultOn"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["tags"],
+  "additionalProperties": false
+}
