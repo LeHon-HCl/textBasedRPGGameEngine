@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createRng } from '@game/shared';
-import type { EffectData, Rng } from '@game/shared';
+import type { EffectData, ItemDef, Rng } from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
@@ -22,6 +22,30 @@ export const BASE_VERSIONS = { gameVersion: '1.0.0', schemaVersion: 1, minEngine
 
 /** 内置函数注册表（表达式用例共用） */
 export const FX_FN_REGISTRY = createBuiltinFunctionRegistry();
+
+/** 物品目录夹具（B2 用例：equip / garment / normal 三类覆盖） */
+export const ITEMS: ReadonlyMap<string, ItemDef> = new Map(
+  (
+    [
+      { id: 'item_sword', nameKey: 'item.sword', type: 'equip', equipSlot: 'weapon' },
+      { id: 'item_ring', nameKey: 'item.ring', type: 'equip', equipSlot: 'finger' },
+      {
+        id: 'item_cotton_shirt',
+        nameKey: 'item.cotton_shirt',
+        type: 'garment',
+        garment: { part: 'chest', layer: 1 },
+      },
+      {
+        id: 'item_wool_coat',
+        nameKey: 'item.wool_coat',
+        type: 'garment',
+        garment: { part: 'chest', layer: 2 },
+      },
+      { id: 'item_herb', nameKey: 'item.herb', type: 'normal', stack: 9 },
+      { id: 'item_herb_green', nameKey: 'item.herb_green', type: 'normal', stack: 9 },
+    ] as ItemDef[]
+  ).map((def) => [def.id, def]),
+);
 
 /** 测试用表达式编译（内置注册表） */
 export function fxCompile(source: string) {
