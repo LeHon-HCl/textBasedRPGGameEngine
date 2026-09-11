@@ -26,3 +26,9 @@ export { GAME_ID_PATTERN, isValidGameId, refId } from './ids.js';
 export type { EngineErrorInit, ErrCode, SerializedEngineError } from './errors.js';
 /** @since 0.1.0 */
 export { EngineError, isEngineError, serializeError } from './errors.js';
+
+// ---- rng（设计 §2.5：随机数抽象，DD-09） ------------------------------------
+/** @since 0.1.0 */
+export type { Rng, RngState, WeightedEntry } from './rng.js';
+/** @since 0.1.0 */
+export { createRng } from './rng.js';
