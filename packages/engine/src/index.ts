@@ -57,7 +57,7 @@ export type {
 } from './runtime/index.js';
 
 // ---- effects（§3.3 效果指令系统：注册表机制 / 内置指令契约 / 判定规则缝） ----
-export { EffectRegistry } from './effects/index.js';
+export { EffectRegistry, createBuiltinEffectRegistry } from './effects/index.js';
 export type {
   BuiltinDefContext,
   CheckRequest,

@@ -9,6 +9,7 @@
  * - 判定规则契约（§5.1）：CheckRule / CheckRuleResolver 由 15 号实现注入。
  */
 export { EffectRegistry } from './registry.js';
+export { createBuiltinEffectRegistry } from './builtins/index.js';
 export type {
   BuiltinDefContext,
   CheckRequest,

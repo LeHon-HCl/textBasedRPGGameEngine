@@ -37,6 +37,8 @@ export function makeRegistry(
 
 /** 效果运行时初始化项 */
 export interface EffectRuntimeInit {
+  /** 预构建注册表（如 createBuiltinEffectRegistry 产物；优先于 builtins/options） */
+  registry?: EffectRegistry;
   /** 注册表选项（目录 / 容量 / 判定解析器等） */
   registryOptions?: EffectRegistryOptions;
   /** 内置指令集（B 组用例由 createBuiltinEffectRegistry 提供） */
@@ -52,7 +54,7 @@ export function makeEffectRuntime(init: EffectRuntimeInit = {}): {
   rt: GameRuntime;
   registry: EffectRegistry;
 } {
-  const registry = makeRegistry(init.builtins ?? [], init.registryOptions);
+  const registry = init.registry ?? makeRegistry(init.builtins ?? [], init.registryOptions);
   const state = newGameState(
     init.bootstrap ?? { versions: BASE_VERSIONS, attrs: { hp: 30, con: 2 } },
     createRng(42),
