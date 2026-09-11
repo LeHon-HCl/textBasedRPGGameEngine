@@ -17,7 +17,7 @@
 
 - [x] [00 Monorepo 与工程基础设施](00-infra.md)
 - [x] [01 shared 基础类型与错误/随机体系](01-shared-foundation.md)
-- [ ] [02 shared Schema 体系](02-schema.md)（核心域）
+- [x] [02 shared Schema 体系](02-schema.md)（核心域）
 - [ ] [03 表达式语言与求值器](03-expression.md)
 - [ ] [04 GameState 与状态事务](04-game-state.md)
 - [ ] [05 效果指令系统](05-effects.md)（状态类指令）
@@ -27,7 +27,7 @@
 
 ## 里程碑 M1 —— 运行时 MVP（目标：3 区域/10+ 事件/2 任务线 demo）
 
-- [ ] [02 shared Schema 体系](02-schema.md)（系统域收尾）
+- [x] [02 shared Schema 体系](02-schema.md)（系统域收尾）
 - [ ] [05 效果指令系统](05-effects.md)（全量指令）
 - [ ] [06 游戏包加载器](06-package-loader.md)（管线 4–7）
 - [ ] [08 叙事运行时](08-narrative.md)（宏/选项/子会话）
@@ -65,7 +65,7 @@
 - [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（图鉴/统计 C 组收尾）
 - [ ] [27 导出与分发](27-exporter.md)
 - [ ] [22 内容分级与过滤](22-content-filter.md)（M4 验收用例）
-- [ ] [02 shared Schema 体系](02-schema.md)（如 M5 前有 schema 冻结收尾）
+- [x] [02 shared Schema 体系](02-schema.md)（如 M5 前有 schema 冻结收尾）
 
 ## 里程碑 M5 —— P2 功能包（各项独立可延后）
 
