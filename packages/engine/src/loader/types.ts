@@ -1,3 +1,5 @@
+import type { ErrCode, Lang } from '@game/shared';
+
 /**
  * 游戏包加载器类型（设计 §3.4，06 号模块）。
  *
@@ -5,7 +7,7 @@
  * - Electron/Node 宿主为目录（文件树快照）；
  * - 浏览器静态包为导出期预编译的 JSON chunk（§9.1，parse 步退化为直读）；
  * - 编辑器为内存 DocModel（M3 起）。
- * 三宿主共用同一条七步加载管线，本文件只承载输入抽象与诊断契约。
+ * 三宿主共用同一条七步加载管线，本文件承载输入抽象与各阶段的数据契约。
  */
 
 /**
@@ -20,4 +22,48 @@
 export interface PackageSource {
   read(path: string): Promise<Uint8Array | string>;
   list(dir: string): Promise<string[]>;
+}
+
+/**
+ * 加载期诊断（设计 §3.4「步骤 4/5 产出的错误汇总为 Diagnostic[]」）。
+ *
+ * - `severity='error'`：阻断加载（管线收集后抛 EngineError，DD-12 error 级子集）；
+ * - `severity='warning'`：进入 definition.diagnostics 供 UI / 编辑器校验中心
+ *   显示（编辑器复用同一规则集，DD-12）；
+ * - `where`：定位信息（文件 / 数据路径 / 引用 kind 等，值为字符串）；
+ *   其中 `messageKey` 键承载重建 EngineError 的用户可读诊断键（§2.2 三元组）。
+ */
+export interface Diagnostic {
+  readonly severity: 'error' | 'warning';
+  readonly code: ErrCode;
+  readonly where: Readonly<Record<string, string>>;
+}
+
+/** 场景文件聚合条目（DD-02：data/scenes/<areaId>/<sceneId>.yaml 一场景一文件） */
+export interface SceneFileInfo {
+  /** 包内路径（如 data/scenes/old_town/arrival.yaml） */
+  readonly path: string;
+  /** 目录侧声明的区域 id（<areaId> 目录名） */
+  readonly areaDir: string;
+}
+
+/**
+ * collect 步骤产物（管线步骤 1，设计 §3.4「PackageSource 列目录」）：
+ * 目录聚合结果 + 聚合期诊断。场景文件在聚合时解析（提取 id/area 供目录
+ * 一致性比对，解析产物进 {@link sceneDocs} 供后续步骤复用——每文件恰好
+ * 解析一次），其余文件由 parse 步骤统一读取解析。
+ */
+export interface CollectedPackage {
+  readonly sceneFiles: readonly SceneFileInfo[];
+  /** 聚合期解析的场景文档（路径 → YAML/JSON 对象；解析失败者不在此列） */
+  readonly sceneDocs: ReadonlyMap<string, unknown>;
+  /** data/ 下全部数据文件路径（parse 步骤按域约定取用） */
+  readonly dataFiles: readonly string[];
+  /** assets/ 下全部资产文件路径（媒体目录数据源，DD-05） */
+  readonly assetFiles: readonly string[];
+  /** 资产 id（路径去 assets/ 前缀与扩展名；crossRef 媒体引用的核对集） */
+  readonly mediaIds: readonly string[];
+  /** 语言目录 → 语言包文件路径（FR-L10N-02 命名空间镜像） */
+  readonly localeFiles: ReadonlyMap<Lang, readonly string[]>;
+  readonly diagnostics: readonly Diagnostic[];
 }

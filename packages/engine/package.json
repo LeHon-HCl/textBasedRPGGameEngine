@@ -17,6 +17,7 @@
     "@game/shared": "workspace:^",
     "immer": "^11.1.18",
     "jsep": "^1.4.0",
+    "yaml": "^2.9.0",
     "zod": "^4.6.2"
   }
 }

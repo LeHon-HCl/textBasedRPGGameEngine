@@ -6,5 +6,6 @@
  * 七步加载管线（collect → parse → validate → crossRef → compile → scripts →
  * freeze）产出冻结的 GameDefinition；诊断规则与编辑器校验中心同源（DD-12）。
  */
+export { collectPackage, computeAssetId, PACKAGE_PATHS } from './collect.js';
 export { InMemoryPackageSource } from './source-memory.js';
-export type { PackageSource } from './types.js';
+export type { CollectedPackage, Diagnostic, PackageSource, SceneFileInfo } from './types.js';
