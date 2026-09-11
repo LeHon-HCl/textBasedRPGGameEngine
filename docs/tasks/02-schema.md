@@ -19,7 +19,7 @@
 ### B. 系统域（M1 前）
 - [x] `item.ts`（类型/堆叠/装备/服装 garment）+ `body.ts`（parts/pronouns）+ `shop.ts`
 - [x] `achievement.ts` / `perk.ts` / `ending.ts` / `loop.ts` / `tags.ts` / `stats-page.ts`
-- [ ] `save.ts`（SaveBlob + SerializedState 校验）+ `profile.ts`
+- [x] `save.ts`（SaveBlob + SerializedState 校验）+ `profile.ts`
 
 ### C. 质量门禁
 - [ ] 每个 schema ≥1 正例（进入 mini-game 夹具或独立 fixture）+ ≥1 负例（fixtures/negatives 复用）

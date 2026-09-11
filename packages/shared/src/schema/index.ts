@@ -88,3 +88,25 @@ export {
   statsPageDefSchema,
 } from './stats-page.js';
 export type { StatsEntry, StatsEntryStyle, StatsGroup, StatsPageDef } from './stats-page.js';
+
+// ---- SaveBlob / SerializedState / Profile（存档与跨存档 Profile） ------------
+export {
+  clockSchema,
+  flagValueSchema,
+  npcStateSchema,
+  questStateSchema,
+  saveBlobSchema,
+  serializedStateSchema,
+  statusInstanceSchema,
+} from './save.js';
+export type {
+  Clock,
+  FlagValue,
+  NpcState,
+  QuestState,
+  SaveBlob,
+  SerializedState,
+  StatusInstance,
+} from './save.js';
+export { profileAchievementEntrySchema, profileSchema } from './profile.js';
+export type { Profile } from './profile.js';
