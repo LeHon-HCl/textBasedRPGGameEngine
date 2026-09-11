@@ -54,7 +54,14 @@ importers:
 
   packages/editor: {}
 
-  packages/engine: {}
+  packages/engine:
+    dependencies:
+      '@game/shared':
+        specifier: workspace:^
+        version: link:../shared
+      jsep:
+        specifier: ^1.4.0
+        version: 1.4.0
 
   packages/exporter: {}
 
@@ -583,6 +590,10 @@ packages:
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
+
+  jsep@1.4.0:
+    resolution: {integrity: sha512-B7qPcEVE3NVkmSJbaYxvv4cHkVW7DQsZz13pUMrfS8z8Q/BuShN+gcTXrUlPiGqM2/t/EEaI030bpxMqY8gMlw==}
+    engines: {node: '>= 10.16.0'}
 
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
@@ -1403,6 +1414,8 @@ snapshots:
   isexe@2.0.0: {}
 
   js-tokens@10.0.0: {}
+
+  jsep@1.4.0: {}
 
   json-schema-traverse@0.4.1: {}
 

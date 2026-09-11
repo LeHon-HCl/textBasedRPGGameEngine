@@ -12,5 +12,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@game/shared": "workspace:^",
+    "jsep": "^1.4.0"
   }
 }

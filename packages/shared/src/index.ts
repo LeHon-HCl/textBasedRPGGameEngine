@@ -27,6 +27,22 @@ export type { EngineErrorInit, ErrCode, SerializedEngineError } from './errors.j
 /** @since 0.1.0 */
 export { EngineError, isEngineError, serializeError } from './errors.js';
 
+// ---- expr（设计 §2.3：表达式语言规格，DD-01；03 号模块配套） ------------------
+/** @since 0.1.0 */
+export type {
+  CompiledExpr,
+  EvalContext,
+  ExprBinaryOp,
+  ExprFunctionDef,
+  ExprFunctionRegistry,
+  ExprNode,
+  ExprScope,
+  ExprSkillValue,
+  ExprTimeView,
+  ExprUnaryOp,
+  VarRef,
+} from './expr.js';
+
 // ---- rng（设计 §2.5：随机数抽象，DD-09） ------------------------------------
 /** @since 0.1.0 */
 export type { Rng, RngState, WeightedEntry } from './rng.js';
