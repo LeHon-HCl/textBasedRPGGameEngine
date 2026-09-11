@@ -44,6 +44,8 @@ const R1_MESSAGE =
 const R2_IMPORT_MESSAGE = '设计 §1.2 R2：engine 只依赖 shared，禁止 React 与其他 workspace 包。';
 const DEEP_IMPORT_MESSAGE =
   '导出约定（设计 §10.4）：workspace 包只允许从包名根导入（@game/<pkg>），禁止深入包内路径。';
+const BARE_THROW_MESSAGE =
+  '设计 §2.2（NFR-23）：禁止裸 throw new Error()，错误必须通过 EngineError 携带 code/where/messageKey 三元组。';
 
 export default tseslint.config(
   {
@@ -57,7 +59,9 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    // R1：shared 零依赖。
+    // R1：shared 不依赖任何其他包（workspace 包与 react 系运行时库一律禁止）。
+    // 唯一放行的运行时依赖是 zod（设计 §2「shared 零运行时依赖（仅 zod）」，
+    // 供 §2.1 refId 辅助器与 §2.4 schema 体系使用）；zod 不在本规则的受限模式内。
     files: ['packages/shared/**/*.ts', 'packages/shared/**/*.tsx'],
     rules: {
       'no-restricted-imports': [
@@ -94,6 +98,21 @@ export default tseslint.config(
           name,
           message: '设计 §1.2 R2：engine 禁止使用 DOM/BOM 全局，保持无 DOM 可在 Node 运行。',
         })),
+      ],
+    },
+  },
+  {
+    // 设计 §2.2 / NFR-23：shared 与 engine 的 src 禁止裸 throw new Error，
+    // 错误必须经 EngineError 携带 code/where/messageKey 三元组。
+    // 仅限定 src（测试文件可自由构造负例）；内建子类型（TypeError 等）不在本约束内。
+    files: ['packages/shared/src/**/*.ts', 'packages/engine/src/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "ThrowStatement > NewExpression[callee.name='Error']",
+          message: BARE_THROW_MESSAGE,
+        },
       ],
     },
   },
