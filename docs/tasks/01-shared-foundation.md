@@ -27,5 +27,5 @@
 - [x] `fork()` 分叉不回写语义测试
 
 ## 完成定义
-- [ ] 全部子任务勾选，shared 覆盖率 ≥ 90%（§10.1 门禁）
-- [ ] `shared/src/index.ts` 公开 API 冻结清单初版（semver 标注）
+- [x] 全部子任务勾选，shared 覆盖率 ≥ 90%（§10.1 门禁）
+- [x] `shared/src/index.ts` 公开 API 冻结清单初版（semver 标注）
