@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { createRng } from '@game/shared';
-import type { EffectData, FactionDef, ItemDef, NpcDef, QuestDef, Rng } from '@game/shared';
+import type { BodyDef, EffectData, FactionDef, ItemDef, NpcDef, QuestDef, Rng } from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
 import type { ExecContext } from '../../src/runtime/exec-context.js';
 import { EffectRegistry } from '../../src/effects/registry.js';
 import { createBuiltinEffectRegistry } from '../../src/effects/builtins/index.js';
+import type { CheckRule } from '../../src/effects/types.js';
 import type { EffectInstructionDef, EffectRegistryOptions } from '../../src/effects/types.js';
 
 /**
@@ -125,6 +126,36 @@ export const QUESTS: ReadonlyMap<string, QuestDef> = new Map(
     ] as QuestDef[]
   ).map((def) => [def.id, def]),
 );
+
+/** 身体定义夹具（B6 用例：set_body 值域校验，FR-BODY-01） */
+export const BODY_DEFS: BodyDef = {
+  parts: {
+    build: { values: ['slender', 'sturdy'], default: 'slender' },
+    hair: { values: ['short', 'long'], default: 'short' },
+  },
+};
+
+/**
+ * 判定规则测试桩（§5.1 CheckRule 契约）：返回脚本化结果——真正的 coc/generic
+ * 规则实现属 15 号；rolls 记录经注入 rng 消耗一次随机（DD-09 确定性）。
+ */
+export function scriptedCheckRule(result: {
+  outcome: 'success' | 'fail';
+  level: 'critical' | 'extreme' | 'hard' | 'normal' | 'fail' | 'fumble';
+}): CheckRule {
+  return {
+    id: 'test_scripted',
+    resolve: (req, rng) => {
+      const roll = rng.int(1, 100);
+      return {
+        rolls: [roll],
+        level: result.level,
+        outcome: result.outcome,
+        detail: { requested: req.value },
+      };
+    },
+  };
+}
 
 /** 测试用表达式编译（内置注册表） */
 export function fxCompile(source: string) {
