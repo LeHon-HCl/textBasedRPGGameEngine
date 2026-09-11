@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createRng } from '@game/shared';
-import type { EffectData, ItemDef, Rng } from '@game/shared';
+import type { EffectData, FactionDef, ItemDef, NpcDef, Rng } from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
@@ -44,6 +44,56 @@ export const ITEMS: ReadonlyMap<string, ItemDef> = new Map(
       { id: 'item_herb', nameKey: 'item.herb', type: 'normal', stack: 9 },
       { id: 'item_herb_green', nameKey: 'item.herb_green', type: 'normal', stack: 9 },
     ] as ItemDef[]
+  ).map((def) => [def.id, def]),
+);
+
+/** NPC 目录夹具（B3 用例：好感区间 + 阶段阈值；mira 无好感系统） */
+export const NPCS: ReadonlyMap<string, NpcDef> = new Map(
+  (
+    [
+      {
+        id: 'npc_raven',
+        nameKey: 'npc.raven.name',
+        favor: {
+          min: -100,
+          max: 100,
+          stages: [
+            { id: 'stage_stranger', at: -100, nameKey: 'npc.raven.stage.stranger' },
+            { id: 'stage_friendly', at: 30, nameKey: 'npc.raven.stage.friendly' },
+            { id: 'stage_bonded', at: 70, nameKey: 'npc.raven.stage.bonded' },
+          ],
+        },
+      },
+      {
+        id: 'npc_wren',
+        nameKey: 'npc.wren.name',
+        favor: {
+          min: -100,
+          max: 100,
+          stages: [{ id: 'stage_active', at: 0, nameKey: 'npc.wren.stage.active' }],
+        },
+      },
+      { id: 'npc_mira', nameKey: 'npc.mira.name' },
+    ] as NpcDef[]
+  ).map((def) => [def.id, def]),
+);
+
+/** 阵营目录夹具（B3 用例：波段阈值；guild 无阈值表） */
+export const FACTIONS: ReadonlyMap<string, FactionDef> = new Map(
+  (
+    [
+      {
+        id: 'faction_town',
+        nameKey: 'faction.town.name',
+        init: 0,
+        thresholds: [
+          { id: 'band_hostile', at: -50, nameKey: 'faction.town.band.hostile' },
+          { id: 'band_neutral', at: 0, nameKey: 'faction.town.band.neutral' },
+          { id: 'band_honored', at: 50, nameKey: 'faction.town.band.honored' },
+        ],
+      },
+      { id: 'faction_guild', nameKey: 'faction.guild.name', init: 10 },
+    ] as FactionDef[]
   ).map((def) => [def.id, def]),
 );
 

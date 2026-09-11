@@ -1,4 +1,4 @@
-import type { TextKey } from '@game/shared';
+import type { GameId, TextKey } from '@game/shared';
 
 /**
  * EngineEvent 判别联合（设计 §3.1 ExecOutcome.events、DD-06 交互面；04 任务 B2）。
@@ -84,7 +84,39 @@ export interface SnapshotWarnEvent {
 }
 
 /**
+ * 好感阶段变化（FR-NPCR-02，§4.6 favor 指令 emit，05 任务 B3）：
+ * favor 指令 clamp 后按阈值表（FavorDef.stages）更新 stage，变化即发出。
+ * 作者钩子 / 事件条件（12 号）可订阅；from/to 为阶段 id，未达任何阶段为
+ * undefined。
+ */
+export interface FavorStageChangedEvent {
+  type: 'favor_stage_changed';
+  npc: GameId;
+  from: string | undefined;
+  to: string | undefined;
+}
+
+/**
+ * 声望波段变化（FR-NPCR-04，§4.6 reputation 指令 emit，05 任务 B3）：
+ * reputation 指令按阈值表（FactionDef.thresholds）计算波段，变化即发出。
+ * 商店定价（§5.3）引用声望仍为普通表达式，本事件仅供订阅与呈现。
+ */
+export interface ReputationBandChangedEvent {
+  type: 'reputation_band_changed';
+  faction: GameId;
+  from: string | undefined;
+  to: string | undefined;
+}
+
+/**
  * 引擎事件全集（04 号核心成员；后续模块在同一文件追加判别成员并纳入本联合）。
  */
 export type EngineEvent =
-  StatChangedEvent | NotifyEvent | UnlockEvent | CheckResultEvent | MediaEvent | SnapshotWarnEvent;
+  | StatChangedEvent
+  | NotifyEvent
+  | UnlockEvent
+  | CheckResultEvent
+  | MediaEvent
+  | SnapshotWarnEvent
+  | FavorStageChangedEvent
+  | ReputationBandChangedEvent;

@@ -46,9 +46,11 @@ export type {
 export type {
   CheckResultEvent,
   EngineEvent,
+  FavorStageChangedEvent,
   MediaEvent,
   MediaIntent,
   NotifyEvent,
+  ReputationBandChangedEvent,
   SnapshotWarnEvent,
   StatChangedEvent,
   UnlockEvent,
