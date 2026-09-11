@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createRng } from '@game/shared';
-import type { EffectData, FactionDef, ItemDef, NpcDef, Rng } from '@game/shared';
+import type { EffectData, FactionDef, ItemDef, NpcDef, QuestDef, Rng } from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
@@ -94,6 +94,35 @@ export const FACTIONS: ReadonlyMap<string, FactionDef> = new Map(
       },
       { id: 'faction_guild', nameKey: 'faction.guild.name', init: 10 },
     ] as FactionDef[]
+  ).map((def) => [def.id, def]),
+);
+
+/** 任务目录夹具（B5 用例：三阶段任务，阶段序驱动 advance 缺省推导） */
+export const QUESTS: ReadonlyMap<string, QuestDef> = new Map(
+  (
+    [
+      {
+        id: 'quest_delivery',
+        giver: 'npc_raven',
+        stages: [
+          {
+            id: 'stage_pickup',
+            objectiveKey: 'quest.delivery.pickup',
+            completeWhen: 'flag("pkg")',
+          },
+          {
+            id: 'stage_deliver',
+            objectiveKey: 'quest.delivery.deliver',
+            completeWhen: 'flag("delivered")',
+          },
+          {
+            id: 'stage_report',
+            objectiveKey: 'quest.delivery.report',
+            completeWhen: 'flag("reported")',
+          },
+        ],
+      },
+    ] as QuestDef[]
   ).map((def) => [def.id, def]),
 );
 
