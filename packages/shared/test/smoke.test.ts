@@ -12,6 +12,6 @@ describe('shared 包工具链冒烟', () => {
   });
 
   it('Vitest 断言与模块语义在 node 环境正常工作', () => {
-    expect(Object.keys(sharedEntry)).toEqual([]);
+    expect(Object.keys(sharedEntry)).toContain('refId');
   });
 });

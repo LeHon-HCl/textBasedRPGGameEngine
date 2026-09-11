@@ -12,7 +12,7 @@
 ## 任务清单
 
 ### A. ID 与引用类型（§2.1）
-- [ ] `GameId` / `TextKey` / `Lang` / `ExprSource` / `RefKind` 类型与 `refId(kind)` Zod 辅助器
+- [x] `GameId` / `TextKey` / `Lang` / `ExprSource` / `RefKind` 类型与 `refId(kind)` Zod 辅助器
 - [ ] ID 命名规则校验函数（`[a-z][a-z0-9_]*`）+ 单测（合法/非法样例）
 
 ### B. 错误体系（§2.2）
