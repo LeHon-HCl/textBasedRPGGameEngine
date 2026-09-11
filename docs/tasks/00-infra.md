@@ -12,7 +12,7 @@
 ## 任务清单
 
 ### A. 工作区骨架
-- [ ] `pnpm-workspace.yaml` + 根 `package.json`，创建 `packages/{shared,engine,runtime-ui,editor,exporter}`、`apps/{player-demo,editor-app}`、`fixtures/` 目录骨架
+- [x] `pnpm-workspace.yaml` + 根 `package.json`，创建 `packages/{shared,engine,runtime-ui,editor,exporter}`、`apps/{player-demo,editor-app}`、`fixtures/` 目录骨架
 - [ ] TypeScript 基线：根 `tsconfig.base.json`（strict、NodeNext/ESM）+ 各包继承；`pnpm -w build` 可跑通空包
 - [ ] 按 §10.4 建立 `shared/src`、`engine/src` 子目录占位与 `index.ts` 导出约定
 

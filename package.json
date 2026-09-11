@@ -1,0 +1,11 @@
+{
+  "name": "text-based-rpg-game-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "文字 RPG 冒险游戏引擎：纯前端 monorepo（shared/engine/runtime-ui/editor/exporter）",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=20"
+  }
+}
