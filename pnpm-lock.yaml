@@ -48,6 +48,9 @@ importers:
 
   fixtures/helpers:
     devDependencies:
+      '@game/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
       yaml:
         specifier: ^2.9.0
         version: 2.9.0

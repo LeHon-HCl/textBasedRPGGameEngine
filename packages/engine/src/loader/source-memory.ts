@@ -1,28 +1,32 @@
+import { EngineError } from '@game/shared';
+import type { PackageSource } from './types.js';
+
 /**
- * InMemoryPackageSource —— 设计 §3.4 PackageSource 抽象的内存实现。
+ * InMemoryPackageSource —— {@link PackageSource} 的内存实现（设计 §3.4 独立测试）。
  *
- * 实现正式接口 `PackageSource`（engine/src/loader/types.ts，06 号模块定义为
- * 三宿主共用的包输入抽象）；以 Record<path, content> 构造，无需真实文件系统
- * （设计 §1.3「持久化倒置 / 夹具游戏包」在包加载侧的对应物，供 03/06 号模块
- * 的加载器测试复用）。接口兼容性由本目录测试守护。
+ * 以 `Record<path, content>` 构造，无需真实文件系统（设计 §1.3「夹具游戏包 /
+ * 持久化倒置」在包输入侧的对应物），供加载管线测试与编辑器内存宿主复用。
+ * fixtures/helpers 下的同名实现保持同一形状（接口兼容性由双方测试守护）。
  *
  * 语义约定：
- * - 路径一律正斜杠、以包根为基准；构造与查询时规范化（去 ./ 前缀、
- *   去尾随 /、统一反斜杠）；
- * - read：文件存在 → 原样返回构造内容；指向目录或不存在 → reject；
- * - list：目录存在 → 返回直接子项的相对路径（文件与子目录，字典序）；
- *   根目录传 ''；目录不存在 → reject。
+ * - 构造与查询时规范化路径（统一反斜杠、去 `./` 前缀、去尾随 `/`）；
+ * - read：文件存在 → 原样返回构造内容；指向目录或不存在 → reject（EngineError）；
+ * - list：目录存在 → 返回直接子项的相对路径（文件与子目录，字典序）；包根传 `''`；
+ *   目录不存在 → reject。
  */
-
-import type { PackageSource } from '@game/engine';
-
-export type { PackageSource };
 
 function normalizePath(input: string): string {
   let path = input.replaceAll('\\', '/');
   while (path.startsWith('./')) path = path.slice(2);
-  path = path.replace(/^\/+/, '').replace(/\/+$/, '');
-  return path;
+  return path.replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
+function sourceError(detail: string, where: Record<string, string>): EngineError {
+  return new EngineError({
+    code: 'SCHEMA_INVALID',
+    where: { ...where, detail },
+    messageKey: 'error.loader.sourceUnavailable',
+  });
 }
 
 export class InMemoryPackageSource implements PackageSource {
@@ -34,10 +38,10 @@ export class InMemoryPackageSource implements PackageSource {
     for (const [rawPath, content] of Object.entries(files)) {
       const path = normalizePath(rawPath);
       if (path.length === 0) {
-        throw new Error('InMemoryPackageSource: 文件路径不能为空');
+        throw sourceError('InMemoryPackageSource: 文件路径不能为空', {});
       }
       if (normalized.has(path)) {
-        throw new Error(`InMemoryPackageSource: 重复文件路径 ${path}`);
+        throw sourceError('InMemoryPackageSource: 重复文件路径', { path });
       }
       normalized.set(path, content);
     }
@@ -59,11 +63,11 @@ export class InMemoryPackageSource implements PackageSource {
   async read(path: string): Promise<Uint8Array | string> {
     const key = normalizePath(path);
     if (this.#dirs.has(key)) {
-      throw new Error(`InMemoryPackageSource: ${key} 是目录，不能作为文件读取`);
+      throw sourceError('包源目标为目录，不能作为文件读取', { path: key });
     }
     const content = this.#files.get(key);
     if (content === undefined) {
-      throw new Error(`InMemoryPackageSource: 文件不存在 ${key}`);
+      throw sourceError('包源中不存在该文件', { path: key });
     }
     return content;
   }
@@ -71,7 +75,7 @@ export class InMemoryPackageSource implements PackageSource {
   async list(dir: string): Promise<string[]> {
     const key = normalizePath(dir);
     if (key.length > 0 && !this.#dirs.has(key)) {
-      throw new Error(`InMemoryPackageSource: 目录不存在 ${key}`);
+      throw sourceError('包源中不存在该目录', { dir: key });
     }
     const prefix = key.length === 0 ? '' : `${key}/`;
     const children = new Set<string>();
