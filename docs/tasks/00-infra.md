@@ -23,7 +23,7 @@
 
 ### C. 公共夹具
 - [x] `fixtures/mini-game/` 最小游戏包 v1：manifest + 1 区域 3 场景（含跳转与文本键）+ 词典 zh-CN
-- [ ] `fixtures/negatives/` 负例目录骨架（dangling-ref / dup-id / bad-expr 各 1 例）
+- [x] `fixtures/negatives/` 负例目录骨架（dangling-ref / dup-id / bad-expr 各 1 例）
 - [ ] 夹具加载辅助测试工具（`InMemoryPackageSource` 构造器，供 06 号模块复用）
 
 ## 完成定义

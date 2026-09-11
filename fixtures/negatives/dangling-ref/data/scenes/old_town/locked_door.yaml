@@ -1,0 +1,8 @@
+id: locked_door
+area: old_town
+segments:
+  - key: scenes.locked_door.door
+choices:
+  - id: force_open
+    textKey: scenes.locked_door.choice.force_open
+    next: nowhere_hall

@@ -1,0 +1,8 @@
+id: shrine
+area: old_town
+segments:
+  - key: scenes.shrine.altar
+choices:
+  - id: pray
+    textKey: scenes.shrine.choice.pray
+    showIf: 'flag(sealed_gate) && (attr.insight > 5'

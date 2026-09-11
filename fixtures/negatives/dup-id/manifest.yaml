@@ -1,0 +1,13 @@
+# 负例：场景 ID 重复（预期诊断 DUP_ID）
+gameId: negative-dup-id
+entryScene: checkpoint
+mainLang: zh-CN
+langs:
+  - zh-CN
+contentTags:
+  - general
+gameVersion: 1.0.0
+schemaVersion: 1
+minEngineVersion: 0.1.0
+redirects: {}
+credits: 负例夹具：唯一缺陷为两个场景文件声明同一 ID checkpoint。

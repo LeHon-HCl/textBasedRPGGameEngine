@@ -1,0 +1,7 @@
+id: checkpoint
+area: west_gate
+segments:
+  - key: scenes.checkpoint.west
+choices:
+  - id: look_around
+    textKey: scenes.checkpoint.choice.look_around
