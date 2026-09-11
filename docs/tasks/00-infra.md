@@ -27,6 +27,6 @@
 - [x] 夹具加载辅助测试工具（`InMemoryPackageSource` 构造器，供 06 号模块复用）
 
 ## 完成定义
-- [ ] 全部子任务勾选，`pnpm -w lint && pnpm -w test` 全绿
+- [x] 全部子任务勾选，`pnpm -w lint && pnpm -w test` 全绿
 - [ ] CI 首次运行通过
 - [x] 依赖规则违规能被 lint 阻断（写一个故意违规的临时用例验证后删除）
