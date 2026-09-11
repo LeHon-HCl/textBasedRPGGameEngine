@@ -10,3 +10,4 @@ export { parseExpr } from './parse.js';
 export { compileExpr, exprCompileError } from './compile.js';
 export type { CompileOptions } from './compile.js';
 export { EXPR_ROOTS } from './paths.js';
+export { evalExpr, truthy } from './eval.js';
