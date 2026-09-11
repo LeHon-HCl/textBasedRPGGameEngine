@@ -17,7 +17,7 @@
 - [x] `event.ts`（trigger 三型/冷却/once/mutex）+ `quest.ts`（阶段/奖励/冲突）+ `npc.ts`（日程/好感阈值）+ `faction.ts`
 
 ### B. 系统域（M1 前）
-- [ ] `item.ts`（类型/堆叠/装备/服装 garment）+ `body.ts`（parts/pronouns）+ `shop.ts`
+- [x] `item.ts`（类型/堆叠/装备/服装 garment）+ `body.ts`（parts/pronouns）+ `shop.ts`
 - [ ] `achievement.ts` / `perk.ts` / `ending.ts` / `loop.ts` / `tags.ts` / `stats-page.ts`
 - [ ] `save.ts`（SaveBlob + SerializedState 校验）+ `profile.ts`
 

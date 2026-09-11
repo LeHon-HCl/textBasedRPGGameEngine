@@ -61,3 +61,11 @@ export {
 export type { FavorDef, FavorStage, NpcDef, ScheduleEntry } from './npc.js';
 export { factionDefSchema, factionThresholdSchema } from './faction.js';
 export type { FactionDef, FactionThreshold } from './faction.js';
+
+// ---- ItemDef / BodyDef / ShopDef（物品、身体、商店） -------------------------
+export { garmentDefSchema, itemDefSchema, itemTypeSchema } from './item.js';
+export type { GarmentDef, ItemDef, ItemType } from './item.js';
+export { bodyDefSchema, bodyPartDefSchema, pronounsDefSchema } from './body.js';
+export type { BodyDef, BodyPartDef, PronounsDef } from './body.js';
+export { shopDefSchema, shopEntrySchema } from './shop.js';
+export type { ShopDef, ShopEntry } from './shop.js';
