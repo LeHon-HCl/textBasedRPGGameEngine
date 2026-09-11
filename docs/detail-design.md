@@ -35,7 +35,7 @@
 
 | # | 决策 | 内容 | 关闭的开放问题 | 影响章节 |
 |---|---|---|---|---|
-| DD-01 | 表达式 v1 规格与错误语义 | 函数白名单冻结为 18 个（§2.3）；编译期未知变量/函数/参数即报错阻断加载；运行期严格抛错（含除零），由指令执行器定位到「场景+指令序号」。OQ-01 关闭 | OQ-01 | §2.3、§3.2 |
+| DD-01 | 表达式 v1 规格与错误语义 | 函数白名单冻结为 20 个（§2.3 表格为规范清单；2026-09-12 勘误：原文误计 18）；编译期未知变量/函数/参数即报错阻断加载；运行期严格抛错（含除零），由指令执行器定位到「场景+指令序号」。OQ-01 关闭 | OQ-01 | §2.3、§3.2 |
 | DD-02 | 场景数据文件粒度 | `data/scenes/<areaId>/<sceneId>.yaml` 一场景一文件：Git diff 干净、编辑器并发写安全、加载器按目录聚合。OQ-02 关闭 | OQ-02 | §3.4 |
 | DD-03 | 编辑器工作区形态 | 直接读写游戏包文件目录（经 FSAdapter 抽象），不引入 IndexedDB 工作区；浏览器降级为 File System Access API，再降级为只读目录 + 导出 zip。OQ-03 关闭 | OQ-03 | §7.2 |
 | DD-04 | 持久化依赖倒置 | engine 仅定义 `PersistenceAdapter` / `ProfileStore` 接口；Dexie（IndexedDB）实现在 runtime-ui。engine 保持无 DOM、可在 Node 中以内存适配器单测 | — | §5.6、§6.7 |
@@ -242,7 +242,7 @@ export interface ExprFunctionDef {
 | `quest` | `state.quests`（`.state` / `.stage`） |
 | `wallet` | `state.player.wallet` |
 
-**内置函数 v1 清单（冻结 18 个，DD-01）**：
+**内置函数 v1 清单（冻结 20 个，DD-01）**：
 
 | 类别 | 函数 |
 |---|---|
@@ -252,7 +252,7 @@ export interface ExprFunctionDef {
 | 进度查询 | `quest(id)`、`loop()`、`day()`、`weekday()`、`slot()`、`points()` |
 | 数值 | `clamp(v,min,max)`、`min(a,b)`、`max(a,b)` |
 
-（`min/max` 与 `clamp` 共 3 个，加上前四类 15 个，合计 18。新增函数必须升 schemaVersion 并更新本表——这是 M0 冻结范围。）
+（随机 3 + 物品/服装 3 + 状态查询 5 + 进度查询 6 + 数值 3，合计 20。新增函数必须升 schemaVersion 并更新本表——这是 M0 冻结范围。）
 
 **错误语义（严格模式，DD-01）**：
 
@@ -419,7 +419,7 @@ sequenceDiagram
 - 求值：自写解释器（AST walk，无 eval/new Function，NFR-19）；`EvalContext` 提供 `state` 只读视图 + `Rng` + 函数注册表。
 - 路径解析：按 §2.3 白名单映射到状态；未知 root 编译期报错，运行期已知 root 但缺 key → `EVAL_ERROR`（严格语义）。
 - 性能：AST 不可变可缓存；`CompiledExpr.refs` 供事件池构建脏标记索引（§4.4），求值器本身无缓存职责。
-- 函数注册表：`FunctionRegistry` 不可变 Map；内置 18 个（DD-01）+ 脚本扩展（`x.*`，加载时由 ScriptHost 注入后**冻结**）。
+- 函数注册表：`FunctionRegistry` 不可变 Map；内置 20 个（DD-01）+ 脚本扩展（`x.*`，加载时由 ScriptHost 注入后**冻结**）。
 
 **独立测试**：纯函数表驱动测试——每运算符/优先级/短路/三元/白名单/错误语义用例；随机函数用固定种子 Rng 断言序列。
 
@@ -708,7 +708,7 @@ export function wear(state, garment: ItemDef, part: string, layer: number): Wear
 // 遮挡/语义字段（coverage 等）引擎不解释（中立性，需求 §1.2 约束 2）
 ```
 
-- 背包操作：`give/take` 指令内部走 `Inventory` 纯函数集（容量/堆叠/关键道具分区，FR-ITEM-02）；失败即 `EFFECT_FAILED`（如容量满），由作者在效果序列前置 `if has space` 处理——引擎提供 `fn.bag_free()`? 不新增（18 函数冻结）：容量满时 take/give 报错即可，预检用 `count()` 比较 `bag_capacity` 属性。
+- 背包操作：`give/take` 指令内部走 `Inventory` 纯函数集（容量/堆叠/关键道具分区，FR-ITEM-02）；失败即 `EFFECT_FAILED`（如容量满），由作者在效果序列前置 `if has space` 处理——引擎提供 `fn.bag_free()`? 不新增（20 函数冻结）：容量满时 take/give 报错即可，预检用 `count()` 比较 `bag_capacity` 属性。
 - 装备修正（FR-ITEM-03）：`ItemDef.equipMods: {attr: expr}`，派生属性重算（§3.1）时并入。
 - 换装预设（FR-ITEM-05）：`world.flags` 存预设名→快照（outfit 全量），`wear` 指令带 `preset` 参数应用。
 - 时效/耐久（FR-ITEM-06）：`garment.durability` / `expiresAfterSlots` 字段存在则由管线步骤 2/3 tick，归零 emit `ItemExpired`（作者决定后果），字段开放不强制。
