@@ -27,4 +27,4 @@
 - [x] refId 元数据在关键引用字段落位（scene 跳转、bag.itemId、npc 引用等，供 21 号迁移改写）
 
 ## 完成定义
-- [ ] 全部子任务勾选，schema 测试全绿；`pnpm -w build` 产出类型可被 engine 导入
+- [x] 全部子任务勾选，schema 测试全绿；`pnpm -w build` 产出类型可被 engine 导入
