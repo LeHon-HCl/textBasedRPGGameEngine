@@ -28,3 +28,28 @@ export type { DerivedEvalOptions, DerivedTriggerDomain } from './state/index.js'
 export { DEFAULT_META_VIEW, buildExprScope, defaultTimeView } from './state/index.js';
 export type { ExprScopeViews, MetaView, TimeViewProvider } from './state/index.js';
 export { restoreState, serializeState } from './state/index.js';
+
+// ---- runtime（§3.1 状态事务核心：GameRuntime / 事务上下文与产出 / 引擎事件） ----
+export { GameRuntime } from './runtime/index.js';
+export type { GameRuntimeOptions } from './runtime/index.js';
+export type {
+  EffectContext,
+  EffectExecution,
+  EffectExecutor,
+  ExecContext,
+  ExecOutcome,
+  ExecSource,
+  JumpTarget,
+} from './runtime/index.js';
+export type {
+  CheckResultEvent,
+  EngineEvent,
+  MediaEvent,
+  MediaIntent,
+  NotifyEvent,
+  SnapshotWarnEvent,
+  StatChangedEvent,
+  UnlockEvent,
+  UnlockKind,
+  Unsubscribe,
+} from './runtime/index.js';
