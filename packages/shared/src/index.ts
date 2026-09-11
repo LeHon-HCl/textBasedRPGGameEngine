@@ -20,3 +20,9 @@
 export type { ExprSource, GameId, Lang, RefKind, TextKey } from './ids.js';
 /** @since 0.1.0 */
 export { GAME_ID_PATTERN, isValidGameId, refId } from './ids.js';
+
+// ---- errors（设计 §2.2：错误体系，NFR-23） ---------------------------------
+/** @since 0.1.0 */
+export type { EngineErrorInit, ErrCode } from './errors.js';
+/** @since 0.1.0 */
+export { EngineError, isEngineError } from './errors.js';

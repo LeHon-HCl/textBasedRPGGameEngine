@@ -16,7 +16,7 @@
 - [x] ID 命名规则校验函数（`[a-z][a-z0-9_]*`）+ 单测（合法/非法样例）
 
 ### B. 错误体系（§2.2）
-- [ ] `ErrCode` 全集 + `EngineError` 构造器（code/where/messageKey 三元组）
+- [x] `ErrCode` 全集 + `EngineError` 构造器（code/where/messageKey 三元组）
 - [ ] ESLint 自定义规则或约束：包内禁止裸 `throw new Error`（先以 review 约定 + 测试占位，规则随 00 收尾）
 - [ ] 错误序列化（诊断导出用，脱敏）+ 单测
 
