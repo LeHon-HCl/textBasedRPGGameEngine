@@ -10,4 +10,20 @@
  * - engine 只依赖 shared，禁止 React 与 DOM API（设计 §1.2 R2，lint 强制）；
  * - 公开 API 文档化并遵循语义化版本（NFR-13）。
  */
-export {};
+
+// ---- state（§3.1 状态树：GameState / 新档初始化 / 派生重算 / 求值作用域投影） ----
+export type {
+  BagEntry,
+  CheckpointMeta,
+  GameState,
+  Outfit,
+  PlayerSettings,
+  ReadStats,
+  SkillValue,
+} from './state/index.js';
+export { DEFAULT_PLAYER_SETTINGS, ENGINE_VERSION, newGameState } from './state/index.js';
+export type { NewGameBootstrap, NewGameNpcInit, NewGameVersions } from './state/index.js';
+export { DERIVED_TRIGGER_DOMAINS, recomputeDerived } from './state/index.js';
+export type { DerivedEvalOptions, DerivedTriggerDomain } from './state/index.js';
+export { DEFAULT_META_VIEW, buildExprScope, defaultTimeView } from './state/index.js';
+export type { ExprScopeViews, MetaView, TimeViewProvider } from './state/index.js';
