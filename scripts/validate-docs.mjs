@@ -19,7 +19,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md'];
+const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md', 'docs/prompt.md'];
 const DEFINITION_DOC = 'docs/proposal.md'; // FR/NFR/OQ 编号的权威定义处
 const DESIGN_DOC = 'docs/detail-design.md';
 
