@@ -176,6 +176,8 @@ export function makeRuntime(init?: {
   attrDefs?: AttrDefs;
   executor?: EffectExecutor;
   rng?: Rng;
+  checkpointLimit?: number;
+  snapshotWarnBytes?: number;
 }): GameRuntime {
   const state = newGameState(
     init?.bootstrap ?? { versions: BASE_VERSIONS, attrs: { hp: 30, con: 2 } },
@@ -186,6 +188,8 @@ export function makeRuntime(init?: {
     rng: init?.rng ?? createRng(1),
     attrDefs: init?.attrDefs,
     effectExecutor: init?.executor ?? stubExecutor(),
+    checkpointLimit: init?.checkpointLimit,
+    snapshotWarnBytes: init?.snapshotWarnBytes,
   });
 }
 

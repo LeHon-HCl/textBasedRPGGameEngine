@@ -32,6 +32,8 @@ export { restoreState, serializeState } from './state/index.js';
 // ---- runtime（§3.1 状态事务核心：GameRuntime / 事务上下文与产出 / 引擎事件） ----
 export { GameRuntime } from './runtime/index.js';
 export type { GameRuntimeOptions } from './runtime/index.js';
+export { PERF_GUARD } from './runtime/index.js';
+export type { PerfGuard } from './runtime/index.js';
 export type {
   EffectContext,
   EffectExecution,

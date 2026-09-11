@@ -7,6 +7,8 @@
  */
 export { GameRuntime } from './game-runtime.js';
 export type { GameRuntimeOptions } from './game-runtime.js';
+export { PERF_GUARD } from './perf-guard.js';
+export type { PerfGuard } from './perf-guard.js';
 export type {
   EffectContext,
   EffectExecution,

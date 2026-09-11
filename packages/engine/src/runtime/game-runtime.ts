@@ -1,10 +1,14 @@
 import { EngineError } from '@game/shared';
-import type { AttrDefs, CompiledExpr, EffectData, ExprFunctionRegistry, Rng } from '@game/shared';
+import type {
+  AttrDefs,
+  CompiledExpr,
+  EffectData,
+  ExprFunctionRegistry,
+  Rng,
+  RngState,
+} from '@game/shared';
 import { applyPatches, enablePatches, freeze, produce } from 'immer';
 import type { Patch, WritableDraft } from 'immer';
-
-// 补丁插件启用（ExecOutcome.patches 与失败反向回滚的底座；幂等调用）
-enablePatches();
 import type { DerivedTriggerDomain, MetaView, TimeViewProvider } from '../state/index.js';
 import {
   DEFAULT_META_VIEW,
@@ -16,6 +20,10 @@ import type { GameState } from '../state/index.js';
 import { createBuiltinFunctionRegistry, evalExpr, truthy } from '../expr-eval/index.js';
 import type { EffectContext, EffectExecutor, ExecContext, ExecOutcome } from './exec-context.js';
 import type { EngineEvent, StatChangedEvent, Unsubscribe } from './engine-events.js';
+import { PERF_GUARD } from './perf-guard.js';
+
+// 补丁插件启用（ExecOutcome.patches 与失败反向回滚的底座；幂等调用）
+enablePatches();
 
 /**
  * GameRuntime 状态事务核心（设计 §3.1，DD-06 交互中枢；04 任务 B1）。
@@ -51,6 +59,17 @@ export interface GameRuntimeOptions {
   metaProvider?: () => MetaView;
   /** 效果执行器（05 号注册表实现；缺省时任何指令执行都会以 EFFECT_FAILED 报错） */
   effectExecutor?: EffectExecutor;
+  /** 回滚栈深度（FR-READ-03 可配置；缺省 = PERF_GUARD.checkpointStackDepth） */
+  checkpointLimit?: number;
+  /** 单快照体积告警阈值字节（缺省 = PERF_GUARD.checkpointSnapshotWarnBytes） */
+  snapshotWarnBytes?: number;
+}
+
+/** 回滚栈条目：快照 + 标签 + 打点时的 RNG 状态（DD-09 回滚一致） */
+interface SnapshotEntry {
+  label: string;
+  snapshot: GameState;
+  rngState: RngState;
 }
 
 /** 事务内收集器（ExecOutcome 的装配底座） */
@@ -80,6 +99,9 @@ export class GameRuntime {
   readonly #metaProvider: () => MetaView;
   readonly #executor: EffectExecutor | undefined;
   readonly #listeners: Map<EngineEvent['type'], Set<(event: EngineEvent) => void>> = new Map();
+  readonly #checkpointLimit: number;
+  readonly #snapshotWarnBytes: number;
+  #snapshots: SnapshotEntry[] = [];
 
   constructor(options: GameRuntimeOptions) {
     this.#state = freeze(options.state, true);
@@ -89,6 +111,15 @@ export class GameRuntime {
     this.#timeView = options.timeViewProvider ?? defaultTimeView;
     this.#metaProvider = options.metaProvider ?? (() => DEFAULT_META_VIEW);
     this.#executor = options.effectExecutor;
+    this.#checkpointLimit = options.checkpointLimit ?? PERF_GUARD.checkpointStackDepth;
+    this.#snapshotWarnBytes = options.snapshotWarnBytes ?? PERF_GUARD.checkpointSnapshotWarnBytes;
+    if (!Number.isInteger(this.#checkpointLimit) || this.#checkpointLimit < 1) {
+      throw new EngineError({
+        code: 'INTERNAL',
+        where: { checkpointLimit: String(this.#checkpointLimit) },
+        messageKey: 'error.runtime.invalidCheckpointLimit',
+      });
+    }
   }
 
   /** 当前已提交状态（只读视图；事务提交后指向新对象） */
@@ -195,6 +226,68 @@ export class GameRuntime {
   /** 布尔语境条件求值（真值化口径与 03 号 evalCondition 一致，DD-01） */
   evalCondition(expr: CompiledExpr): boolean {
     return truthy(this.eval(expr));
+  }
+
+  /**
+   * 打回滚点（FR-READ-03：玩家选择前调用；§3.1 快照策略）。
+   *
+   * - `structuredClone` 全量快照入栈（状态体预估 < 2MB，简单可靠优先），
+   *   同时记录当前 RNG 状态——rollback 恢复后重放同一选择结果一致（DD-09
+   *   「回滚一致」）；
+   * - 快照体积按 JSON 序列化长度估算（UTF-16 码元数，ASCII 内容近似字节
+   *   数，CJK 内容偏低估——告警语义为「建议调低栈深」而非硬约束），超过
+   *   阈值时发出 `snapshot_warn` 事件（checkpoint 不是事务，事件即时送达）；
+   * - 栈深超限丢弃最旧快照（保留最近 limit 个选择）；state.checkpoints
+   *   元数据与活栈保持平行（镜像重建，仅供调试/UI 呈现，不入档）。
+   */
+  checkpoint(label: string): void {
+    const snapshot = structuredClone(this.#state) as GameState;
+    const sizeBytes = estimateStateBytes(snapshot);
+    if (sizeBytes > this.#snapshotWarnBytes) {
+      this.#dispatch({
+        type: 'snapshot_warn',
+        label,
+        sizeBytes,
+        thresholdBytes: this.#snapshotWarnBytes,
+      });
+    }
+    this.#snapshots.push({ label, snapshot, rngState: this.#rng.getState() });
+    if (this.#snapshots.length > this.#checkpointLimit) {
+      this.#snapshots.shift();
+    }
+    this.#state = produce(this.#state, (draft) => {
+      draft.checkpoints.push({ label });
+      if (draft.checkpoints.length > this.#checkpointLimit) {
+        draft.checkpoints.shift();
+      }
+    });
+  }
+
+  /**
+   * 回滚（FR-READ-03）：恢复到第 `steps` 个回滚点之前的状态（默认 1 = 上一次
+   * 选择）。只还原 GameState 与 RNG 状态；已送达的 EngineEvent 不撤销
+   * （成就/Profile 写入独立持久化，§3.1 回滚与成就解耦、D7）。
+   *
+   * 栈空或 steps < 1 → { ok: false }；steps 超过栈深按栈深截断。
+   * restoredLabel 为所恢复回滚点（最后被弹出的 deepest 快照）的标签。
+   */
+  rollback(steps = 1): { ok: boolean; restoredLabel?: string } {
+    if (!Number.isInteger(steps) || steps < 1 || this.#snapshots.length === 0) {
+      return { ok: false };
+    }
+    const count = Math.min(steps, this.#snapshots.length);
+    const popped = this.#snapshots.splice(this.#snapshots.length - count, count);
+    const target = popped[0] as SnapshotEntry;
+    this.#rng.setState(target.rngState);
+    const restored = structuredClone(target.snapshot) as GameState;
+    // 元数据与活栈镜像重建（快照内的历史元数据不代表当前可达栈）
+    this.#state = freeze(
+      produce(restored, (draft) => {
+        draft.checkpoints = this.#snapshots.map((entry) => ({ label: entry.label }));
+      }),
+      true,
+    );
+    return { ok: true, restoredLabel: target.label };
   }
 
   // —— 事务内部管线 ————————————————————————————————————————————————————
@@ -360,6 +453,11 @@ function touchedFromPatches(patches: readonly Patch[]): DerivedTriggerDomain[] {
     if (token !== undefined) found.add(token);
   }
   return [...found];
+}
+
+/** 快照体积估算：JSON 序列化长度（口径见 checkpoint TSDoc） */
+function estimateStateBytes(state: GameState): number {
+  return JSON.stringify(state).length;
 }
 
 /**
