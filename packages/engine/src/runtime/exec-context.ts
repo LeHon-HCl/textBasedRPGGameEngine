@@ -39,7 +39,13 @@ export type JumpTarget =
   | { type: 'ending'; ending: GameId }
   | { type: 'battle'; battle: string }
   | { type: 'back' }
-  | { type: 'loopTransition' };
+  | { type: 'loopTransition' }
+  /**
+   * 时段推进意图（§3.3 advance_time 指令产出，05 任务 B5；§4.3 时间管线消费）：
+   * 效果指令系统只把意图放进 ExecOutcome.jumps，真正的时段推进（钩子编排、
+   * 日刷新）归 09 号推进管线——状态层/流程层分界的同类延伸。
+   */
+  | { type: 'advanceTime'; slots: number };
 
 /** 事务产出（§3.1）：补丁（调试器与回滚的统一底座）/ 跳转 / 事件 */
 export interface ExecOutcome {

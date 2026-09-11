@@ -28,6 +28,11 @@ describe('engine 包工具链冒烟', () => {
     expect(engineEntry.PERF_GUARD.checkpointStackDepth).toBe(5);
   });
 
+  it('公开 API 出口包含 effects 子系统导出（05 任务 A 组接线）', () => {
+    expect(typeof engineEntry.EffectRegistry).toBe('function');
+    expect(new engineEntry.EffectRegistry().lookup('set')).toBeUndefined();
+  });
+
   it('Vitest 断言与模块语义在 node 环境正常工作', () => {
     const state = engineEntry.newGameState(
       { versions: { gameVersion: '0.0.0', schemaVersion: 1, minEngineVersion: '0.0.0' } },

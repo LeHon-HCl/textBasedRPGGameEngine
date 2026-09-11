@@ -16,6 +16,7 @@
   "dependencies": {
     "@game/shared": "workspace:^",
     "immer": "^11.1.18",
-    "jsep": "^1.4.0"
+    "jsep": "^1.4.0",
+    "zod": "^4.6.2"
   }
 }
