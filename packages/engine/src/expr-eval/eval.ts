@@ -307,5 +307,33 @@ function callFunction(node: CallNode, ctx: EvalContext, source: string): unknown
     });
   }
   const args = node.args.map((arg) => evaluate(arg, ctx, source));
-  return def.fn(args, ctx);
+  try {
+    return def.fn(args, ctx);
+  } catch (err) {
+    throw wrapFunctionError(err, node.name, source);
+  }
+}
+
+/**
+ * 函数层错误包装（DD-01：EVAL_ERROR + 表达式原文定位）：
+ * - 函数抛出的 EngineError 保留原 code/messageKey，并在 where 补注
+ *   `expr`（表达式原文）与 `fn`（调用点函数名）；
+ * - 非 EngineError（函数实现缺陷）防御性收敛为 EVAL_ERROR，
+ *   原始抛出值挂 cause 供诊断导出（设计 §10.2）。
+ */
+function wrapFunctionError(err: unknown, fn: string, source: string): EngineError {
+  if (err instanceof EngineError) {
+    return new EngineError({
+      code: err.code,
+      where: { ...err.where, expr: source, fn },
+      messageKey: err.messageKey,
+      cause: err,
+    });
+  }
+  return new EngineError({
+    code: 'EVAL_ERROR',
+    where: { expr: source, fn },
+    messageKey: 'error.eval.functionFailed',
+    cause: err,
+  });
 }
