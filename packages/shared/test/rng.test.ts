@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng, EngineError } from '../src/index.js';
-import type { Rng, WeightedEntry } from '../src/index.js';
+import type { Rng, RngState, WeightedEntry } from '../src/index.js';
 
 /**
  * canonical mulberry32（DD-09 默认算法）在种子 42 下的前 100 个输出值。
@@ -275,5 +275,89 @@ describe('chance 边界（设计 §2.5）', () => {
   ])('非法概率（$label）抛 EngineError/INTERNAL', ({ p }) => {
     const rng = createRng(42);
     expectInternalError(() => rng.chance(p), 'error.rng.chanceProbability');
+  });
+});
+
+describe('getState / setState 往返一致性（设计 §2.5，DD-09）', () => {
+  it('初始状态等于种子（uint32 归一化）', () => {
+    expect(createRng(42).getState()).toBe(42);
+  });
+
+  it('RngState 为 JSON 可序列化数值（随存档保存的前提）', () => {
+    const rng = createRng(123456789);
+    rng.int(1, 6);
+    const state = rng.getState();
+    const roundTripped = JSON.parse(JSON.stringify(state)) as RngState;
+    expect(roundTripped).toBe(state);
+    expect(Number.isInteger(state)).toBe(true);
+  });
+
+  it('setState(getState()) 后序列保持不变（状态恒等往返）', () => {
+    const reference = createRng(77);
+    const rng = createRng(77);
+    for (let i = 0; i < 5; i++) {
+      reference.next();
+      rng.next();
+    }
+    rng.setState(rng.getState());
+    for (let i = 0; i < 50; i++) {
+      expect(rng.next()).toBe(reference.next());
+    }
+  });
+
+  it('状态推进：消耗随机值后状态改变', () => {
+    const rng = createRng(42);
+    const before = rng.getState();
+    rng.next();
+    expect(rng.getState()).not.toBe(before);
+  });
+
+  it('跨实例恢复：任意实例 setState 后即从该状态继续同一序列', () => {
+    const source = createRng(100);
+    for (let i = 0; i < 10; i++) source.int(1, 6);
+    const saved = source.getState();
+    const mainline = Array.from({ length: 20 }, () => source.int(1, 6));
+
+    const restored = createRng(0);
+    restored.setState(saved);
+    const replay = Array.from({ length: 20 }, () => restored.int(1, 6));
+    expect(replay).toEqual(mainline);
+  });
+
+  it('存档语义：读档恢复 rngState 后的抽选与保存时刻起的主时间线一致（可回放）', () => {
+    const rng = createRng(2024);
+    // 存档前的游玩消耗
+    for (let i = 0; i < 7; i++) {
+      rng.pick(['a', 'b', 'c']);
+      rng.weighted([
+        { item: 'x', weight: 3 },
+        { item: 'y', weight: 1 },
+      ]);
+      rng.chance(0.7);
+    }
+    const saved = rng.getState();
+
+    // 主时间线继续推进
+    const futureMainline = Array.from({ length: 30 }, () => rng.int(-5, 5));
+
+    // 读档：仅凭 rngState 复原行为
+    const restored = createRng(0);
+    restored.setState(saved);
+    const replay = Array.from({ length: 30 }, () => restored.int(-5, 5));
+    expect(replay).toEqual(futureMainline);
+  });
+
+  it('setState 非有限值抛 EngineError/INTERNAL（防静默错状态）', () => {
+    const rng = createRng(42);
+    expectInternalError(() => rng.setState(Number.NaN), 'error.rng.invalidState');
+    expectInternalError(() => rng.setState(Number.POSITIVE_INFINITY), 'error.rng.invalidState');
+  });
+
+  it('uint32 全域状态值可往返（含高位溢出边界）', () => {
+    const rng = createRng(0);
+    for (const state of [0, 1, 2147483647, 2147483648, 4294967295]) {
+      rng.setState(state);
+      expect(rng.getState()).toBe(state);
+    }
   });
 });

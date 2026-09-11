@@ -23,7 +23,7 @@
 ### C. 随机数（§2.5，DD-09）
 - [x] `Rng` 接口 + `createRng`（mulberry32）：确定性序列测试（固定种子断言前 100 值）
 - [x] `int/pick/weighted/chance` 边界（min=max、空池、权重 0、p=0/1）测试
-- [ ] `getState/setState` 往返一致性测试
+- [x] `getState/setState` 往返一致性测试
 - [ ] `fork()` 分叉不回写语义测试
 
 ## 完成定义
