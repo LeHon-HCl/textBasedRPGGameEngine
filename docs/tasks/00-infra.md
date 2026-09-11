@@ -19,7 +19,7 @@
 ### B. 测试与质量工具链
 - [x] Vitest 接入 shared/engine（workspace 共享配置），第一个冒烟测试通过
 - [x] ESLint + Prettier：`no-restricted-imports` 强制依赖规则 R1/R2（shared 零依赖、engine 禁 React/DOM）
-- [ ] CI（GitHub Actions）：lint + test + `node scripts/validate-docs.mjs` 三步门禁
+- [x] CI（GitHub Actions）：lint + test + `node scripts/validate-docs.mjs` 三步门禁
 
 ### C. 公共夹具
 - [ ] `fixtures/mini-game/` 最小游戏包 v1：manifest + 1 区域 3 场景（含跳转与文本键）+ 词典 zh-CN

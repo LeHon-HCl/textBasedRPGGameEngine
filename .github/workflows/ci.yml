@@ -1,0 +1,34 @@
+name: CI
+
+# 00 号模块定义的三步门禁：安装依赖 → lint + test → 文档一致性。
+# 全部门禁以本 workflow 为准；本地提交前也应跑同样的命令（docs/prompt.md §3）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    name: 质量门禁（install / lint+test / validate-docs）
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 pnpm（版本由根 package.json 的 packageManager 锚定）
+        uses: pnpm/action-setup@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 门禁 0 —— 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 门禁 1 —— lint 与全量测试
+        run: pnpm -w lint && pnpm -w test
+
+      - name: 门禁 2 —— 文档一致性
+        run: node scripts/validate-docs.mjs
