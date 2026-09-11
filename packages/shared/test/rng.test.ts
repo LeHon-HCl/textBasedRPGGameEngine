@@ -361,3 +361,86 @@ describe('getState / setState 往返一致性（设计 §2.5，DD-09）', () => 
     }
   });
 });
+
+describe('fork() 分叉不回写语义（设计 §2.5 边界）', () => {
+  it('fork 不消耗、不回写主序列：子源抽选后主序列与参考序列逐位一致', () => {
+    const rng = createRng(42);
+    const head = Array.from({ length: 3 }, () => rng.next());
+    expect(head).toEqual(MULBERRY32_SEED_42_FIRST_100.slice(0, 3));
+
+    const stateBeforeFork = rng.getState();
+    const child = rng.fork();
+    const jittered = Array.from({ length: 50 }, () => child.next());
+    expect(jittered).toHaveLength(50); // 子源已被大量消耗
+
+    expect(rng.getState()).toBe(stateBeforeFork); // fork 与子源抽选均不回写父状态
+    const main = Array.from({ length: 7 }, () => rng.next());
+    // 主序列不受影响：继续与参考序列下标 3..9 逐位一致
+    expect(main).toEqual(MULBERRY32_SEED_42_FIRST_100.slice(3, 10));
+  });
+
+  it('子源抽选不改变父源状态（getState 前后一致）', () => {
+    const rng = createRng(42);
+    const stateBefore = rng.getState();
+    const child = rng.fork();
+    for (let i = 0; i < 50; i++) {
+      child.next();
+    }
+    expect(rng.getState()).toBe(stateBefore);
+  });
+
+  it('同一父状态分叉出的子序列相同（表现层抖动可复现）', () => {
+    const a = createRng(1234);
+    for (let i = 0; i < 5; i++) a.int(1, 6);
+    const b = createRng(1234);
+    for (let i = 0; i < 5; i++) b.int(1, 6);
+
+    const childA = a.fork();
+    const childB = b.fork();
+    const seqA = Array.from({ length: 20 }, () => childA.next());
+    const seqB = Array.from({ length: 20 }, () => childB.next());
+    expect(seqA).toEqual(seqB);
+  });
+
+  it('不同父状态下分叉出的子序列不同（抖动随进度演化）', () => {
+    const rng = createRng(7);
+    const childEarly = rng.fork();
+    const earlySeq = Array.from({ length: 10 }, () => childEarly.next());
+    for (let i = 0; i < 30; i++) {
+      rng.next();
+    }
+    const childLate = rng.fork();
+    const lateSeq = Array.from({ length: 10 }, () => childLate.next());
+    expect(earlySeq).not.toEqual(lateSeq);
+  });
+
+  it('子源是完整的 Rng（可继续 int/chance/getState 等）', () => {
+    const child: Rng = createRng(42).fork();
+    expect(Number.isInteger(child.int(1, 6))).toBe(true);
+    expect(typeof child.chance(0.5)).toBe('boolean');
+    expect(Number.isFinite(child.getState())).toBe(true);
+    expect(typeof child.fork().next()).toBe('number');
+  });
+
+  it('战斗表现层抖动语义：做不做表现层分叉，游戏逻辑时间线完全一致', () => {
+    const playTimeline = (withJitter: boolean): { mainline: number[]; jitter: number[] } => {
+      const rng = createRng(99);
+      const mainline: number[] = [];
+      const jitter: number[] = [];
+      for (let turn = 0; turn < 5; turn++) {
+        mainline.push(rng.int(1, 20)); // 游戏逻辑：命中判定
+        if (withJitter) {
+          const fx = rng.fork(); // 表现层：命中抖动偏移
+          jitter.push(fx.int(-3, 3), fx.chance(0.5) ? 1 : 0);
+        }
+        mainline.push(rng.chance(0.5) ? 1 : 0); // 游戏逻辑：掉落
+      }
+      return { mainline, jitter };
+    };
+
+    const withoutJitter = playTimeline(false);
+    const withJitter = playTimeline(true);
+    expect(withJitter.jitter.length).toBeGreaterThan(0);
+    expect(withJitter.mainline).toEqual(withoutJitter.mainline);
+  });
+});
