@@ -7,3 +7,4 @@
  * 的唯一来源是 `@game/shared`（设计 §10.4），此处不重复导出。
  */
 export { parseExpr } from './parse.js';
+export { compileExpr } from './compile.js';
