@@ -45,3 +45,19 @@ export { choiceSchema, sceneDefSchema, sceneMediaSchema, segmentSchema } from '.
 export type { ChoiceDef, SceneDef, SegmentDef } from './scene.js';
 export { areaDefSchema, locationDefSchema } from './area.js';
 export type { AreaDef, LocationDef } from './area.js';
+
+// ---- EventDef / QuestDef / NpcDef / FactionDef（事件、任务、NPC、阵营） ----
+export { eventDefSchema, eventTriggerSchema } from './event.js';
+export type { EventDef, EventTrigger } from './event.js';
+export { questDefSchema, questStageSchema } from './quest.js';
+export type { QuestDef, QuestStage } from './quest.js';
+export {
+  favorDefSchema,
+  favorStageSchema,
+  npcDefSchema,
+  scheduleEntrySchema,
+  scheduleWindowSchema,
+} from './npc.js';
+export type { FavorDef, FavorStage, NpcDef, ScheduleEntry } from './npc.js';
+export { factionDefSchema, factionThresholdSchema } from './faction.js';
+export type { FactionDef, FactionThreshold } from './faction.js';
