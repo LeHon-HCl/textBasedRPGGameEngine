@@ -19,4 +19,4 @@
 /** @since 0.1.0 */
 export type { ExprSource, GameId, Lang, RefKind, TextKey } from './ids.js';
 /** @since 0.1.0 */
-export { refId } from './ids.js';
+export { GAME_ID_PATTERN, isValidGameId, refId } from './ids.js';

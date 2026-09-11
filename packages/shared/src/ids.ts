@@ -37,6 +37,21 @@ export type RefKind =
   | 'text';
 
 /**
+ * GameId 命名规则：小写字母开头，后接小写字母/数字/下划线。
+ * 设计 §2.1：「仅 [a-z][a-z0-9_]*，加载期唯一性校验」。
+ * 该正则同时作为 02 号 schema 体系 zod 侧校验的规则来源（只有一份）。
+ */
+export const GAME_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * 校验 GameId 是否符合命名规则（[a-z][a-z0-9_]*）。
+ * 供加载器（06 号）、编辑器表单（26 号）与测试夹具复用。
+ */
+export function isValidGameId(id: string): boolean {
+  return GAME_ID_PATTERN.test(id);
+}
+
+/**
  * 实体引用字段的 Zod 辅助器（设计 §2.1 约定）。
  *
  * 所有跨存档引用字段在 schema 中以 `refId(RefKind)` 声明：
