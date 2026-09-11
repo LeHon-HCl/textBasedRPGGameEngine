@@ -97,3 +97,73 @@ function isRecordOfStrings(value: unknown): value is Record<string, string> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   return Object.values(value).every((entry) => typeof entry === 'string');
 }
+
+/** cause 链最大递归深度（封顶防止循环引用悬挂，同时限制诊断体积） */
+const MAX_CAUSE_DEPTH = 5;
+/** stack 最大保留行数（限制诊断导出体积与路径暴露面，§10.2「脱敏 JSON（…栈）」） */
+const MAX_STACK_LINES = 10;
+
+/**
+ * 错误序列化产物：JSON 安全、字段白名单（设计 §10.2 诊断导出的错误级构建块）。
+ *
+ * 脱敏契约：
+ * - 仅输出白名单字段，Error 上附加的任意属性（如状态/存档快照）一律不透传；
+ * - cause 链按同一白名单递归，深度封顶 {@link MAX_CAUSE_DEPTH}，循环引用安全终止；
+ * - stack 截断至前 {@link MAX_STACK_LINES} 行；不含存档内容。
+ */
+export interface SerializedEngineError {
+  name: string;
+  message: string;
+  /** 仅 EngineError 携带 */
+  code?: ErrCode;
+  /** 仅 EngineError 携带 */
+  where?: Record<string, string>;
+  /** 仅 EngineError 携带 */
+  messageKey?: TextKey;
+  stack?: string;
+  cause?: SerializedEngineError;
+}
+
+/**
+ * 将未知抛出值序列化为诊断用 JSON 安全对象（设计 §10.2：诊断导出 = 脱敏 JSON）。
+ * EngineError 输出三元组（code/where/messageKey）；其他 Error 仅输出
+ * name/message/stack；非 Error 抛出值兜底为 UnknownError。
+ */
+export function serializeError(error: unknown): SerializedEngineError {
+  return serializeErrorAt(error, 0);
+}
+
+function serializeErrorAt(error: unknown, depth: number): SerializedEngineError {
+  const result: SerializedEngineError = {
+    name: 'UnknownError',
+    message: describeThrownValue(error),
+  };
+  if (error instanceof Error) {
+    result.name = error.name;
+    result.message = error.message;
+    result.stack = truncateStack(error.stack);
+    if (isEngineError(error)) {
+      result.code = error.code;
+      result.where = { ...error.where };
+      result.messageKey = error.messageKey;
+    }
+  }
+  if (depth < MAX_CAUSE_DEPTH && error instanceof Error && error.cause !== undefined) {
+    result.cause = serializeErrorAt(error.cause, depth + 1);
+  }
+  return result;
+}
+
+/** 非 Error 抛出值的字符串描述；String() 自身抛异常时安全兜底 */
+function describeThrownValue(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return 'UnknownError';
+  }
+}
+
+function truncateStack(stack: string | undefined): string | undefined {
+  if (stack === undefined) return undefined;
+  return stack.split('\n').slice(0, MAX_STACK_LINES).join('\n');
+}

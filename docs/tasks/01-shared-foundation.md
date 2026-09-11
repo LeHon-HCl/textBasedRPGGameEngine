@@ -18,7 +18,7 @@
 ### B. 错误体系（§2.2）
 - [x] `ErrCode` 全集 + `EngineError` 构造器（code/where/messageKey 三元组）
 - [ ] ESLint 自定义规则或约束：包内禁止裸 `throw new Error`（先以 review 约定 + 测试占位，规则随 00 收尾）
-- [ ] 错误序列化（诊断导出用，脱敏）+ 单测
+- [x] 错误序列化（诊断导出用，脱敏）+ 单测
 
 ### C. 随机数（§2.5，DD-09）
 - [ ] `Rng` 接口 + `createRng`（mulberry32）：确定性序列测试（固定种子断言前 100 值）
