@@ -18,7 +18,7 @@
 - [x] [00 Monorepo 与工程基础设施](00-infra.md)
 - [x] [01 shared 基础类型与错误/随机体系](01-shared-foundation.md)
 - [x] [02 shared Schema 体系](02-schema.md)（核心域）
-- [ ] [03 表达式语言与求值器](03-expression.md)
+- [x] [03 表达式语言与求值器](03-expression.md)
 - [ ] [04 GameState 与状态事务](04-game-state.md)
 - [ ] [05 效果指令系统](05-effects.md)（状态类指令）
 - [ ] [06 游戏包加载器](06-package-loader.md)（管线 1–3）
