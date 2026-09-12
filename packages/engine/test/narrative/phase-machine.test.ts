@@ -99,8 +99,10 @@ describe('08-A1 状态机：await_advance 自环与终局迁移', () => {
     runner.renderList();
     runner.advance();
     expect(runner.phase).toBe('await_advance');
-    expect(runner.renderList().map((segment) => segment.key)).toEqual([
+    // spacing 分隔段（A2）不携带键，以 null 占位
+    expect(runner.renderList().map((segment) => segment.key ?? null)).toEqual([
       'scenes.start.p1',
+      null,
       'scenes.start.p2',
     ]);
   });

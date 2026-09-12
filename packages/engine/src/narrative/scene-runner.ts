@@ -2,6 +2,7 @@ import { EngineError } from '@game/shared';
 import type { EffectData, GameId } from '@game/shared';
 import type { InterpVars } from '../i18n/index.js';
 import type { CompiledScene } from '../loader/index.js';
+import type { MediaIntent } from '../runtime/index.js';
 import type { ChoiceDef } from '@game/shared';
 import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
 import type {
@@ -204,9 +205,20 @@ export class SceneRunner {
     return out;
   }
 
-  /** 已揭示前缀的渲染列表（A 组最小面：纯文本段落；spacing/image 见 A 组后续） */
+  /** 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流） */
   #buildRenderList(frame: SessionFrame): RenderSegment[] {
-    return frame.expanded.slice(0, frame.cursor);
+    const revealed = frame.expanded.slice(0, frame.cursor);
+    const out: RenderSegment[] = [];
+    // 场景级媒体绑定（FR-NARR-01 / DD-05）映射为前置 image 段落（media intent
+    // 随段落流产出，engine 不接触播放）；不计入段落游标（advance 语义只针对文本）
+    if (frame.media.length > 0) {
+      out.push({ kind: 'image', media: frame.media });
+    }
+    for (let i = 0; i < revealed.length; i++) {
+      if (i > 0) out.push({ kind: 'spacing' });
+      out.push(revealed[i] as RenderSegment);
+    }
+    return out;
   }
 
   /** 段落尽后的终局迁移（§4.2：存在可见选项 → await_choice，否则 finished） */
@@ -325,14 +337,20 @@ export class SceneRunner {
 interface SessionFrame {
   readonly sceneId: GameId;
   readonly scene: CompiledScene;
+  /** 场景级媒体意图（FR-NARR-01：bg/bgm 绑定在进入时产出，DD-05） */
+  readonly media: readonly MediaIntent[];
   /** 段落流展开产物（entering 相位为空数组，首渲染时填充） */
   expanded: RenderSegment[];
-  /** 已揭示段落数（0..expanded.length） */
+  /** 已揭示段落数（0..expanded.length；仅文本段落计数） */
   cursor: number;
 }
 
 function createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
-  return { sceneId, scene, expanded: [], cursor: 0 };
+  const media: MediaIntent[] = [];
+  const bound = scene.def.media;
+  if (bound?.bg !== undefined) media.push({ type: 'bg', assetId: bound.bg });
+  if (bound?.bgm !== undefined) media.push({ type: 'bgm', assetId: bound.bgm, loop: true });
+  return { sceneId, scene, media, expanded: [], cursor: 0 };
 }
 
 /** 提取流程类跳转（scene/ending/back/loopTransition；battle/advanceTime 留给宿主） */
