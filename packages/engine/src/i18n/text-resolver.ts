@@ -29,8 +29,12 @@ import type { LocalePack, LocaleRecord, LocaleValue } from '../loader/index.js';
  *   落主语言；
  * - 词典来源为 {@link LocalePack}（06 号加载器产物，键级 Map；plural/select
  *   结构由加载器按 §4.1 透传）；本模块对语言包只读（管线产物已深冻结）；
+ * - 词典获取走 {@link LocaleProvider} 注入点：缺省形态为 `locales: def.locales`
+ *   全量常驻（§4.1「主语言常驻内存」）；25 号 UI 侧可替换为命名空间 chunk
+ *   懒加载实现（§4.1「非主语言命名空间懒加载」/ §9.1 / NFR-01）；
  * - resolve 每次按传入 `lang` 现查，**无内部语言缓存状态**——运行时切换语言
- *   即时生效（FR-L10N-05）；select 表达式按原文 memo 编译产物（非词典内容缓存）；
+ *   即时生效（FR-L10N-05），懒加载包到达亦即时生效；select 表达式按原文
+ *   memo 编译产物（非词典内容缓存）；
  * - 独立测试（§4.1「独立测试」）：纯函数 + 词典夹具，不依赖运行时其他模块。
  */
 
@@ -87,9 +91,17 @@ export interface TextResolverOptions {
   readonly mainLang: Lang;
   /**
    * 语言包全量常驻来源（默认形态：`locales: def.locales`，即 §4.1
-   * 「主语言常驻内存」的缺省词典提供方式）。
+   * 「主语言常驻内存」的缺省词典提供方式）；与 {@link localeProvider} 互为
+   * 备选，同时提供时 provider 优先。
    */
-  readonly locales: Record<Lang, LocalePack>;
+  readonly locales?: Record<Lang, LocalePack>;
+  /**
+   * 词典懒加载注入点（§4.1「非主语言命名空间懒加载」/ NFR-01 场景切换预算）：
+   * 25 号 UI 侧可注入命名空间 chunk 懒加载实现（§9.1 静态包 locales/<lang>.json
+   * 按语言 chunk）。TextResolver 无内部词典缓存——每次 resolve 现查 provider，
+   * 包到达即时生效；迟到包在首见时完成接入校验与 select 编译（缺陷显性抛出）。
+   */
+  readonly localeProvider?: LocaleProvider;
   /**
    * select 表达式编译用函数注册表（缺省 = 空注册表，仅路径型表达式可编译）；
    * 装配自 GameDefinition 时传 `def.functionRegistry`（内置 20 函数 + x.* 扩展）。
@@ -105,27 +117,56 @@ export interface TextResolverOptions {
 }
 
 /**
+ * 词典提供方抽象（07 任务 4 懒加载注入点，§4.1「非主语言命名空间懒加载」）：
+ * TextResolver 每次 resolve 经 {@link get} 现查——实现方可按命名空间 chunk
+ * 异步装载后在此反映（返回值即当前就绪形态），无任何推送/失效协议。
+ */
+export interface LocaleProvider {
+  /** 返回语言包；未注册或未就绪（懒加载 chunk 未到达）→ undefined */
+  get(lang: Lang): LocalePack | undefined;
+  /** 当前已注册语言清单（注册顺序） */
+  langs(): readonly Lang[];
+}
+
+/** 全量常驻 provider：Record<Lang, LocalePack>（即 GameDefinition.locales 形态）的直读封装 */
+export function createLocaleProvider(locales: Record<Lang, LocalePack>): LocaleProvider {
+  const packs = new Map<Lang, LocalePack>(Object.entries(locales));
+  return {
+    get(lang: Lang): LocalePack | undefined {
+      return packs.get(lang);
+    },
+    langs(): Lang[] {
+      return [...packs.keys()];
+    },
+  };
+}
+
+/**
  * 构造 TextResolver（设计 §4.1）。
  *
  * 抛错契约（构造期装配校验，NFR-05「失败要响」）：
- * - `locales` 缺失 → `INTERNAL`（装配契约违规，非词典数据缺陷）；
- * - 词典结构值形态违例 → `SCHEMA_INVALID`（§4.1 plural/select 形态裁决）；
- * - select 表达式编译失败 → `EXPR_COMPILE`（DD-01 编译期阻断，where 携带
- *   表达式原文与键定位）；
- * - 词典含 select 但未注入 evalContext → `INTERNAL`（无法完成 resolve 装配）。
+ * - `locales` 与 `localeProvider` 均缺省 → `INTERNAL`（装配契约违规）；
+ * - 构造期可见词典的结构值形态违例 → `SCHEMA_INVALID`（§4.1 plural/select
+ *   形态裁决）；select 表达式编译失败 → `EXPR_COMPILE`（DD-01 编译期阻断，
+ *   where 携带表达式原文与键定位）；
+ * - 词典含 select 但未注入 evalContext → `INTERNAL`（无法完成 resolve 装配）；
+ * - 懒加载迟到包的同类缺陷在其首见 resolve 时抛出（接入校验前移不可得）。
  */
 export function createTextResolver(options: TextResolverOptions): TextResolver {
   const { mainLang } = options;
   const warn = options.warn ?? consoleWarn;
-  const locales = options.locales;
-  if (locales === undefined) {
+  let provider: LocaleProvider;
+  if (options.localeProvider !== undefined) {
+    provider = options.localeProvider;
+  } else if (options.locales !== undefined) {
+    provider = createLocaleProvider(options.locales);
+  } else {
     throw new EngineError({
       code: 'INTERNAL',
-      where: { detail: 'createTextResolver 缺少 locales 词典来源' },
+      where: { detail: 'createTextResolver 缺少词典来源（locales 或 localeProvider 二选一）' },
       messageKey: 'error.i18n.noLocaleSource',
     });
   }
-  const packs = new Map<Lang, LocalePack>(Object.entries(locales));
   const registry: ExprFunctionRegistry = options.functionRegistry ?? EMPTY_FUNCTION_REGISTRY;
   const runtime: ResolverRuntime = {
     warn,
@@ -134,10 +175,11 @@ export function createTextResolver(options: TextResolverOptions): TextResolver {
     validatedPacks: new WeakSet<object>(),
   };
 
-  // 构造期词典接入校验：结构形态裁决 + select 表达式编译入缓存（07 任务 3）
+  // 构造期词典接入校验：结构形态裁决 + select 表达式编译入缓存（07 任务 3/4）
   let selectCount = 0;
-  for (const [lang, pack] of packs) {
-    selectCount += ensurePackValidated(pack, lang, registry, runtime);
+  for (const lang of provider.langs()) {
+    const pack = provider.get(lang);
+    if (pack !== undefined) selectCount += ensurePackValidated(pack, lang, registry, runtime);
   }
   if (selectCount > 0 && options.evalContext === undefined) {
     throw new EngineError({
@@ -147,7 +189,12 @@ export function createTextResolver(options: TextResolverOptions): TextResolver {
     });
   }
 
-  const packOf = (lang: Lang): LocalePack | undefined => packs.get(lang);
+  // 词典现查 + 首见接入校验（懒加载包到达后由此进入，缺陷在此显性化）
+  const packOf = (lang: Lang): LocalePack | undefined => {
+    const pack = provider.get(lang);
+    if (pack !== undefined) ensurePackValidated(pack, lang, registry, runtime);
+    return pack;
+  };
 
   return {
     resolve(key: TextKey, lang: Lang, vars: InterpVars = {}): ResolvedText {
@@ -173,7 +220,7 @@ export function createTextResolver(options: TextResolverOptions): TextResolver {
     },
 
     availableLangs(): Lang[] {
-      return [...packs.keys()];
+      return [...provider.langs()];
     },
   };
 }
