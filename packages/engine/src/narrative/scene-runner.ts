@@ -167,10 +167,14 @@ export class SceneRunner {
    * ExecOutcome.jumps。跳转消费口径（§4.2 状态机图）：
    * - 有效跳转 = 效果序列流程跳转 + `goto` 便捷字段（排在最后）中按序取
    *   **最后一个**（顺序覆写语义，§3.3「跳转类指令不改状态」由 05 号保证）；
-   *   非流程跳转（battle/advanceTime）留给宿主/对应子系统，不在此消费；
+   *   非流程跳转（battle/advanceTime）留给宿主/对应子系统，经 {@link lastOutcome}
+   *   取用，不在此消费；
    * - `{scene}` → 进入新场景（entering）；`{ending}` → finished（记录结局 id）；
    *   `{back}` → 子会话返回（C 组）或 finished；`{loop_transition}` → finished；
    * - 无流程跳转 → 留在当前场景（剩余选项继续可选，回到 await_choice）。
+   *
+   * 入参校验（进入 resolving 之前抛出，相位不变）：相位非 await_choice、
+   * 未知选项 id、被过滤选项（hiddenByFilter）、置灰选项（enabled=false）。
    */
   choose(choiceId: string): void {
     if (this.#phase !== 'await_choice') {
@@ -182,6 +186,25 @@ export class SceneRunner {
         code: 'INTERNAL',
         where: { scene: this.#frame.sceneId, choice: choiceId },
         messageKey: 'error.narrative.choiceMissing',
+      });
+    }
+    // 过滤/置灰选项不可选（§4.2：置灰可见但不可用，FR-NARR-02）；校验失败在
+    // 进入 resolving 之前抛出，相位不变（UI 不应提供不可用选项的点击面）
+    const view = this.#choiceViews(this.#frame.scene.def.choices).find(
+      (candidate) => candidate.id === choiceId,
+    );
+    if (view?.hiddenByFilter === true) {
+      throw new EngineError({
+        code: 'INTERNAL',
+        where: { scene: this.#frame.sceneId, choice: choiceId },
+        messageKey: 'error.narrative.choiceFiltered',
+      });
+    }
+    if (view !== undefined && !view.enabled) {
+      throw new EngineError({
+        code: 'INTERNAL',
+        where: { scene: this.#frame.sceneId, choice: choiceId },
+        messageKey: 'error.narrative.choiceDisabled',
       });
     }
     this.#phase = 'resolving';
