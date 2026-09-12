@@ -95,6 +95,7 @@ export class SceneRunner {
         messageKey: 'error.narrative.sceneMissing',
       });
     }
+    this.#requireEntry(scene);
     this.#frame = createFrame(options.sceneId, scene);
   }
 
@@ -131,6 +132,11 @@ export class SceneRunner {
   /** 当前子会话嵌套深度（挂起主会话帧数；0 = 顶层主会话） */
   get depth(): number {
     return this.#suspended.length;
+  }
+
+  /** 当前场景的内容标签（FR-NARR-01 场景元信息；宿主/分级过滤呈现面） */
+  get sceneTags(): readonly string[] {
+    return this.#frame.scene.def.tags ?? [];
   }
 
   /**
@@ -518,6 +524,7 @@ export class SceneRunner {
         },
       });
     }
+    this.#requireEntry(scene);
     this.#frame = createFrame(sceneId, scene);
     this.#phase = 'entering';
   }
@@ -528,6 +535,24 @@ export class SceneRunner {
     this.#endReason = reason;
     this.#endingId = endingId;
     this.#phase = 'finished';
+  }
+
+  /**
+   * 场景进入条件校验（entry.require，FR-XPLR-04 条件型入口；FR-NARR-01 场景
+   * 元信息）：不满足即抛 INTERNAL entryDenied（错误显性化——数据设计问题的
+   * 运行期违规不应被静默吞掉；构造期抛出则无实例残留，跳转期抛出则会话停留
+   * resolving 错误挂起态，宿主经 GameRuntime.rollback 恢复）。表达式的编译
+   * 产物经 def.exprCache 复用（§3.4 步骤 5）。
+   */
+  #requireEntry(scene: CompiledScene): void {
+    const require = scene.def.entry?.require;
+    if (require === undefined) return;
+    if (this.#evalSceneExpr(require, scene, 'entry.require')) return;
+    throw new EngineError({
+      code: 'INTERNAL',
+      where: { scene: scene.def.id, require },
+      messageKey: 'error.narrative.entryDenied',
+    });
   }
 
   /** 场景数据表达式求值（加载期编译产物经 exprCache 复用，§3.4 步骤 5） */
