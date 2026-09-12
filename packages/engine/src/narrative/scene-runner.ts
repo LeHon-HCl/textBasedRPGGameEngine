@@ -329,20 +329,24 @@ export class SceneRunner {
    * 选项视图（§4.2 ChoiceView：已过 show_if + 内容过滤 + 一次性隐藏）：
    * - show_if 不满足 → hiddenByFilter（整个选项不出现，FR-NARR-02）；
    * - 选项内容标签命中 settings.disabledTags → hiddenByFilter（FR-CGRD-02）；
+   * - once 选项的已选标记（world.flags `__choice.<scene>.<choice>`，§4.2
+   *   自动生成、无需作者声明）→ hiddenByFilter；
    * - disabledIf 满足 → enabled=false 的置灰视图（可见但不可用），
-   *   disabledReasonKey 携带原因键（作者声明时）；
-   * - 一次性隐藏在 B2 接入（world.flags __choice 键）。
+   *   disabledReasonKey 携带原因键（作者声明时）。
    */
   #choiceViews(choices: readonly ChoiceDef[]): ChoiceView[] {
     const scene = this.#frame.scene;
     const disabledTags = this.#rt.state.settings.disabledTags;
+    const flags = this.#rt.state.world.flags;
     const out: ChoiceView[] = [];
     for (const choice of choices) {
       const hiddenByShowIf =
         choice.showIf !== undefined && !this.#evalSceneExpr(choice.showIf, scene, 'showIf');
       const hiddenByTags =
         choice.tags !== undefined && choice.tags.some((tag) => disabledTags.includes(tag));
-      const hidden = hiddenByShowIf || hiddenByTags;
+      const hiddenByOnce =
+        choice.once === true && flags[onceChoiceKey(scene.def.id, choice.id)] === true;
+      const hidden = hiddenByShowIf || hiddenByTags || hiddenByOnce;
       const disabled =
         choice.disabledIf !== undefined &&
         this.#evalSceneExpr(choice.disabledIf, scene, 'disabledIf');
@@ -359,9 +363,17 @@ export class SceneRunner {
     return out;
   }
 
-  /** 选项事务（§3.1 exec；无效果声明 = 空事务，跳转仅来自 goto 便捷字段） */
+  /**
+   * 选项事务（§3.1 exec）：once 选项的已选标记 flag 与选项效果同一事务
+   * （原子——失败即整体回滚，标记不残留）；无效果声明 = 单 flag 空效果事务，
+   * 跳转仅来自 goto 便捷字段。
+   */
   #execChoice(def: ChoiceDef): ExecOutcome {
-    const effects: readonly EffectData[] = def.effects ?? [];
+    const effects: EffectData[] = [];
+    if (def.once === true) {
+      effects.push({ flag: { name: onceChoiceKey(this.#frame.sceneId, def.id), value: true } });
+    }
+    if (def.effects !== undefined) effects.push(...def.effects);
     return this.#rt.exec(effects, this.#choiceContext());
   }
 
@@ -481,6 +493,14 @@ function collectFlowJumps(jumps: readonly JumpTarget[]): JumpTarget[] {
  * `ChoiceDef.goto` 为「纯跳转便捷字段」（§2.4），排在效果序列跳转之后
  * （顺序覆写语义：后者生效）。
  */
+/**
+ * 一次性选项的已选标记键（§4.2「键 __choice.<scene>.<choice>」）：存
+ * world.flags，由 choose 的事务自动写入、无需作者声明。
+ */
+function onceChoiceKey(sceneId: GameId, choiceId: string): string {
+  return `__choice.${sceneId}.${choiceId}`;
+}
+
 function collectChoiceJumps(outcome: ExecOutcome, def: ChoiceDef): JumpTarget[] {
   const jumps = [...outcome.jumps];
   if (def.goto !== undefined) jumps.push({ type: 'scene', scene: def.goto });
