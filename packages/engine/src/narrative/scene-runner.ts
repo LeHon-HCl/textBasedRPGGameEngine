@@ -12,6 +12,7 @@ import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
 import type {
   ChoiceView,
   NarrativeEndReason,
+  NarrativeHistoryEntry,
   NarrativeWarning,
   RenderSegment,
   RunnerPhase,
@@ -75,6 +76,9 @@ export class SceneRunner {
   #lastRender: RenderSegment[] = [];
   /** 宏条件表达式编译缓存（键 = 表达式原文；词典承载表达式按需编译） */
   readonly #macroExprs = new Map<string, CompiledExpr>();
+  /** 历史缓冲（环形 500 段，FR-READ-04 数据源；seq 会话内单调递增） */
+  readonly #history: NarrativeHistoryEntry[] = [];
+  #historySeq = 0;
 
   constructor(rt: SceneRunnerRuntime, options: SceneRunnerOptions) {
     this.#rt = rt;
@@ -320,7 +324,11 @@ export class SceneRunner {
     return parseMacro(key, value);
   }
 
-  /** 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流；vars 每次渲染组装） */
+  /**
+   * 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流；vars 每次渲染组装）。
+   * 新揭示的文本段落（FR-READ-04 数据源）随构建推入历史缓冲（环形 500 段，
+   * 含场景 id 与时钟上下文）——重复渲染不重复入账，游标推进才入账。
+   */
   #buildRenderList(frame: SessionFrame): RenderSegment[] {
     const vars = this.#resolveVars();
     const revealed = frame.expanded.slice(0, frame.cursor);
@@ -332,9 +340,39 @@ export class SceneRunner {
     }
     for (let i = 0; i < revealed.length; i++) {
       if (i > 0) out.push({ kind: 'spacing' });
-      out.push({ kind: 'text', key: revealed[i] as TextKey, vars });
+      const segment: RenderSegment = { kind: 'text', key: revealed[i] as TextKey, vars };
+      if (i >= frame.pushed) {
+        this.#pushHistory(frame.sceneId, segment);
+      }
+      out.push(segment);
     }
+    frame.pushed = Math.max(frame.pushed, frame.cursor);
     return out;
+  }
+
+  /** 历史入账（环形：容量 NARRATIVE_HISTORY_CAPACITY，超出挤出最旧条目） */
+  #pushHistory(sceneId: GameId, segment: RenderSegment): void {
+    const clock = this.#rt.state.world.time;
+    this.#history.push(
+      Object.freeze({
+        seq: this.#historySeq,
+        sceneId,
+        segment: Object.freeze({ ...segment }),
+        clock: Object.freeze({ day: clock.day, slotIndex: clock.slotIndex }),
+      }),
+    );
+    this.#historySeq += 1;
+    if (this.#history.length > NARRATIVE_HISTORY_CAPACITY) {
+      this.#history.splice(0, this.#history.length - NARRATIVE_HISTORY_CAPACITY);
+    }
+  }
+
+  /**
+   * 历史缓冲只读访问器（FR-READ-04 历史回看数据源）：返回渲染序快照副本
+   * （段落 + 场景 id + 渲染时时钟投影），调用方改写副本不影响会话内部。
+   */
+  history(): readonly NarrativeHistoryEntry[] {
+    return [...this.#history];
   }
 
   /** 段落尽后的终局迁移（§4.2：存在可见选项 → await_choice，否则 finished） */
@@ -527,6 +565,8 @@ interface SessionFrame {
   expanded: readonly TextKey[];
   /** 已揭示段落数（0..expanded.length；仅文本段落计数） */
   cursor: number;
+  /** 已入账历史段落数（游标推进才入账，重复渲染不重复入账） */
+  pushed: number;
 }
 
 function createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
@@ -534,7 +574,7 @@ function createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
   const bound = scene.def.media;
   if (bound?.bg !== undefined) media.push({ type: 'bg', assetId: bound.bg });
   if (bound?.bgm !== undefined) media.push({ type: 'bgm', assetId: bound.bgm, loop: true });
-  return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0 };
+  return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0, pushed: 0 };
 }
 
 /** 提取流程类跳转（scene/ending/back/loopTransition；battle/advanceTime 留给宿主） */
@@ -572,6 +612,12 @@ function collectChoiceJumps(outcome: ExecOutcome, def: ChoiceDef): JumpTarget[] 
  * 挂起主会话帧数达到上限后，事件场景跳转不再压栈（普通导航替换当前帧）。
  */
 export const SUBSESSION_DEPTH_LIMIT = 3;
+
+/**
+ * 历史缓冲容量（§4.2「环形，容量 500 段」/ FR-READ-04 历史回看数据源）：
+ * 每场景帧新揭示的文本段落入账，超出容量挤出最旧条目。
+ */
+export const NARRATIVE_HISTORY_CAPACITY = 500;
 
 /** 相位契约违规（INTERNAL：调用方在非法相位调用了状态机操作） */
 function internalWrongPhase(operation: string, phase: RunnerPhase, detail?: string): EngineError {

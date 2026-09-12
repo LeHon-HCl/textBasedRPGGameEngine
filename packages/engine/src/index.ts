@@ -105,7 +105,11 @@ export type {
 } from './i18n/index.js';
 
 // ---- narrative（§4.2 叙事运行时：场景会话状态机 / 渲染段落 / 选项视图） ----
-export { SceneRunner, SUBSESSION_DEPTH_LIMIT } from './narrative/index.js';
+export {
+  NARRATIVE_HISTORY_CAPACITY,
+  SceneRunner,
+  SUBSESSION_DEPTH_LIMIT,
+} from './narrative/index.js';
 export type {
   ChoiceView,
   NarrativeEndReason,
