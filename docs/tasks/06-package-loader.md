@@ -24,7 +24,7 @@
 
 ### C. 诊断与夹具
 - [x] `Diagnostic[]` 汇总（error 阻断 / warning 入 definition）；负例夹具逐个断言 ErrCode
-- [ ] mini-game 加载端到端测试（夹具 → definition 断言索引内容）
+- [x] mini-game 加载端到端测试（夹具 → definition 断言索引内容）
 
 ## 完成定义
-- [ ] 全部子任务勾选；负例夹具全红（能报出）、mini-game 全绿（能加载）
+- [x] 全部子任务勾选；负例夹具全红（能报出）、mini-game 全绿（能加载）
