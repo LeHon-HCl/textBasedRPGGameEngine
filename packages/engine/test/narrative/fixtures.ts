@@ -104,10 +104,12 @@ export function makeDef(spec: DefSpec): SceneRunnerDef {
   };
 }
 
-/** makeRuntime 选项：新档初始 flag/attr 便于 showIf/disabledIf 分支驱动 */
+/** makeRuntime 选项：新档初始 flag/attr/内容过滤便于 showIf/disabledIf 分支驱动 */
 export interface RuntimeSpec {
   readonly flags?: Record<string, FlagValue>;
   readonly attrs?: Record<string, number>;
+  /** 玩家禁用的内容标签（FR-CGRD-02 选项内容过滤驱动） */
+  readonly disabledTags?: readonly string[];
   readonly rng?: Rng;
 }
 
@@ -118,6 +120,8 @@ export function makeRuntime(spec: RuntimeSpec = {}): GameRuntime {
       versions: BASE_VERSIONS,
       attrs: { hp: 30, stamina: 5, insight: 0, ...spec.attrs },
       flags: spec.flags ?? {},
+      settings:
+        spec.disabledTags === undefined ? undefined : { disabledTags: [...spec.disabledTags] },
     },
     createRng(42),
   );

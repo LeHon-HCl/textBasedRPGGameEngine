@@ -232,17 +232,34 @@ export class SceneRunner {
     this.#finish('exhausted');
   }
 
-  /** 选项视图（A 组最小面：show_if 过滤；置灰/内容过滤/一次性在 A3/B2 接入） */
+  /**
+   * 选项视图（§4.2 ChoiceView：已过 show_if + 内容过滤 + 一次性隐藏）：
+   * - show_if 不满足 → hiddenByFilter（整个选项不出现，FR-NARR-02）；
+   * - 选项内容标签命中 settings.disabledTags → hiddenByFilter（FR-CGRD-02）；
+   * - disabledIf 满足 → enabled=false 的置灰视图（可见但不可用），
+   *   disabledReasonKey 携带原因键（作者声明时）；
+   * - 一次性隐藏在 B2 接入（world.flags __choice 键）。
+   */
   #choiceViews(choices: readonly ChoiceDef[]): ChoiceView[] {
     const scene = this.#frame.scene;
+    const disabledTags = this.#rt.state.settings.disabledTags;
     const out: ChoiceView[] = [];
     for (const choice of choices) {
-      const hidden =
+      const hiddenByShowIf =
         choice.showIf !== undefined && !this.#evalSceneExpr(choice.showIf, scene, 'showIf');
+      const hiddenByTags =
+        choice.tags !== undefined && choice.tags.some((tag) => disabledTags.includes(tag));
+      const hidden = hiddenByShowIf || hiddenByTags;
+      const disabled =
+        choice.disabledIf !== undefined &&
+        this.#evalSceneExpr(choice.disabledIf, scene, 'disabledIf');
       out.push({
         id: choice.id,
         textKey: choice.textKey,
-        enabled: true,
+        enabled: !disabled,
+        ...(disabled && choice.disabledReasonKey !== undefined
+          ? { disabledReasonKey: choice.disabledReasonKey }
+          : {}),
         ...(hidden ? { hiddenByFilter: true } : {}),
       });
     }
