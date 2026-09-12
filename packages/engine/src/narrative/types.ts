@@ -1,4 +1,13 @@
-import type { CompiledExpr, EventDef, GameId, Lang, Manifest, Rng, TextKey } from '@game/shared';
+import type {
+  CompiledExpr,
+  EventDef,
+  ExprFunctionRegistry,
+  GameId,
+  Lang,
+  Manifest,
+  Rng,
+  TextKey,
+} from '@game/shared';
 import type { EffectData } from '@game/shared';
 import type { InterpVars } from '../i18n/index.js';
 import type { CompiledScene, LocalePack } from '../loader/index.js';
@@ -97,7 +106,8 @@ export interface SceneRunnerRuntime {
 /**
  * SceneRunner 依赖的游戏定义最小视图：{@link GameDefinition} 结构化满足。
  * exprCache 承载场景数据内表达式（showIf/disabledIf/entry.require）的加载期
- * 编译产物（§3.4 步骤 5）；locales[mainLang] 承载叙事宏结构（macros.ts）。
+ * 编译产物（§3.4 步骤 5）；locales[mainLang] 承载叙事宏结构（macros.ts）；
+ * functionRegistry 供词典承载的宏条件表达式按需编译（缺省内置 20 函数）。
  */
 export interface SceneRunnerDef {
   readonly manifest: Pick<Manifest, 'mainLang'>;
@@ -105,6 +115,8 @@ export interface SceneRunnerDef {
   readonly events: readonly EventDef[];
   readonly locales: Record<Lang, LocalePack>;
   readonly exprCache: ReadonlyMap<string, CompiledExpr>;
+  /** 表达式函数注册表（宏条件编译；缺省 = 内置 20 函数，脚本扩展经 def 注入） */
+  readonly functionRegistry?: ExprFunctionRegistry;
 }
 
 /** SceneRunner 构造选项（设计 §4.2 opts：sceneId/params/readonly + 注入缝） */

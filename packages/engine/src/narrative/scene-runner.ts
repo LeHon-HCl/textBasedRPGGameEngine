@@ -1,9 +1,13 @@
 import { EngineError } from '@game/shared';
-import type { EffectData, GameId } from '@game/shared';
+import type { CompiledExpr, EffectData, ExprFunctionRegistry, GameId, TextKey } from '@game/shared';
+import { compileExpr } from '../expr-eval/index.js';
+import { createBuiltinFunctionRegistry } from '../expr-eval/index.js';
 import type { InterpVars } from '../i18n/index.js';
 import type { CompiledScene } from '../loader/index.js';
 import type { MediaIntent } from '../runtime/index.js';
 import type { ChoiceDef } from '@game/shared';
+import { expandMacro, parseMacro } from './macros.js';
+import type { MacroExpansionContext, NarrativeMacro } from './macros.js';
 import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
 import type {
   ChoiceView,
@@ -65,6 +69,8 @@ export class SceneRunner {
   #endingId: string | undefined;
   #lastOutcome: ExecOutcome | undefined;
   #lastRender: RenderSegment[] = [];
+  /** 宏条件表达式编译缓存（键 = 表达式原文；词典承载表达式按需编译） */
+  readonly #macroExprs = new Map<string, CompiledExpr>();
 
   constructor(rt: SceneRunnerRuntime, options: SceneRunnerOptions) {
     this.#rt = rt;
@@ -114,13 +120,22 @@ export class SceneRunner {
 
   /**
    * 当前可渲染段落（§4.2 renderList）：已揭示前缀的段落流。
-   * entering 相位首次调用完成段落流展开（show_if 过滤 + 宏惰性求值）并迁移
-   * await_advance；此后重复调用返回同一前缀（不重复展开、不重复消耗随机序列）。
+   * entering 相位首次调用完成段落流展开（show_if 过滤 + 宏惰性求值 + 场景
+   * 访问记录）并迁移 await_advance；宏决策按访问快照缓存（重复 renderList
+   * 不重复展开、不重复消耗随机序列），vars 每次渲染重新组装（延迟插值）。
    */
   renderList(): RenderSegment[] {
     if (this.#phase === 'entering') {
-      this.#frame.expanded = this.#expandSegments(this.#frame.scene);
+      // first/again 依据 seen.scenes 的访问快照（§4.2）；readonly 会话强制
+      // again 且不写 seen（FR-GAL-01 回想重放无副作用）
+      this.#frame.firstVisit =
+        !this.#readonlySession && !this.#rt.state.seen.scenes.includes(this.#frame.sceneId);
+      this.#frame.expanded = this.#expandPlan(this.#frame);
       this.#frame.cursor = Math.min(1, this.#frame.expanded.length);
+      // 写 seen.scenes 的时机 = 正常会话渲染时（§4.2）；只读会话不写
+      if (!this.#readonlySession) {
+        this.#rt.markSceneSeen(this.#frame.sceneId);
+      }
       this.#phase = 'await_advance';
     }
     if (this.#phase === 'finished' || this.#phase === 'resolving') {
@@ -215,21 +230,76 @@ export class SceneRunner {
 
   // —— 内部管线 ————————————————————————————————————————————————————
 
-  /** 段落流展开（A 组最小面：show_if 过滤 → 文本段落；宏/媒体在 B/C 组接入） */
-  #expandSegments(scene: CompiledScene): RenderSegment[] {
-    const vars = this.#resolveVars();
-    const out: RenderSegment[] = [];
+  /**
+   * 段落流展开（宏惰性求值点，FR-NARR-04）：show_if 过滤 + 段落键宏解析 →
+   * 文本键计划（每场景访问一次快照；随机/条件决策不随重复渲染漂移）。
+   */
+  #expandPlan(frame: SessionFrame): readonly TextKey[] {
+    const scene = frame.scene;
+    const context: MacroExpansionContext = {
+      evalCondition: (expr) => this.#evalMacroCondition(expr, frame.sceneId),
+      firstVisit: frame.firstVisit,
+      rng: this.#rt.rng,
+    };
+    const out: TextKey[] = [];
     for (const segment of scene.def.segments) {
       if (segment.showIf !== undefined && !this.#evalSceneExpr(segment.showIf, scene, 'showIf')) {
         continue;
       }
-      out.push({ kind: 'text', key: segment.key, vars });
+      const macro = this.#macroFor(segment.key);
+      if (macro === null) {
+        out.push(segment.key);
+        continue;
+      }
+      const branch = expandMacro(macro, context);
+      if (branch !== null) out.push(branch);
     }
     return out;
   }
 
-  /** 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流） */
+  /**
+   * 宏条件求值（词典承载的表达式不进加载器 exprCache——它不属于场景数据，
+   * 编译期校验在首次展开时进行并按原文 memo，与 TextResolver 的 selectCache
+   * 同型；DD-01 加载期编译语义的运行时对应）。编译失败 → EXPR_COMPILE
+   * （where 携带段落键与表达式原文，NFR-05 显性化）。
+   */
+  #evalMacroCondition(source: string, sceneId: GameId): boolean {
+    let compiled = this.#macroExprs.get(source);
+    if (compiled === undefined) {
+      try {
+        compiled = compileExpr(source, this.#macroRegistry());
+      } catch (cause) {
+        if (cause instanceof EngineError) {
+          throw new EngineError({
+            code: 'EXPR_COMPILE',
+            where: { ...cause.where, scene: sceneId, expr: source },
+            messageKey: cause.messageKey,
+            cause,
+          });
+        }
+        throw cause;
+      }
+      this.#macroExprs.set(source, compiled);
+    }
+    return this.#rt.evalCondition(compiled);
+  }
+
+  /** 宏条件编译用函数注册表（def.functionRegistry 优先；缺省内置 20 函数） */
+  #macroRegistry(): ExprFunctionRegistry {
+    return this.#def.functionRegistry ?? createBuiltinFunctionRegistry();
+  }
+
+  /** 段落键 → 主语言词典记录值中的叙事宏（非宏形态返回 null，按普通键渲染） */
+  #macroFor(key: TextKey): NarrativeMacro | null {
+    const pack = this.#def.locales[this.#def.manifest.mainLang];
+    const value = pack?.keys.get(key);
+    if (value === undefined) return null;
+    return parseMacro(key, value);
+  }
+
+  /** 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流；vars 每次渲染组装） */
   #buildRenderList(frame: SessionFrame): RenderSegment[] {
+    const vars = this.#resolveVars();
     const revealed = frame.expanded.slice(0, frame.cursor);
     const out: RenderSegment[] = [];
     // 场景级媒体绑定（FR-NARR-01 / DD-05）映射为前置 image 段落（media intent
@@ -239,7 +309,7 @@ export class SceneRunner {
     }
     for (let i = 0; i < revealed.length; i++) {
       if (i > 0) out.push({ kind: 'spacing' });
-      out.push(revealed[i] as RenderSegment);
+      out.push({ kind: 'text', key: revealed[i] as TextKey, vars });
     }
     return out;
   }
@@ -379,8 +449,10 @@ interface SessionFrame {
   readonly scene: CompiledScene;
   /** 场景级媒体意图（FR-NARR-01：bg/bgm 绑定在进入时产出，DD-05） */
   readonly media: readonly MediaIntent[];
-  /** 段落流展开产物（entering 相位为空数组，首渲染时填充） */
-  expanded: RenderSegment[];
+  /** 本次访问是否首次（seen.scenes 快照；first/again 宏依据，readonly 恒 false） */
+  firstVisit: boolean;
+  /** 段落流展开计划（宏解析后的文本键序列；entering 相位为空数组，首渲染时填充） */
+  expanded: readonly TextKey[];
   /** 已揭示段落数（0..expanded.length；仅文本段落计数） */
   cursor: number;
 }
@@ -390,7 +462,7 @@ function createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
   const bound = scene.def.media;
   if (bound?.bg !== undefined) media.push({ type: 'bg', assetId: bound.bg });
   if (bound?.bgm !== undefined) media.push({ type: 'bgm', assetId: bound.bgm, loop: true });
-  return { sceneId, scene, media, expanded: [], cursor: 0 };
+  return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0 };
 }
 
 /** 提取流程类跳转（scene/ending/back/loopTransition；battle/advanceTime 留给宿主） */

@@ -261,17 +261,33 @@ function flattenLocaleDoc(namespace: string, doc: unknown, out: Map<TextKey, Loc
 
 // —— 结构文本值透传（§4.1「键值可为结构」/ FR-L10N-04，07 号文本解析器消费） ——
 
+/** 文本值保留字（记录值顶层属性）：命中即整体透传，不再按命名空间展开 */
+const RESERVED_TEXT_KEYS: readonly string[] = [
+  'plural',
+  'select',
+  'first',
+  'again',
+  'if',
+  'random',
+];
+
+function hasOwnKey(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 /**
- * 结构文本值识别：记录值含顶层 `plural` 或 `select` 属性时视为结构文本
- * （复数/选择变体），整体透传不再按命名空间展开。`plural`/`select` 为文本
- * 值保留字——组织性嵌套命名应避用；普通记录（如 choice 分组）仍按命名空间
- * 展开为键级条目。
+ * 结构文本值识别：记录值含顶层保留字属性时视为结构值，整体透传不再按命名
+ * 空间展开——`plural`/`select` 为复数/选择变体（§4.1 / FR-L10N-04，07 号
+ * TextResolver 解释）；`first`/`again`/`if`/`random` 为叙事宏判别属性
+ * （FR-NARR-04，08 号 narrative 宏展开解释，结构校验归宏解析器）。
+ * 保留字为文本值专用——组织性嵌套命名应避用；普通记录（如 choice 分组）
+ * 仍按命名空间展开为键级条目。
  */
 function structuralTextValue(value: Record<string, unknown>): LocaleRecord | undefined {
-  const hasPlural = Object.prototype.hasOwnProperty.call(value, 'plural');
-  const hasSelect = Object.prototype.hasOwnProperty.call(value, 'select');
-  if (!hasPlural && !hasSelect) return undefined;
-  return toStructuralRecord(value);
+  if (RESERVED_TEXT_KEYS.some((key) => hasOwnKey(value, key))) {
+    return toStructuralRecord(value);
+  }
+  return undefined;
 }
 
 /** 结构文本值深转换：标量收敛规则同 toLocaleValue，嵌套记录保留结构 */

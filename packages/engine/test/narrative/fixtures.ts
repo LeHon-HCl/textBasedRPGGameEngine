@@ -41,12 +41,35 @@ export const BASE_VERSIONS = { gameVersion: '1.0.0', schemaVersion: 1, minEngine
 
 const FN_REGISTRY = createBuiltinFunctionRegistry();
 
-/** 嵌套记录 → 命名空间镜像展开的 LocalePack（'scenes.a.open' 形态键） */
+/**
+ * 嵌套记录 → 命名空间镜像展开的 LocalePack（'scenes.a.open' 形态键）。
+ * 镜像规则与 06 号加载器 flattenLocaleDoc 一致：顶层命中保留字
+ * （plural/select/first/again/if/random）的记录值整体透传（深转换：
+ * 数值/布尔字符串化），其余记录按命名空间递归展开。
+ */
 export function pack(lang: Lang, record: Record<string, unknown>): LocalePack {
   const keys = new Map<string, unknown>();
+  const RESERVED = ['plural', 'select', 'first', 'again', 'if', 'random'];
+  const structural = (value: unknown): unknown => {
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return value.map(structural);
+    if (typeof value === 'object' && value !== null) {
+      const out: Record<string, unknown> = {};
+      for (const [name, child] of Object.entries(value as Record<string, unknown>)) {
+        out[name] = structural(child);
+      }
+      return out;
+    }
+    return value;
+  };
   const walk = (prefix: string, value: unknown): void => {
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      for (const [name, child] of Object.entries(value as Record<string, unknown>)) {
+      const record = value as Record<string, unknown>;
+      if (RESERVED.some((name) => Object.prototype.hasOwnProperty.call(record, name))) {
+        keys.set(prefix, structural(record));
+        return;
+      }
+      for (const [name, child] of Object.entries(record)) {
         walk(prefix === '' ? name : `${prefix}.${name}`, child);
       }
       return;
