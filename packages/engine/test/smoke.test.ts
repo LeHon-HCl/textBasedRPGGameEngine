@@ -35,6 +35,12 @@ describe('engine 包工具链冒烟', () => {
     expect(engineEntry.createBuiltinEffectRegistry().ids()).toContain('call');
   });
 
+  it('公开 API 出口包含 i18n 子系统导出（07 任务接线）', () => {
+    expect(typeof engineEntry.createTextResolver).toBe('function');
+    expect(typeof engineEntry.createLocaleProvider).toBe('function');
+    expect(typeof engineEntry.collectTranslationStats).toBe('function');
+  });
+
   it('Vitest 断言与模块语义在 node 环境正常工作', () => {
     const state = engineEntry.newGameState(
       { versions: { gameVersion: '0.0.0', schemaVersion: 1, minEngineVersion: '0.0.0' } },

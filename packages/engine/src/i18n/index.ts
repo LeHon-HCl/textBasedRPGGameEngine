@@ -5,6 +5,8 @@
  * 对外暴露实现，横向子系统不得深入本目录路径（DD-06）。
  */
 export { consoleWarn, createLocaleProvider, createTextResolver } from './text-resolver.js';
+export { collectTranslationStats } from './translation-stats.js';
+export type { TranslationStats, TranslationStatsInput } from './translation-stats.js';
 export type {
   InterpVars,
   LocaleProvider,

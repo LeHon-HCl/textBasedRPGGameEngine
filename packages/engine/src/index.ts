@@ -93,6 +93,8 @@ export type {
 
 // ---- i18n（§4.1 文本解析与本地化运行时：TextResolver 解析/回退/插值/变体） ----
 export { consoleWarn, createLocaleProvider, createTextResolver } from './i18n/index.js';
+export { collectTranslationStats } from './i18n/index.js';
+export type { TranslationStats, TranslationStatsInput } from './i18n/index.js';
 export type {
   InterpVars,
   LocaleProvider,

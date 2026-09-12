@@ -492,6 +492,16 @@ function materialize(value: LocaleValue, context: MaterializeContext): string | 
  */
 const PLACEHOLDER_PATTERN = /\{([^{}|]+)(?:\|([^{}]+))?\}/g;
 
+/**
+ * 提取模板中的占位符路径（出现顺序、含重复；格式段剥离，仅 `{path}` 的
+ * path 部分——占位符同一性由变量路径决定，与格式化规格无关）。占位符
+ * 语法的唯一权威解析点，07 任务 7 完成度统计复用（i18n 子系统内部共享，
+ * 不经子系统出口发布）。
+ */
+export function extractPlaceholderPaths(template: string): string[] {
+  return [...template.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[1] ?? '');
+}
+
 /** 数值格式化规格（`fmt:number` 段解析产物；digits=null = 默认字符串形态） */
 interface NumberFormat {
   readonly signed: boolean;
