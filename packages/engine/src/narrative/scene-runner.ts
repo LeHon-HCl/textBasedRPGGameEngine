@@ -188,10 +188,20 @@ export class SceneRunner {
    *   `{back}` → 子会话返回（C 组）或 finished；`{loop_transition}` → finished；
    * - 无流程跳转 → 留在当前场景（剩余选项继续可选，回到 await_choice）。
    *
-   * 入参校验（进入 resolving 之前抛出，相位不变）：相位非 await_choice、
-   * 未知选项 id、被过滤选项（hiddenByFilter）、置灰选项（enabled=false）。
+   * 入参校验（进入 resolving 之前抛出，相位不变）：只读会话（回想重放无任何
+   * 副作用，FR-GAL-01）、相位非 await_choice、未知选项 id、被过滤选项
+   * （hiddenByFilter）、置灰选项（enabled=false）。
    */
   choose(choiceId: string): void {
+    // 只读会话不变量优先于相位校验（回想重放无任何副作用，FR-GAL-01；
+    // 常规回想流在段落尽即终局，不进入选项相位——此守卫为纵深防御）
+    if (this.#readonlySession) {
+      throw new EngineError({
+        code: 'INTERNAL',
+        where: { scene: this.#frame.sceneId, choice: choiceId },
+        messageKey: 'error.narrative.readonlyChoice',
+      });
+    }
     if (this.#phase !== 'await_choice') {
       throw internalWrongPhase('choose', this.#phase);
     }
@@ -233,13 +243,15 @@ export class SceneRunner {
   /**
    * 段落流展开（宏惰性求值点，FR-NARR-04）：show_if 过滤 + 段落键宏解析 →
    * 文本键计划（每场景访问一次快照；随机/条件决策不随重复渲染漂移）。
+   * 只读会话经 rng.fork() 派生子序列做随机决策（FR-GAL-01 无副作用：不消耗
+   * 运行时主随机序列，派生子序列自当前状态确定性产生）。
    */
   #expandPlan(frame: SessionFrame): readonly TextKey[] {
     const scene = frame.scene;
     const context: MacroExpansionContext = {
       evalCondition: (expr) => this.#evalMacroCondition(expr, frame.sceneId),
       firstVisit: frame.firstVisit,
-      rng: this.#rt.rng,
+      rng: this.#readonlySession ? this.#rt.rng.fork() : this.#rt.rng,
     };
     const out: TextKey[] = [];
     for (const segment of scene.def.segments) {
@@ -316,6 +328,11 @@ export class SceneRunner {
 
   /** 段落尽后的终局迁移（§4.2：存在可见选项 → await_choice，否则 finished） */
   #transitionAfterExhausted(): void {
+    // 只读会话（回想重放）不可交互：段落尽即自然终局，不进入选项相位
+    if (this.#readonlySession) {
+      this.#finish('exhausted');
+      return;
+    }
     const views = this.#choiceViews(this.#frame.scene.def.choices);
     const hasVisible = views.some((view) => view.hiddenByFilter !== true);
     if (hasVisible) {
