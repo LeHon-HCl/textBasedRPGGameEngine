@@ -12,6 +12,7 @@ import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
 import type {
   ChoiceView,
   NarrativeEndReason,
+  NarrativeWarning,
   RenderSegment,
   RunnerPhase,
   SceneRunnerDef,
@@ -59,6 +60,9 @@ export class SceneRunner {
   readonly #def: SceneRunnerDef;
   readonly #readonlySession: boolean;
   readonly #paramsSource: SceneRunnerOptions['params'];
+  readonly #onWarn: ((warning: NarrativeWarning) => void) | undefined;
+  /** 事件场景 id 集（def.events 声明的 event.scene，§4.2 子会话判定面） */
+  readonly #eventSceneIds: ReadonlySet<GameId>;
 
   #phase: RunnerPhase = 'entering';
   /** 当前场景帧（子会话挂起栈见 C 组；单帧阶段即主会话帧） */
@@ -77,6 +81,8 @@ export class SceneRunner {
     this.#def = options.def;
     this.#readonlySession = options.readonly ?? false;
     this.#paramsSource = options.params;
+    this.#onWarn = options.onWarn;
+    this.#eventSceneIds = new Set(options.def.events.map((event) => event.scene));
     const scene = options.def.scenes.get(options.sceneId);
     if (scene === undefined) {
       throw new EngineError({
@@ -116,6 +122,11 @@ export class SceneRunner {
   /** 当前会话是否只读（回想重放，FR-GAL-01） */
   get isReadonly(): boolean {
     return this.#readonlySession;
+  }
+
+  /** 当前子会话嵌套深度（挂起主会话帧数；0 = 顶层主会话） */
+  get depth(): number {
+    return this.#suspended.length;
   }
 
   /**
@@ -415,7 +426,7 @@ export class SceneRunner {
         this.#finish('ending', effective.ending);
         return;
       case 'back':
-        this.#finish('back');
+        this.#resumeOrFinish();
         return;
       case 'loopTransition':
         this.#finish('loop');
@@ -427,7 +438,26 @@ export class SceneRunner {
     }
   }
 
-  /** 进入新场景帧（场景缺失 → 错误挂起态；事件子会话压栈见 C 组） */
+  /** {back} 消费：有挂起主会话 → 弹栈恢复（回到选项相位）；否则会话终局 */
+  #resumeOrFinish(): void {
+    const resumed = this.#suspended.pop();
+    if (resumed === undefined) {
+      this.#finish('back');
+      return;
+    }
+    // 挂起帧在 choose 的 resolving 中被挂起，其选项已消费完毕：恢复到
+    // await_choice（剩余选项继续可选；选项视图按恢复时状态现算）
+    this.#frame = resumed;
+    this.#phase = 'await_choice';
+  }
+
+  /**
+   * 进入新场景帧（§4.2 子会话挂起栈，C 组）：跳转目标是事件场景（def.events
+   * 声明的 event.scene 集合）时，当前帧压入挂起栈、以子会话进入事件场景；
+   * 深度限 3——挂起栈已满时发 warning（diagnostic 风格，经 onWarn 出口）且
+   * 不再压栈（按普通导航替换当前帧，数据设计问题在调试期显性化）；普通场景
+   * 跳转为导航替换。场景缺失 → 错误挂起态。
+   */
   #enterScene(sceneId: GameId): void {
     const scene = this.#def.scenes.get(sceneId);
     if (scene === undefined) {
@@ -435,6 +465,19 @@ export class SceneRunner {
         code: 'INTERNAL',
         where: { scene: sceneId, from: this.#frame.sceneId },
         messageKey: 'error.narrative.sceneMissing',
+      });
+    }
+    if (this.#eventSceneIds.has(sceneId) && this.#suspended.length < SUBSESSION_DEPTH_LIMIT) {
+      this.#suspended.push(this.#frame);
+    } else if (this.#eventSceneIds.has(sceneId)) {
+      this.#onWarn?.({
+        severity: 'warning',
+        code: 'subsession_depth_exceeded',
+        where: {
+          scene: this.#frame.sceneId,
+          target: sceneId,
+          depth: String(SUBSESSION_DEPTH_LIMIT),
+        },
       });
     }
     this.#frame = createFrame(sceneId, scene);
@@ -523,6 +566,12 @@ function collectChoiceJumps(outcome: ExecOutcome, def: ChoiceDef): JumpTarget[] 
   if (def.goto !== undefined) jumps.push({ type: 'scene', scene: def.goto });
   return jumps;
 }
+
+/**
+ * 子会话嵌套深度上限（§4.2「深度限 3，超限 = 数据设计问题，warning」）：
+ * 挂起主会话帧数达到上限后，事件场景跳转不再压栈（普通导航替换当前帧）。
+ */
+export const SUBSESSION_DEPTH_LIMIT = 3;
 
 /** 相位契约违规（INTERNAL：调用方在非法相位调用了状态机操作） */
 function internalWrongPhase(operation: string, phase: RunnerPhase, detail?: string): EngineError {
