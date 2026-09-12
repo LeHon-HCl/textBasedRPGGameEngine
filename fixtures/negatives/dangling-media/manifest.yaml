@@ -1,0 +1,13 @@
+# 负例：媒体引用悬空（预期 warning 级 DANGLING_REF，kind=media，
+# FR-MEDIA-06 占位容错，不阻断加载）
+gameId: negative_dangling_media
+entryScene: chapel
+mainLang: zh-CN
+langs:
+  - zh-CN
+contentTags: []
+gameVersion: 1.0.0
+schemaVersion: 1
+minEngineVersion: 0.1.0
+redirects: {}
+credits: 负例夹具：唯一缺陷为场景背景 media.bg 指向不存在的资产 missing_chapel_bg。

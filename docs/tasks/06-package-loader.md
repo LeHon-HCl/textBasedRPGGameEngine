@@ -23,7 +23,7 @@
 - [x] freeze：GameDefinition 深冻结 + 运行期不可变测试
 
 ### C. 诊断与夹具
-- [ ] `Diagnostic[]` 汇总（error 阻断 / warning 入 definition）；负例夹具逐个断言 ErrCode
+- [x] `Diagnostic[]` 汇总（error 阻断 / warning 入 definition）；负例夹具逐个断言 ErrCode
 - [ ] mini-game 加载端到端测试（夹具 → definition 断言索引内容）
 
 ## 完成定义

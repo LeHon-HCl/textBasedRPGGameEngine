@@ -1,0 +1,13 @@
+# 负例：主语言词典缺失文本键（预期 warning 级 DANGLING_REF，kind=text，
+# 设计 §3.4「主语言缺失键 → warning」，不阻断加载）
+gameId: negative_dangling_text_key
+entryScene: shrine
+mainLang: zh-CN
+langs:
+  - zh-CN
+contentTags: []
+gameVersion: 1.0.0
+schemaVersion: 1
+minEngineVersion: 0.1.0
+redirects: {}
+credits: 负例夹具：唯一缺陷为场景段键 scenes.shrine.missing 在主语言词典中缺失。

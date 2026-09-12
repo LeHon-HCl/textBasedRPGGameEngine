@@ -1,0 +1,9 @@
+id: chapel
+area: old_town
+media:
+  bg: missing_chapel_bg
+segments:
+  - key: scenes.chapel.altar
+choices:
+  - id: pray
+    textKey: scenes.chapel.choice.pray

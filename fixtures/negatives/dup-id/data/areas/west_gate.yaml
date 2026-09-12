@@ -1,0 +1,4 @@
+# 负例支撑文件：区域定义（除目标缺陷外包结构保持合法，使失败精确定位）
+id: west_gate
+nameKey: areas.west_gate.name
+locations: {}

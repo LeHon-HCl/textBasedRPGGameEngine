@@ -1,0 +1,8 @@
+id: shrine
+area: old_town
+segments:
+  - key: scenes.shrine.altar
+  - key: scenes.shrine.missing
+choices:
+  - id: pray
+    textKey: scenes.shrine.choice.pray
