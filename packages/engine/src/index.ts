@@ -103,3 +103,17 @@ export type {
   TextResolverOptions,
   TextResolverWarn,
 } from './i18n/index.js';
+
+// ---- narrative（§4.2 叙事运行时：场景会话状态机 / 渲染段落 / 选项视图） ----
+export { SceneRunner } from './narrative/index.js';
+export type {
+  ChoiceView,
+  NarrativeEndReason,
+  NarrativeHistoryEntry,
+  NarrativeWarning,
+  RenderSegment,
+  RunnerPhase,
+  SceneRunnerDef,
+  SceneRunnerOptions,
+  SceneRunnerRuntime,
+} from './narrative/index.js';

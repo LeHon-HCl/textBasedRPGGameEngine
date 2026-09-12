@@ -295,6 +295,19 @@ export class GameRuntime {
   }
 
   /**
+   * 场景访问记录（§4.2「写 seen.scenes 的时机 = 正常会话渲染时」的状态写入口，
+   * 08 号叙事运行时消费）：seen.scenes 追加去重（重复访问不产生重复条目）。
+   * 与 checkpoint 同类：不经效果指令的窄写路径（02 号指令集无 seen.scenes 域，
+   * 叙事运行时作为流程层拥有该域的写入权）。
+   */
+  markSceneSeen(sceneId: string): void {
+    if (this.#state.seen.scenes.includes(sceneId)) return;
+    this.#state = produce(this.#state, (draft) => {
+      draft.seen.scenes.push(sceneId);
+    });
+  }
+
+  /**
    * 存档序列化（§3.1 serialize，DD-09）：输出 SerializedState 投影（02 号
    * schema 终验，A2 契约）。RNG 状态由调用方随 SaveBlob 组装（`rng.getState()`，
    * SaveBlob.rngState；20 号 SaveService 的装配面）。
