@@ -12,13 +12,13 @@
 ## 任务清单
 
 ### A. 管线 1–3（M0）
-- [ ] `PackageSource` 接口 + `InMemoryPackageSource`（Record<path, content>）
-- [ ] collect：DD-02 目录聚合（`scenes/<areaId>/<sceneId>.yaml`，area 字段与目录不一致 → warning）
-- [ ] parse + validate：逐域 Zod、重复 ID（DUP_ID）、语言包加载与主语言缺失 warning
+- [x] `PackageSource` 接口 + `InMemoryPackageSource`（Record<path, content>）
+- [x] collect：DD-02 目录聚合（`scenes/<areaId>/<sceneId>.yaml`，area 字段与目录不一致 → warning）
+- [x] parse + validate：逐域 Zod、重复 ID（DUP_ID）、语言包加载与主语言缺失 warning
 
 ### B. 管线 4–7（M1）
-- [ ] crossRef：refKind 元数据驱动的悬空引用检查（跳转/物品/NPC/媒体/文本键 → DANGLING_REF）
-- [ ] compile：exprCache、PoolIndex（byScope/mutex）、任务与成就 refs 反查表、mediaCatalog
+- [x] crossRef：refKind 元数据驱动的悬空引用检查（跳转/物品/NPC/媒体/文本键 → DANGLING_REF）
+- [x] compile：exprCache、PoolIndex（byScope/mutex）、任务与成就 refs 反查表、mediaCatalog
 - [x] scripts 步骤：宿主注入 ScriptModule → 23 号注册 → 注册表冻结（此时段 `x.*` 悬空校验）
 - [x] freeze：GameDefinition 深冻结 + 运行期不可变测试
 
