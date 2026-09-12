@@ -10,6 +10,8 @@ import type { ExprBinaryOp, ExprNode, ExprSource } from '@game/shared';
  *   标识符起始字符，直接产出 §2.3 的 `path` / `call` / 布尔 / null 节点——jsep
  *   原生 Identifier / MemberExpression / CallExpression 分支因此不再可达，
  *   `a.b()`（对路径调用）、`a[0]`（计算成员）等超出 EBNF 的形态无处产生；
+ *   唯一例外是 `x.<script>.<name>()` 脚本函数调用（DD-08 注册名与
+ *   ExprFunctionDef.name 同一形态，§2.3/§5.9/FR-SCR-04，06 号加载器接线）。
  * - **运算符表裁剪到 EBNF**：移除位运算 / 严格相等 / 指数 / 空值合并等 EBNF
  *   之外的二元运算符与按位非一元运算符，多余运算符在解析期即报语法错误；
  * - 三元 `?:` 保留 jsep 默认注册的 ternary 插件（EBNF `ternary` 产生式）。
@@ -144,13 +146,20 @@ const pathCallPlugin = {
         segments.push(segment.name as string);
       }
 
-      // call = IDENT '(' [expr {',' expr}] ')'：仅允许对裸标识符调用（EBNF）
+      // call = IDENT '(' [expr {',' expr}] ')'：裸标识符（内置 20 函数，DD-01）
+      // 或 `x.<script>.<name>`（DD-08 脚本函数注册名，ExprFunctionDef.name 同一
+      // 形态，§2.3/§5.9）可被调用；其余点分路径调用（`a.b()`）仍为语法错误。
       this.gobbleSpaces();
-      if (this.code === OPAREN_CODE && segments.length === 1) {
+      const isScriptCall = segments.length === 3 && segments[0] === 'x';
+      if (this.code === OPAREN_CODE && (segments.length === 1 || isScriptCall)) {
         this.index += 1;
         const rawArgs = this.gobbleArguments(CPAREN_CODE);
         const args = Array.isArray(rawArgs) ? rawArgs.map((arg) => normalize(arg)) : [];
-        env.node = { kind: 'call', name, args } satisfies ExprNode;
+        env.node = {
+          kind: 'call',
+          name: isScriptCall ? segments.join('.') : name,
+          args,
+        } satisfies ExprNode;
         return;
       }
 

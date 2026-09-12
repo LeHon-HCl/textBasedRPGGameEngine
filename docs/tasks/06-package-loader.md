@@ -19,7 +19,7 @@
 ### B. 管线 4–7（M1）
 - [ ] crossRef：refKind 元数据驱动的悬空引用检查（跳转/物品/NPC/媒体/文本键 → DANGLING_REF）
 - [ ] compile：exprCache、PoolIndex（byScope/mutex）、任务与成就 refs 反查表、mediaCatalog
-- [ ] scripts 步骤：宿主注入 ScriptModule → 23 号注册 → 注册表冻结（此时段 `x.*` 悬空校验）
+- [x] scripts 步骤：宿主注入 ScriptModule → 23 号注册 → 注册表冻结（此时段 `x.*` 悬空校验）
 - [ ] freeze：GameDefinition 深冻结 + 运行期不可变测试
 
 ### C. 诊断与夹具

@@ -209,9 +209,33 @@ describe('parseExpr：ternary 产生式（最低优先级、右结合、分支�
   });
 });
 
+describe('parseExpr：脚本命名空间调用 x.<script>.<name>()（DD-08，06 号加载器接线）', () => {
+  it('三段点分名可作为调用目标（ExprFunctionDef.name 同一形态）', () => {
+    expect(parseOk('x.festival.charge()')).toEqual(call('x.festival.charge', []));
+    expect(parseOk('x.chaos.roll(1, flag.on)')).toEqual(
+      call('x.chaos.roll', [num(1), path('flag', 'on')]),
+    );
+    // 作为操作数参与普通表达式
+    expect(parseOk('x.a.b() > 0')).toEqual(bin('>', call('x.a.b', []), num(0)));
+  });
+
+  it('非调用的三段 x.* 标识符仍是 path（编译期按未知 root 拒绝）', () => {
+    expect(parseOk('x.a.b')).toEqual(path('x', 'a', 'b'));
+  });
+
+  it('两段或四段 x.* 形态不构成调用（x.<script>.<name> 恒为三段）', () => {
+    expectParseError('x.a()');
+    expectParseError('x.a.b.c()');
+  });
+
+  it('调用后尾随再调用仍是语法错误', () => {
+    expectParseError('x.a.b()()');
+  });
+});
+
 describe('parseExpr：关闭的语法（jsep 原生 identifier/member/call 与被裁剪运算符）', () => {
   it.each([
-    'a.b()', // 对路径调用（call 仅允许裸标识符）
+    'a.b()', // 对路径调用（call 仅允许裸标识符与 x.<script>.<name>）
     '(f)()', // 非标识符调用目标
     '"s".length', // 字符串成员
     '(1 + 2).x', // 分组成员
