@@ -21,7 +21,7 @@
 - [x] [03 表达式语言与求值器](03-expression.md)
 - [x] [04 GameState 与状态事务](04-game-state.md)
 - [x] [05 效果指令系统](05-effects.md)（状态类指令）
-- [ ] [06 游戏包加载器](06-package-loader.md)（管线 1–3）
+- [x] [06 游戏包加载器](06-package-loader.md)（管线 1–3）
 - [ ] [07 文本解析与本地化运行时](07-i18n.md)
 - [ ] [08 叙事运行时](08-narrative.md)（状态机骨架）
 
@@ -29,7 +29,7 @@
 
 - [x] [02 shared Schema 体系](02-schema.md)（系统域收尾）
 - [x] [05 效果指令系统](05-effects.md)（全量指令）
-- [ ] [06 游戏包加载器](06-package-loader.md)（管线 4–7）
+- [x] [06 游戏包加载器](06-package-loader.md)（管线 4–7）
 - [ ] [08 叙事运行时](08-narrative.md)（宏/选项/子会话）
 - [ ] [09 时间系统与推进管线](09-time.md)
 - [ ] [10 事件系统](10-events.md)
