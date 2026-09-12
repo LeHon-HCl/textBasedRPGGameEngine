@@ -35,6 +35,7 @@ export class EffectRegistry implements EffectExecutor {
   readonly #defs = new Map<string, ErasedEffectDef>();
   readonly #options: EffectRegistryOptions;
   readonly #functionRegistry: ExprFunctionRegistry;
+  #frozen = false;
 
   constructor(
     options: EffectRegistryOptions = {},
@@ -55,10 +56,17 @@ export class EffectRegistry implements EffectExecutor {
 
   /**
    * 注册作者扩展指令（DD-08）：id 必须 `x.<script>.<name>`，与已注册 id
-   * （含内置指令）冲突报 DUP_ID。脚本宿主（23 号）在加载期调用；注册后
-   * 的冻结语义由宿主保证（加载管线步骤 6 完成后不再注册，§3.4）。
+   * （含内置指令）冲突报 DUP_ID。脚本宿主（23 号）在加载期调用；注册表
+   * 冻结后（加载管线步骤 6 完成，§3.4）调用报 SCRIPT_CONTRACT。
    */
   register<T>(def: EffectInstructionDef<T>): void {
+    if (this.#frozen) {
+      throw new EngineError({
+        code: 'SCRIPT_CONTRACT',
+        where: { id: def.id, detail: '效果注册表已冻结（加载管线步骤 6 完成，§3.4）' },
+        messageKey: 'error.effects.registryFrozen',
+      });
+    }
     if (!X_NAMESPACE_PATTERN.test(def.id)) {
       throw new EngineError({
         code: 'SCRIPT_CONTRACT',
@@ -79,6 +87,20 @@ export class EffectRegistry implements EffectExecutor {
   /** 按 id 查找已注册指令（call 转发 / 调试自省用） */
   lookup(id: string): ErasedEffectDef | undefined {
     return this.#defs.get(id);
+  }
+
+  /**
+   * 冻结注册表（加载管线步骤 6 完成，设计 §3.4）：冻结后 register 一律报
+   * SCRIPT_CONTRACT。冻结语义由宿主（06 号加载器 / 脚本宿主 23 号）在
+   * ScriptModule.setup 全部执行完毕后调用。
+   */
+  freeze(): void {
+    this.#frozen = true;
+  }
+
+  /** 注册表是否已冻结（调试自省与测试用） */
+  get frozen(): boolean {
+    return this.#frozen;
   }
 
   /** 已注册指令 id 清单（加载期诊断与指令矩阵测试用） */

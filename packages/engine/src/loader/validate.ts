@@ -283,8 +283,16 @@ function localePackMissingWarning(lang: Lang, detail: string): Diagnostic {
 
 // ---- validate 步骤入口 --------------------------------------------------------
 
+/** validate 选项：lang = 优先加载语言（仅加载主语言与该语言，内存受限宿主用） */
+export interface ValidateOptions {
+  readonly lang?: Lang;
+}
+
 /** validate 步骤入口：逐域校验 + 重复 ID + 语言包编译（manifest 缺省域允许为 undefined） */
-export function validatePackage(parsed: ParsedPackage): ValidatedPackage {
+export function validatePackage(
+  parsed: ParsedPackage,
+  options: ValidateOptions = {},
+): ValidatedPackage {
   const diagnostics: Diagnostic[] = [];
   const docs = parsed.docs;
 
@@ -409,8 +417,27 @@ export function validatePackage(parsed: ParsedPackage): ValidatedPackage {
       visitRecord(attrs.derived, 'derived');
     }
 
-    // —— 语言包（FR-L10N-02）：仅加载 manifest.langs 声明的语言 ——
-    for (const lang of manifest.langs) {
+    // —— 语言包（FR-L10N-02）：仅加载 manifest.langs 声明的语言；
+    // options.lang 优先时只加载主语言与该语言（未声明 → warning） ——
+    let langsToLoad = manifest.langs;
+    if (options.lang !== undefined && !manifest.langs.includes(options.lang)) {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'SCHEMA_INVALID',
+        where: {
+          lang: options.lang,
+          phase: 'validate',
+          messageKey: 'error.loader.langNotDeclared',
+          detail: 'options.lang 未在 manifest.langs 声明，仅加载主语言',
+        },
+      });
+      langsToLoad = [manifest.mainLang];
+    } else if (options.lang !== undefined) {
+      langsToLoad = manifest.langs.filter(
+        (lang) => lang === manifest.mainLang || lang === options.lang,
+      );
+    }
+    for (const lang of langsToLoad) {
       const files = parsed.collected.localeFiles.get(lang);
       if (files === undefined || files.length === 0) {
         diagnostics.push(
