@@ -46,6 +46,7 @@ import type {
   CompiledScene,
   Diagnostic,
   LocalePack,
+  LocaleRecord,
   LocaleValue,
   PackageDomains,
   ParsedPackage,
@@ -245,12 +246,52 @@ function flattenLocaleDoc(namespace: string, doc: unknown, out: Map<TextKey, Loc
   for (const [key, value] of Object.entries(doc)) {
     const full = namespace.length === 0 ? key : `${namespace}.${key}`;
     if (isRecord(value)) {
+      const structural = structuralTextValue(value);
+      if (structural !== undefined) {
+        out.set(full, structural);
+        continue;
+      }
       flattenLocaleDoc(full, value, out);
       continue;
     }
     const leaf = toLocaleValue(value);
     if (leaf !== undefined) out.set(full, leaf);
   }
+}
+
+// —— 结构文本值透传（§4.1「键值可为结构」/ FR-L10N-04，07 号文本解析器消费） ——
+
+/**
+ * 结构文本值识别：记录值含顶层 `plural` 或 `select` 属性时视为结构文本
+ * （复数/选择变体），整体透传不再按命名空间展开。`plural`/`select` 为文本
+ * 值保留字——组织性嵌套命名应避用；普通记录（如 choice 分组）仍按命名空间
+ * 展开为键级条目。
+ */
+function structuralTextValue(value: Record<string, unknown>): LocaleRecord | undefined {
+  const hasPlural = Object.prototype.hasOwnProperty.call(value, 'plural');
+  const hasSelect = Object.prototype.hasOwnProperty.call(value, 'select');
+  if (!hasPlural && !hasSelect) return undefined;
+  return toStructuralRecord(value);
+}
+
+/** 结构文本值深转换：标量收敛规则同 toLocaleValue，嵌套记录保留结构 */
+function toStructuralRecord(value: Record<string, unknown>): LocaleRecord {
+  const out: Record<string, LocaleValue> = {};
+  for (const [key, child] of Object.entries(value)) {
+    const converted = toStructuralValue(child);
+    if (converted !== undefined) out[key] = converted;
+  }
+  return out;
+}
+
+function toStructuralValue(value: unknown): LocaleValue | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map(toStructuralValue).filter((item): item is LocaleValue => item !== undefined);
+  }
+  if (isRecord(value)) return toStructuralRecord(value);
+  return undefined;
 }
 
 function buildLocalePack(
