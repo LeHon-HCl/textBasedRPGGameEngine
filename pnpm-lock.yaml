@@ -44,7 +44,14 @@ importers:
 
   apps/editor-app: {}
 
-  apps/player-demo: {}
+  apps/player-demo:
+    dependencies:
+      '@game/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
+      '@game/shared':
+        specifier: workspace:^
+        version: link:../../packages/shared
 
   fixtures/helpers:
     devDependencies:
