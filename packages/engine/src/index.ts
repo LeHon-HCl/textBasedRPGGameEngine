@@ -90,3 +90,13 @@ export type {
   ScriptModule,
   ScriptSetupApi,
 } from './loader/index.js';
+
+// ---- i18n（§4.1 文本解析与本地化运行时：TextResolver 解析/回退/插值/变体） ----
+export { consoleWarn, createTextResolver } from './i18n/index.js';
+export type {
+  InterpVars,
+  ResolvedText,
+  TextResolver,
+  TextResolverOptions,
+  TextResolverWarn,
+} from './i18n/index.js';
