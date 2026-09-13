@@ -143,6 +143,19 @@ export type {
 } from './time/index.js';
 
 // ---- items（§4.7 物品：Inventory 纯函数集 / 装备修正明细投影，13 号） --------
-export { bagCount, bagGive, bagMerge, bagSplit, bagTake, equipModDetails } from './items/index.js';
-export type { EquipModDetail } from './items/index.js';
-export { createItemTickProvider } from './items/index.js';
+export {
+  bagCount,
+  bagGive,
+  bagMerge,
+  bagSplit,
+  bagTake,
+  createItemTickProvider,
+  equipModDetails,
+  projectBag,
+} from './items/index.js';
+export type {
+  BagEntryView,
+  BagProjection,
+  BagProjectionOptions,
+  EquipModDetail,
+} from './items/index.js';
