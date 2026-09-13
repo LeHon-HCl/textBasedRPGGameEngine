@@ -24,6 +24,7 @@ import {
   serializedStateSchema,
   shopDefSchema,
   statsPageDefSchema,
+  timeConfigSchema,
 } from '../../src/index.js';
 
 /**
@@ -64,11 +65,12 @@ const CASES: ReadonlyArray<[name: string, schema: z.ZodType]> = [
   ['serialized-state', serializedStateSchema],
   ['save-blob', saveBlobSchema],
   ['profile', profileSchema],
+  ['time', timeConfigSchema],
 ];
 
 describe('schema JSON Schema 快照守护（NFR-12/15，02 任务 C2）', () => {
-  it('全部 21 份 schema 均可生成 JSON Schema（结构可导出，编辑器表单生成的数据前提）', () => {
-    expect(CASES).toHaveLength(21);
+  it('全部 22 份 schema 均可生成 JSON Schema（结构可导出，编辑器表单生成的数据前提）', () => {
+    expect(CASES).toHaveLength(22);
     for (const [, schema] of CASES) {
       expect(() => z.toJSONSchema(schema, { io: 'input' })).not.toThrow();
     }

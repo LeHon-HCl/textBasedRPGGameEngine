@@ -110,3 +110,7 @@ export type {
 } from './save.js';
 export { profileAchievementEntrySchema, profileSchema } from './profile.js';
 export type { Profile } from './profile.js';
+
+// ---- TimeConfig（时段制日历，§4.3；data/time.yaml，09 号） --------------------
+export { monthDefSchema, timeConfigSchema, timeSlotDefSchema, weekdayDefSchema } from './time.js';
+export type { MonthDef, TimeConfig, TimeSlotDef, WeekdayDef } from './time.js';

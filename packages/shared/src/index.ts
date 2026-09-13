@@ -171,4 +171,10 @@ export type {
   QuestState,
   SaveBlob,
   SerializedState,
+  MonthDef,
+  TimeConfig,
+  TimeSlotDef,
+  WeekdayDef,
 } from './schema/index.js';
+/** @since 0.2.0（09 号：时段制日历 data/time.yaml） */
+export { timeConfigSchema } from './schema/index.js';

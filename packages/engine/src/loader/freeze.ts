@@ -68,6 +68,7 @@ export function buildGameDefinition(deps: {
     functionRegistry: scriptResult.functionRegistry,
     effectRegistry: scriptResult.effectRegistry,
     mediaCatalog: artifacts.mediaCatalog,
+    time: domains.time,
     locales: Object.fromEntries(validated.locales),
     redirects: { ...manifest.redirects },
     diagnostics: mergeDiagnostics(warnings).filter((d) => d.severity === 'warning'),
