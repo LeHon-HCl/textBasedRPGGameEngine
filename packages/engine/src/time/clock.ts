@@ -97,3 +97,19 @@ export function advanceClock(clock: Clock, config: TimeConfig, slots: number): C
       config.months !== undefined && absoluteMonth(next.day, config) > absoluteMonth(clock.day, config),
   };
 }
+
+/**
+ * 缺省日历（游戏包未提供 data/time.yaml 时的宿主缺省）：
+ * 4 时段（早/午/晚/夜）× 7 天 × 周日起算，不启用月历。
+ * 名称键走引擎缺省文案键命名空间（ui.time.*，FR-L10N 引擎自身多语言）。
+ */
+export const DEFAULT_TIME_CONFIG: TimeConfig = {
+  slots: [
+    { id: 'slot_morning', nameKey: 'ui.time.slot.morning' },
+    { id: 'slot_noon', nameKey: 'ui.time.slot.noon' },
+    { id: 'slot_evening', nameKey: 'ui.time.slot.evening' },
+    { id: 'slot_night', nameKey: 'ui.time.slot.night' },
+  ],
+  weekdays: Array.from({ length: 7 }, (_, i) => ({ nameKey: `ui.time.weekday.${i + 1}` })),
+  startWeekday: 1,
+};
