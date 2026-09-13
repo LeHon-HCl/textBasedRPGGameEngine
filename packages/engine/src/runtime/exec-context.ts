@@ -28,6 +28,8 @@ export interface ExecContext {
     event?: GameId;
     battle?: string;
     instruction?: number;
+    /** 时间管线定位（§4.3 编排器事务；09 号） */
+    pipeline?: string;
   };
   /** 事务随机源（DD-09：指令内表达式与效果的随机消耗走同一序列） */
   rng: Rng;

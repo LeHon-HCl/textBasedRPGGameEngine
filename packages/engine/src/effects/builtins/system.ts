@@ -1,9 +1,10 @@
 import { effectParamSchemas } from '@game/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { BuiltinDefContext, EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
 import type { EffectInstructionDef, ErasedEffectDef, TouchReport } from '../types.js';
 import type { MediaIntent } from '../../runtime/index.js';
+import { advanceClock } from '../../time/clock.js';
 import { evalLenientParam, evalNumberParam, instructionError } from './util.js';
 
 /**
@@ -303,5 +304,34 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
     eraseDef(unlockDef),
     eraseDef(mediaDef),
     eraseDef(notifyDef),
+    eraseDef(timeAdvanceDef(options)),
   ];
+}
+
+/**
+ * `__time.advance` 内部指令（§4.3 步骤 1 时钟写入的载体，09 任务 3）。
+ *
+ * **引擎内部面，不面向作者**：推进管线把时钟变更与各步骤效果合并为同一事务
+ * （一次推进 = 一个 undo 点），时钟写入本身也要原子——故以指令形态进入事务，
+ * 由 TimePipeline 编排；作者包内书写 `__time.advance` 会被 effectDataSchema
+ * 的加载期校验拒绝（未知指令键），运行期仅管线可达。
+ *
+ * - 需要 EffectRegistryOptions.timeConfig（时间管线装配时注入）；缺省 =
+ *   EFFECT_FAILED（显性化：时间管线未装配时不做任何时钟写入）；
+ * - 模前 slotIndex 回绕与 week/month 推导统一走 advanceClock 纯函数。
+ */
+function timeAdvanceDef(options: EffectRegistryOptions): ErasedEffectDef {
+  const def: EffectInstructionDef<{ slots: number }> = {
+    id: '__time.advance',
+    schema: z.strictObject({ slots: z.number().int().min(0) }),
+    touch: (): TouchReport => ({ reads: [], writes: ['world.time'] }),
+    execute: (arg, ectx) => {
+      const config = options.timeConfig;
+      if (config === undefined) {
+        throw instructionError('__time.advance', '未注入 TimeConfig（时间管线未装配）', {});
+      }
+      ectx.draft.world.time = advanceClock(ectx.draft.world.time, config, arg.slots).clock;
+    },
+  };
+  return eraseDef(def);
 }
