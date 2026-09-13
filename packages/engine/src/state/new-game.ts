@@ -125,6 +125,7 @@ export function newGameState(bootstrap: NewGameBootstrap, rng: Rng): GameState {
       bag: (bootstrap.bag ?? []).map((entry) => ({ ...entry })),
       wallet: { ...bootstrap.wallet },
       derived: {},
+      outfitPresets: {},
       bootstrap: { perks: [...(bootstrap.perks ?? [])], name: bootstrap.playerName ?? '' },
     },
     world: {
