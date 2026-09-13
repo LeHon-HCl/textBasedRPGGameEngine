@@ -10,6 +10,8 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "dev:player": "pnpm --filter @game/player-demo dev",
+    "dev:editor": "pnpm --filter @game/editor-app dev",
     "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

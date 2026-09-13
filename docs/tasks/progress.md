@@ -23,14 +23,21 @@
 - [x] [05 效果指令系统](05-effects.md)（状态类指令）
 - [x] [06 游戏包加载器](06-package-loader.md)（管线 1–3）
 - [x] [07 文本解析与本地化运行时](07-i18n.md)
-- [ ] [08 叙事运行时](08-narrative.md)（状态机骨架）
+- [x] [08 叙事运行时](08-narrative.md)（状态机骨架）
+
+> **M0 验收记录（2026-09-13，通过）**：`pnpm dev:player` 启动后浏览器实测——
+> 加载 mini-game（七步管线）→ arrival 场景文本键渲染（TextResolver 生效）→
+> 推进段落 → 出现选项（「去集市看看」/「往镇口去」）→ 分支跳转至
+> market_street → 二级分支返回 → 另一分支至 town_gate，**3 场景分支全部走通**；
+> 表达式静态报错由加载器负例夹具（bad-expr → EXPR_COMPILE）覆盖。
+> 验收辅助：demo 接线 commit 98070fa、根脚本补充（dev:player / dev:editor）。
 
 ## 里程碑 M1 —— 运行时 MVP（目标：3 区域/10+ 事件/2 任务线 demo）
 
 - [x] [02 shared Schema 体系](02-schema.md)（系统域收尾）
 - [x] [05 效果指令系统](05-effects.md)（全量指令）
 - [x] [06 游戏包加载器](06-package-loader.md)（管线 4–7）
-- [ ] [08 叙事运行时](08-narrative.md)（宏/选项/子会话）
+- [x] [08 叙事运行时](08-narrative.md)（宏/选项/子会话）
 - [ ] [09 时间系统与推进管线](09-time.md)
 - [ ] [10 事件系统](10-events.md)
 - [ ] [11 任务系统](11-quests.md)
