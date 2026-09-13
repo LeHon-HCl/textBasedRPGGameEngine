@@ -1,6 +1,7 @@
 import { effectParamSchemas } from '@game/shared';
 import type { GameId, ItemDef } from '@game/shared';
 import type { WritableDraft } from 'immer';
+import { z } from 'zod';
 import type { GameState } from '../../state/index.js';
 import { bagGive, bagTake } from '../../items/index.js';
 import type { EffectExecuteContext, EffectRegistryOptions } from '../types.js';
@@ -133,11 +134,8 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
     touch: (): TouchReport => ({ reads: [], writes: ['player.outfit', 'player.bag'] }),
     execute: (arg, ectx) => {
       if (arg.preset !== undefined) {
-        throw instructionError(
-          'wear',
-          `换装预设 '${arg.preset}' 的应用属 13 号（FR-ITEM-05），本模块仅支持单件穿戴`,
-          { preset: arg.preset },
-        );
+        applyOutfitPreset(arg.preset, ectx, items, options.bagCapacity);
+        return;
       }
       if (arg.item === undefined) {
         throw instructionError('wear', 'wear 需要 item 或 preset 之一', {});
@@ -216,5 +214,77 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
     eraseDef(unequipDef),
     eraseDef(wearDef),
     eraseDef(removeDef),
+    presetSaveDef(options),
   ];
+}
+
+/**
+ * 换装预设应用（§4.7，13 任务 4）：差量换装——预设中未穿着的件从背包取回
+ * （任一缺件 EFFECT_FAILED），穿着中不在预设的件回收背包；两边的交集保持
+ * 原位不动。全程单指令事务内，失败整体回滚。
+ * 设计偏差说明：快照存于 player.outfitPresets（world.flags 值域仅标量）。
+ */
+function applyOutfitPreset(
+  presetName: string,
+  ectx: EffectExecuteContext,
+  items: ReadonlyMap<string, ItemDef> | undefined,
+  capacity: number | undefined,
+): void {
+  const snapshot = ectx.draft.player.outfitPresets[presetName];
+  if (snapshot === undefined) {
+    throw instructionError(
+      'wear',
+      `换装预设 '${presetName}' 不存在（先经 __outfit.save_preset 保存）`,
+      { preset: presetName },
+    );
+  }
+  const presetIds = new Set<string>();
+  for (const layers of Object.values(snapshot)) {
+    for (const itemId of Object.values(layers)) presetIds.add(itemId);
+  }
+  const wornIds = new Set<string>();
+  for (const layers of Object.values(ectx.draft.player.outfit)) {
+    for (const itemId of Object.values(layers)) wornIds.add(itemId);
+  }
+  let bag = ectx.draft.player.bag;
+  // 1. 取回预设中未穿着的件（缺件在此失败，状态未变）
+  for (const itemId of presetIds) {
+    if (!wornIds.has(itemId)) bag = bagTake(bag, itemId, 1, 'wear');
+  }
+  // 2. 回收穿着中不在预设的件（容量不足在此失败）
+  for (const itemId of wornIds) {
+    if (!presetIds.has(itemId)) {
+      const def = items?.get(itemId) ?? fallbackDef(itemId);
+      bag = bagGive(bag, def, 1, capacity, 'wear');
+    }
+  }
+  ectx.draft.player.bag = bag;
+  // 3. 快照拷贝写入 outfit（预设保留，可重复应用）
+  const outfit: { [part: string]: { [layer: string]: string } } = {};
+  for (const [part, layers] of Object.entries(snapshot)) {
+    outfit[part] = { ...layers };
+  }
+  ectx.draft.player.outfit = outfit;
+}
+
+/**
+ * `__outfit.save_preset` 内部指令（13 任务 4）：当前穿着全量快照入
+ * player.outfitPresets[name]（同名覆盖）。**引擎内部面，不面向作者**：
+ * 换装 UI 宿主调用；作者包内书写会被 effectDataSchema 加载期校验拒绝。
+ */
+function presetSaveDef(_options: EffectRegistryOptions): ErasedEffectDef {
+  const def: EffectInstructionDef<{ name: string }> = {
+    id: '__outfit.save_preset',
+    schema: z.strictObject({ name: z.string().min(1) }),
+    touch: (): TouchReport => ({ reads: [], writes: ['player.outfitPresets'] }),
+    execute: (arg, ectx) => {
+      // draft 是 immer 代理，structuredClone 不可用——逐层浅拷贝（Outfit 仅两层）
+      const copy: { [part: string]: { [layer: string]: string } } = {};
+      for (const [part, layers] of Object.entries(ectx.draft.player.outfit)) {
+        copy[part] = { ...layers };
+      }
+      ectx.draft.player.outfitPresets[arg.name] = copy;
+    },
+  };
+  return eraseDef(def);
 }

@@ -33,6 +33,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'player.body',
   'player.equip',
   'player.outfit',
+  'player.outfitPresets',
   'player.bag',
   'player.wallet',
   'world.time',
@@ -198,9 +199,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 26 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 27 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(26);
+    expect(registry.ids().length).toBe(27);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();
@@ -287,7 +288,8 @@ describe('05-C1 touch 声明 vs 实际写域（调试监视面：抽查断言）
 describe('05-C1 touch 前缀形态（订阅触发面）', () => {
   it('writes/read 前缀均为点分状态域路径，可直接作为订阅键', () => {
     const registry = createBuiltinEffectRegistry();
-    const prefixPattern = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/;
+    // 域段允许 camelCase（与真实状态键一致：world.eventCooldowns / player.outfitPresets）
+    const prefixPattern = /^[a-z][a-zA-Z0-9_]*(\.[a-z][a-zA-Z0-9_]*)*$/;
     for (const id of registry.ids()) {
       const report = registry.lookup(id)?.touch(TOUCH_ARGS[id] as never);
       for (const prefix of [...(report?.writes ?? []), ...(report?.reads ?? [])]) {

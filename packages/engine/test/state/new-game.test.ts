@@ -78,6 +78,7 @@ describe('04-A1 newGameState：最小 bootstrap 产出 §3.1 全字段状态树'
       bag: [],
       wallet: {},
       derived: {},
+      outfitPresets: {},
       bootstrap: { perks: [], name: '' },
     });
   });

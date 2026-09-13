@@ -80,6 +80,12 @@ export interface GameState {
     wallet: Record<string, number>;
     /** 派生属性缓存（FR-STAT-05） */
     derived: Record<string, number>;
+    /**
+     * 换装预设快照（FR-ITEM-05，13 任务 4）：预设名 → outfit 全量。
+     * 设计 §4.7 原定存 world.flags，但 flagValueSchema 仅允许标量——偏差为
+     * 独立状态域（serializedStateSchema 同步扩列，只增不改）。
+     */
+    outfitPresets: Record<string, Outfit>;
     /** 新档 Perk 结算产物 + 玩家命名（FR-ACHV-06） */
     bootstrap: { perks: string[]; name: string };
   };
