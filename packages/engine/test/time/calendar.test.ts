@@ -86,3 +86,21 @@ describe('09-7 createTimeViewProvider：TimeConfig 校准注入', () => {
 function makeConfigWithStartWeekday3(): TimeConfig {
   return { ...makeConfig(false), startWeekday: 3 };
 }
+
+describe('09-7 DEFAULT_TIME_CONFIG：无 time.yaml 游戏包的宿主缺省', () => {
+  it('4 时段 × 7 天 × 周日起算，可装配视图提供器', async () => {
+    const engineTime = (await import('../../src/time/clock.js')) as typeof import(
+      '../../src/time/clock.js'
+    );
+    const config = engineTime.DEFAULT_TIME_CONFIG;
+    expect(config.slots).toHaveLength(4);
+    expect(config.weekdays).toHaveLength(7);
+    expect(config.startWeekday).toBe(1);
+    expect(config.months).toBeUndefined();
+    expect(createTimeViewProvider(config)({ day: 1, slotIndex: 2 })).toEqual({
+      day: 1,
+      weekday: '1',
+      slot: 'slot_evening',
+    });
+  });
+});

@@ -126,6 +126,7 @@ export type {
 export {
   advanceClock,
   createTimeViewProvider,
+  DEFAULT_TIME_CONFIG,
   dayOfMonth,
   projectCalendar,
   TimePipeline,
