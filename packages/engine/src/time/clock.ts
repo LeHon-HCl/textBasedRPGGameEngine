@@ -52,12 +52,17 @@ function absoluteMonth(day: number, config: TimeConfig): number {
   return cycleIndex * months.length + monthIndex;
 }
 
-/** 月内天序（1 起）：day 在循环月内的日期（日历 UI 的「几号」） */
+/** 月内天序（1 起）：day 在当前月内的日期（日历 UI 的「几号」） */
 export function dayOfMonth(day: number, config: TimeConfig): number {
   const months = config.months;
   if (months === undefined) return day;
   const cycle = months.reduce((sum, month) => sum + month.length, 0);
-  return ((day - 1) % cycle) + 1;
+  let remaining = (day - 1) % cycle;
+  for (const month of months) {
+    if (remaining < month.length) return remaining + 1;
+    remaining -= month.length;
+  }
+  return remaining + 1;
 }
 
 /**
