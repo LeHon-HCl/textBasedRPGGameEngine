@@ -1,8 +1,6 @@
 import { effectParamSchemas } from '@game/shared';
 import type { GameId, ItemDef } from '@game/shared';
-import type { WritableDraft } from 'immer';
 import { z } from 'zod';
-import type { GameState } from '../../state/index.js';
 import { bagGive, bagTake } from '../../items/index.js';
 import type { EffectExecuteContext, EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
@@ -106,7 +104,13 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
       ectx.draft.player.bag = bagTake(ectx.draft.player.bag, arg.item, 1, 'equip');
       if (occupied !== undefined) {
         const oldDef = items?.get(occupied) ?? fallbackDef(occupied);
-        ectx.draft.player.bag = bagGive(ectx.draft.player.bag, oldDef, 1, options.bagCapacity, 'equip');
+        ectx.draft.player.bag = bagGive(
+          ectx.draft.player.bag,
+          oldDef,
+          1,
+          options.bagCapacity,
+          'equip',
+        );
       }
       ectx.draft.player.equip[def.equipSlot] = arg.item;
     },
@@ -124,14 +128,23 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
       // 卸下 = 槽位键移除（immer remove patch）+ 回收背包（容量校验经 bagGive）
       ectx.draft.player.equip = omitKey(ectx.draft.player.equip, arg.slot);
       const def = items?.get(current) ?? fallbackDef(current);
-      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, 1, options.bagCapacity, 'unequip');
+      ectx.draft.player.bag = bagGive(
+        ectx.draft.player.bag,
+        def,
+        1,
+        options.bagCapacity,
+        'unequip',
+      );
     },
   };
 
   const wearDef: EffectInstructionDef<{ item?: string; preset?: string }> = {
     id: 'wear',
     schema: effectParamSchemas.wear,
-    touch: (): TouchReport => ({ reads: [], writes: ['player.outfit', 'player.bag'] }),
+    touch: (): TouchReport => ({
+      reads: [],
+      writes: ['player.outfit', 'player.wornMeta', 'player.bag'],
+    }),
     execute: (arg, ectx) => {
       if (arg.preset !== undefined) {
         applyOutfitPreset(arg.preset, ectx, items, options.bagCapacity);
@@ -165,7 +178,9 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
           options.bagCapacity,
           'wear',
         );
+        ectx.draft.player.wornMeta = omitKey(ectx.draft.player.wornMeta, worn);
       }
+      ectx.draft.player.wornMeta[arg.item] = createWornMeta(def);
       const partLayers = ectx.draft.player.outfit[def.garment.part];
       ectx.draft.player.outfit[def.garment.part] = { ...(partLayers ?? {}), [layerKey]: arg.item };
     },
@@ -174,7 +189,10 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
   const removeDef: EffectInstructionDef<{ item: string }> = {
     id: 'remove',
     schema: effectParamSchemas.remove,
-    touch: (): TouchReport => ({ reads: [], writes: ['player.outfit', 'player.bag'] }),
+    touch: (): TouchReport => ({
+      reads: [],
+      writes: ['player.outfit', 'player.wornMeta', 'player.bag'],
+    }),
     execute: (arg, ectx) => {
       let found: { part: string; layerKey: string } | undefined;
       for (const [part, layers] of Object.entries(ectx.draft.player.outfit)) {
@@ -203,7 +221,8 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
         };
       }
       const def = items?.get(arg.item) ?? fallbackDef(arg.item);
-      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, 1, options.bagCapacity, 'unequip');
+      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, 1, options.bagCapacity, 'remove');
+      ectx.draft.player.wornMeta = omitKey(ectx.draft.player.wornMeta, arg.item);
     },
   };
 
@@ -214,8 +233,57 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
     eraseDef(unequipDef),
     eraseDef(wearDef),
     eraseDef(removeDef),
-    presetSaveDef(options),
+    presetSaveDef(),
+    itemTickDef(options),
   ];
+}
+
+/**
+ * `__items.tick` 内部指令（FR-ITEM-06，13 任务 5）：耐久/时效推进。
+ * **引擎内部面，不面向作者**——由时间管线步骤 2 经 createItemTickProvider
+ * 挂载（items/tick.ts）。口径：
+ * - 时效：累计 wornSlots 达 garment.expiresAfterSlots → item_expired{expired}；
+ * - 耐久：跨天 durability -1，归零 → item_expired{durability}；
+ * - 触发后清除元数据（只报一次）；未声明字段的物品不受影响；引擎不自动脱下
+ *   过期衣物——后果由作者经事件订阅决定。
+ */
+function itemTickDef(options: EffectRegistryOptions): ErasedEffectDef {
+  const def: EffectInstructionDef<{ elapsedSlots: number; crossedDay: boolean }> = {
+    id: '__items.tick',
+    schema: z.strictObject({
+      elapsedSlots: z.number().int().min(0),
+      crossedDay: z.boolean(),
+    }),
+    touch: (): TouchReport => ({ reads: [], writes: ['player.wornMeta'] }),
+    execute: (arg, ectx) => {
+      const wornItems = new Set<string>();
+      for (const layers of Object.values(ectx.draft.player.outfit)) {
+        for (const itemId of Object.values(layers)) wornItems.add(itemId);
+      }
+      for (const itemId of wornItems) {
+        const meta = ectx.draft.player.wornMeta[itemId];
+        const def = options.items?.get(itemId);
+        if (meta === undefined || def?.garment === undefined) continue;
+        meta.wornSlots += arg.elapsedSlots;
+        if (
+          def.garment.expiresAfterSlots !== undefined &&
+          meta.wornSlots >= def.garment.expiresAfterSlots
+        ) {
+          ectx.emit({ type: 'item_expired', item: itemId, reason: 'expired' });
+          ectx.draft.player.wornMeta = omitKey(ectx.draft.player.wornMeta, itemId);
+          continue;
+        }
+        if (arg.crossedDay && meta.durability !== undefined) {
+          meta.durability -= 1;
+          if (meta.durability <= 0) {
+            ectx.emit({ type: 'item_expired', item: itemId, reason: 'durability' });
+            ectx.draft.player.wornMeta = omitKey(ectx.draft.player.wornMeta, itemId);
+          }
+        }
+      }
+    },
+  };
+  return eraseDef(def);
 }
 
 /**
@@ -265,6 +333,25 @@ function applyOutfitPreset(
     outfit[part] = { ...layers };
   }
   ectx.draft.player.outfit = outfit;
+  // 4. 元数据同步：不再穿着的清除，新穿着的按 garment 定义建档
+  let worn = ectx.draft.player.wornMeta;
+  for (const itemId of wornIds) {
+    if (!presetIds.has(itemId)) worn = omitKey(worn, itemId);
+  }
+  for (const itemId of presetIds) {
+    if (!wornIds.has(itemId)) {
+      const def = items?.get(itemId);
+      if (def?.garment !== undefined) worn[itemId] = createWornMeta(def);
+    }
+  }
+  ectx.draft.player.wornMeta = worn;
+}
+
+/** 穿着建档（FR-ITEM-06）：wornSlots 归零，耐久取 garment.durability */
+function createWornMeta(def: ItemDef): { wornSlots: number; durability?: number } {
+  const meta: { wornSlots: number; durability?: number } = { wornSlots: 0 };
+  if (def.garment?.durability !== undefined) meta.durability = def.garment.durability;
+  return meta;
 }
 
 /**
@@ -272,7 +359,7 @@ function applyOutfitPreset(
  * player.outfitPresets[name]（同名覆盖）。**引擎内部面，不面向作者**：
  * 换装 UI 宿主调用；作者包内书写会被 effectDataSchema 加载期校验拒绝。
  */
-function presetSaveDef(_options: EffectRegistryOptions): ErasedEffectDef {
+function presetSaveDef(): ErasedEffectDef {
   const def: EffectInstructionDef<{ name: string }> = {
     id: '__outfit.save_preset',
     schema: z.strictObject({ name: z.string().min(1) }),

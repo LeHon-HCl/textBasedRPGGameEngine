@@ -34,6 +34,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'player.equip',
   'player.outfit',
   'player.outfitPresets',
+  'player.wornMeta',
   'player.bag',
   'player.wallet',
   'world.time',
@@ -199,9 +200,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 27 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 28 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(27);
+    expect(registry.ids().length).toBe(28);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();

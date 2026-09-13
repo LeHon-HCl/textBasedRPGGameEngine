@@ -38,6 +38,14 @@ export interface BagEntry {
   count: number;
 }
 
+/** 穿着元数据（FR-ITEM-06；结构即 serializedStateSchema.wornMeta 值的推断类型） */
+export interface WornMeta {
+  /** 穿着期间累计时段数（时效判据） */
+  wornSlots: number;
+  /** 剩余耐久（缺省 = 无耐久概念） */
+  durability?: number;
+}
+
 /** 游玩统计（FR-STAP-03；结构即 serializedStateSchema.readStats 的推断类型） */
 export type ReadStats = SerializedState['readStats'];
 
@@ -86,6 +94,11 @@ export interface GameState {
      * 独立状态域（serializedStateSchema 同步扩列，只增不改）。
      */
     outfitPresets: Record<string, Outfit>;
+    /**
+     * 穿着元数据（FR-ITEM-06，13 任务 5）：itemId → {wornSlots, durability?}。
+     * 与 player.outfit 平行维护：穿着即有、脱下即清（__items.tick 累计/消耗）。
+     */
+    wornMeta: Record<GameId, WornMeta>;
     /** 新档 Perk 结算产物 + 玩家命名（FR-ACHV-06） */
     bootstrap: { perks: string[]; name: string };
   };

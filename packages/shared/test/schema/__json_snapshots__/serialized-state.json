@@ -34,10 +34,7 @@
                 "type": "number"
               }
             },
-            "required": [
-              "value",
-              "exp"
-            ],
+            "required": ["value", "exp"],
             "additionalProperties": false
           }
         },
@@ -64,9 +61,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "id"
-            ],
+            "required": ["id"],
             "additionalProperties": false
           }
         },
@@ -120,10 +115,7 @@
                 "maximum": 9007199254740991
               }
             },
-            "required": [
-              "itemId",
-              "count"
-            ],
+            "required": ["itemId", "count"],
             "additionalProperties": false
           }
         },
@@ -167,6 +159,30 @@
             }
           }
         },
+        "wornMeta": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "refKind": "item"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "wornSlots": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "durability": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["wornSlots"],
+            "additionalProperties": false
+          }
+        },
         "bootstrap": {
           "type": "object",
           "properties": {
@@ -180,10 +196,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "perks",
-            "name"
-          ],
+          "required": ["perks", "name"],
           "additionalProperties": false
         }
       },
@@ -228,10 +241,7 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "day",
-            "slotIndex"
-          ],
+          "required": ["day", "slotIndex"],
           "additionalProperties": false
         },
         "unlockedAreas": {
@@ -247,11 +257,7 @@
             "type": "string"
           },
           "additionalProperties": {
-            "type": [
-              "boolean",
-              "number",
-              "string"
-            ]
+            "type": ["boolean", "number", "string"]
           }
         },
         "counters": {
@@ -282,21 +288,12 @@
                 "maximum": 9007199254740991
               }
             },
-            "required": [
-              "lastDay",
-              "fired"
-            ],
+            "required": ["lastDay", "fired"],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "time",
-        "unlockedAreas",
-        "flags",
-        "counters",
-        "eventCooldowns"
-      ],
+      "required": ["time", "unlockedAreas", "flags", "counters", "eventCooldowns"],
       "additionalProperties": false
     },
     "npcs": {
@@ -323,19 +320,11 @@
               "type": "string"
             },
             "additionalProperties": {
-              "type": [
-                "boolean",
-                "number",
-                "string"
-              ]
+              "type": ["boolean", "number", "string"]
             }
           }
         },
-        "required": [
-          "favor",
-          "met",
-          "flags"
-        ],
+        "required": ["favor", "met", "flags"],
         "additionalProperties": false
       }
     },
@@ -360,14 +349,7 @@
         "properties": {
           "state": {
             "type": "string",
-            "enum": [
-              "undiscovered",
-              "available",
-              "active",
-              "ready_to_submit",
-              "done",
-              "failed"
-            ]
+            "enum": ["undiscovered", "available", "active", "ready_to_submit", "done", "failed"]
           },
           "stage": {
             "type": "string"
@@ -387,10 +369,7 @@
             "maximum": 9007199254740991
           }
         },
-        "required": [
-          "state",
-          "objectives"
-        ],
+        "required": ["state", "objectives"],
         "additionalProperties": false
       }
     },
@@ -433,13 +412,7 @@
           }
         }
       },
-      "required": [
-        "scenes",
-        "gallery",
-        "cg",
-        "endings",
-        "codex"
-      ],
+      "required": ["scenes", "gallery", "cg", "endings", "codex"],
       "additionalProperties": false
     },
     "readStats": {
@@ -474,10 +447,7 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "attempts",
-            "successes"
-          ],
+          "required": ["attempts", "successes"],
           "additionalProperties": false
         },
         "battles": {
@@ -499,20 +469,11 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "wins",
-            "losses",
-            "escapes"
-          ],
+          "required": ["wins", "losses", "escapes"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "playSeconds",
-        "eventCounts",
-        "checks",
-        "battles"
-      ],
+      "required": ["playSeconds", "eventCounts", "checks", "battles"],
       "additionalProperties": false
     },
     "settings": {

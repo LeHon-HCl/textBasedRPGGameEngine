@@ -89,10 +89,13 @@ export function recomputeDerived(
   // 来自上一轮装备修正——卸下后不得残留（重复累计防护），本轮按需重写
   if (touched) {
     for (const key of Object.keys(state.player.derived)) {
+      // 运行期键名删除是残影清理的唯一语义清晰写法（与 items.ts omitKey 同理豁免）
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       if (!derivedIds.has(key)) delete state.player.derived[key];
     }
   }
-  const equipMods = options.items !== undefined ? collectEquipMods(state, options.items, registry) : [];
+  const equipMods =
+    options.items !== undefined ? collectEquipMods(state, options.items, registry) : [];
   if (derivedDefs.length === 0 && equipMods.length === 0) return;
   if (!touched) return;
 

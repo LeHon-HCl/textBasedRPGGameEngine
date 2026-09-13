@@ -147,11 +147,7 @@ describe('05-B2 wear / remove：多层服装最简规则（FR-ITEM-04，完整�
 
   it('preset 应用：未知预设显性报错；未穿戴 remove 报错', () => {
     const { rt } = makeItemRuntime({ bag: [{ itemId: 'item_cotton_shirt', count: 1 }] });
-    expectFail(
-      () => rt.exec([{ wear: { preset: 'outfit_home' } }], makeCtx()),
-      'wear',
-      '不存在',
-    );
+    expectFail(() => rt.exec([{ wear: { preset: 'outfit_home' } }], makeCtx()), 'wear', '不存在');
     expectFail(() => rt.exec([{ remove: { item: 'item_cotton_shirt' } }], makeCtx()), 'remove');
   });
 
