@@ -148,14 +148,26 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
       }
       const layerKey = String(def.garment.layer);
       const worn = ectx.draft.player.outfit[def.garment.part]?.[layerKey];
-      if (worn !== undefined) {
+      if (worn !== undefined && def.garment.swappable !== true) {
+        // 冲突规则（§4.7，13 任务 3）：以新穿戴件的 swappable 为准——缺省拒绝
         throw instructionError(
           'wear',
-          `部位 '${def.garment.part}' 第 ${layerKey} 层已被 '${worn}' 占用（冲突基础规则，完整规则属 13 号）`,
+          `部位 '${def.garment.part}' 第 ${layerKey} 层已被 '${worn}' 占用（新件不可替换，FR-ITEM-04）`,
           { part: def.garment.part, layer: layerKey },
         );
       }
       ectx.draft.player.bag = bagTake(ectx.draft.player.bag, arg.item, 1, 'wear');
+      if (worn !== undefined) {
+        // swappable 替换：旧件回收背包（容量不足 → EFFECT_FAILED 整体回滚）
+        const oldDef = items?.get(worn) ?? fallbackDef(worn);
+        ectx.draft.player.bag = bagGive(
+          ectx.draft.player.bag,
+          oldDef,
+          1,
+          options.bagCapacity,
+          'wear',
+        );
+      }
       const partLayers = ectx.draft.player.outfit[def.garment.part];
       ectx.draft.player.outfit[def.garment.part] = { ...(partLayers ?? {}), [layerKey]: arg.item };
     },
