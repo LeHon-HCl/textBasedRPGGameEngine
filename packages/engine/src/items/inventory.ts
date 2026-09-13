@@ -43,14 +43,16 @@ function cloneBag(bag: readonly BagEntry[]): BagEntry[] {
 /**
  * 背包增加：可堆叠物品优先续加未满条目（不触发容量），余量按 stack 封顶拆
  * 新条目；不可堆叠物品逐件建条目。容量按「需新建条目数」整体校验。
+ * op 为失败归因的操作名（指令层传入指令 id，缺省 'give'）。
  */
 export function bagGive(
   bag: readonly BagEntry[],
   def: ItemDef,
   count: number,
   capacity?: number,
+  op = 'give',
 ): BagEntry[] {
-  requirePositiveInt('give', count, { item: def.id });
+  requirePositiveInt(op, count, { item: def.id });
   const result = cloneBag(bag);
   let remaining = count;
   if (def.stack !== undefined) {
@@ -67,7 +69,7 @@ export function bagGive(
     const newEntries = Math.ceil(remaining / perEntry);
     if (capacity !== undefined && result.length + newEntries > capacity) {
       throw bagError(
-        'give',
+        op,
         `背包已满（容量 ${String(capacity)}，需新建 ${String(newEntries)} 条目，FR-ITEM-02）`,
         { item: def.id },
       );
@@ -84,13 +86,19 @@ export function bagGive(
 /**
  * 背包扣减：跨同 itemId 条目按序扣减，归零条目移除。
  * 持有量不足即 EFFECT_FAILED（携带需求数与实际数，作者可读）。
+ * op 为失败归因的操作名（指令层传入指令 id，缺省 'take'）。
  */
-export function bagTake(bag: readonly BagEntry[], itemId: GameId, count: number): BagEntry[] {
-  requirePositiveInt('take', count, { item: itemId });
+export function bagTake(
+  bag: readonly BagEntry[],
+  itemId: GameId,
+  count: number,
+  op = 'take',
+): BagEntry[] {
+  requirePositiveInt(op, count, { item: itemId });
   const held = bagCount(bag, itemId);
   if (held < count) {
     throw bagError(
-      'take',
+      op,
       `未持有足够物品 '${itemId}'（需要 ${String(count)}，实际 ${String(held)}）`,
       { item: itemId },
     );

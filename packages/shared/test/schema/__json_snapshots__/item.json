@@ -22,7 +22,12 @@
     },
     "type": {
       "type": "string",
-      "enum": ["normal", "consumable", "equip", "garment"]
+      "enum": [
+        "normal",
+        "consumable",
+        "equip",
+        "garment"
+      ]
     },
     "stack": {
       "type": "integer",
@@ -43,12 +48,25 @@
           "minLength": 1
         }
       },
-      "required": ["effects"],
+      "required": [
+        "effects"
+      ],
       "additionalProperties": false
     },
     "equipSlot": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "equipMods": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "garment": {
       "type": "object",
@@ -67,7 +85,10 @@
           "minimum": 0
         }
       },
-      "required": ["part", "layer"],
+      "required": [
+        "part",
+        "layer"
+      ],
       "additionalProperties": false
     },
     "price": {
@@ -79,7 +100,11 @@
       "type": "boolean"
     }
   },
-  "required": ["id", "nameKey", "type"],
+  "required": [
+    "id",
+    "nameKey",
+    "type"
+  ],
   "additionalProperties": false,
   "$defs": {
     "__schema0": {
@@ -109,11 +134,16 @@
                   ]
                 }
               },
-              "required": ["key", "value"],
+              "required": [
+                "key",
+                "value"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["set"],
+          "required": [
+            "set"
+          ],
           "additionalProperties": false
         },
         {
@@ -138,11 +168,16 @@
                   ]
                 }
               },
-              "required": ["key", "amount"],
+              "required": [
+                "key",
+                "amount"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["add"],
+          "required": [
+            "add"
+          ],
           "additionalProperties": false
         },
         {
@@ -159,11 +194,15 @@
                   "type": "boolean"
                 }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["flag"],
+          "required": [
+            "flag"
+          ],
           "additionalProperties": false
         },
         {
@@ -188,7 +227,9 @@
               }
             }
           },
-          "required": ["money"],
+          "required": [
+            "money"
+          ],
           "additionalProperties": false
         },
         {
@@ -213,11 +254,15 @@
                   ]
                 }
               },
-              "required": ["item"],
+              "required": [
+                "item"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["give"],
+          "required": [
+            "give"
+          ],
           "additionalProperties": false
         },
         {
@@ -242,11 +287,15 @@
                   ]
                 }
               },
-              "required": ["item"],
+              "required": [
+                "item"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["take"],
+          "required": [
+            "take"
+          ],
           "additionalProperties": false
         },
         {
@@ -260,11 +309,15 @@
                   "refKind": "item"
                 }
               },
-              "required": ["item"],
+              "required": [
+                "item"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["equip"],
+          "required": [
+            "equip"
+          ],
           "additionalProperties": false
         },
         {
@@ -278,11 +331,15 @@
                   "pattern": "^[a-z][a-z0-9_]*$"
                 }
               },
-              "required": ["slot"],
+              "required": [
+                "slot"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["unequip"],
+          "required": [
+            "unequip"
+          ],
           "additionalProperties": false
         },
         {
@@ -303,7 +360,9 @@
               "additionalProperties": false
             }
           },
-          "required": ["wear"],
+          "required": [
+            "wear"
+          ],
           "additionalProperties": false
         },
         {
@@ -317,11 +376,15 @@
                   "refKind": "item"
                 }
               },
-              "required": ["item"],
+              "required": [
+                "item"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["remove"],
+          "required": [
+            "remove"
+          ],
           "additionalProperties": false
         },
         {
@@ -367,11 +430,16 @@
                   "additionalProperties": false
                 }
               },
-              "required": ["part", "value"],
+              "required": [
+                "part",
+                "value"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["set_body"],
+          "required": [
+            "set_body"
+          ],
           "additionalProperties": false
         },
         {
@@ -396,11 +464,16 @@
                   ]
                 }
               },
-              "required": ["npc", "amount"],
+              "required": [
+                "npc",
+                "amount"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["favor"],
+          "required": [
+            "favor"
+          ],
           "additionalProperties": false
         },
         {
@@ -425,11 +498,16 @@
                   ]
                 }
               },
-              "required": ["faction", "amount"],
+              "required": [
+                "faction",
+                "amount"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["reputation"],
+          "required": [
+            "reputation"
+          ],
           "additionalProperties": false
         },
         {
@@ -450,11 +528,15 @@
                   ]
                 }
               },
-              "required": ["cost"],
+              "required": [
+                "cost"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["advance_time"],
+          "required": [
+            "advance_time"
+          ],
           "additionalProperties": false
         },
         {
@@ -469,18 +551,28 @@
                 },
                 "action": {
                   "type": "string",
-                  "enum": ["accept", "advance", "complete", "fail"]
+                  "enum": [
+                    "accept",
+                    "advance",
+                    "complete",
+                    "fail"
+                  ]
                 },
                 "stage": {
                   "type": "string",
                   "pattern": "^[a-z][a-z0-9_]*$"
                 }
               },
-              "required": ["id", "action"],
+              "required": [
+                "id",
+                "action"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["quest"],
+          "required": [
+            "quest"
+          ],
           "additionalProperties": false
         },
         {
@@ -499,7 +591,11 @@
                 },
                 "difficulty": {
                   "type": "string",
-                  "enum": ["normal", "hard", "extreme"]
+                  "enum": [
+                    "normal",
+                    "hard",
+                    "extreme"
+                  ]
                 },
                 "bonusDice": {
                   "anyOf": [
@@ -559,11 +655,15 @@
                   }
                 }
               },
-              "required": ["value"],
+              "required": [
+                "value"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["check"],
+          "required": [
+            "check"
+          ],
           "additionalProperties": false
         },
         {
@@ -595,11 +695,15 @@
                   }
                 }
               },
-              "required": ["encounter"],
+              "required": [
+                "encounter"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["battle"],
+          "required": [
+            "battle"
+          ],
           "additionalProperties": false
         },
         {
@@ -610,7 +714,9 @@
               "refKind": "scene"
             }
           },
-          "required": ["goto"],
+          "required": [
+            "goto"
+          ],
           "additionalProperties": false
         },
         {
@@ -620,7 +726,9 @@
               "type": "null"
             }
           },
-          "required": ["back"],
+          "required": [
+            "back"
+          ],
           "additionalProperties": false
         },
         {
@@ -631,7 +739,9 @@
               "pattern": "^[a-z][a-z0-9_]*$"
             }
           },
-          "required": ["ending"],
+          "required": [
+            "ending"
+          ],
           "additionalProperties": false
         },
         {
@@ -641,7 +751,9 @@
               "type": "null"
             }
           },
-          "required": ["loop_transition"],
+          "required": [
+            "loop_transition"
+          ],
           "additionalProperties": false
         },
         {
@@ -661,7 +773,10 @@
                       "refKind": "scene"
                     }
                   },
-                  "required": ["kind", "id"],
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -676,7 +791,10 @@
                       "refKind": "media"
                     }
                   },
-                  "required": ["kind", "id"],
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -691,7 +809,10 @@
                       "pattern": "^[a-z][a-z0-9_]*$"
                     }
                   },
-                  "required": ["kind", "id"],
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -706,7 +827,10 @@
                       "pattern": "^[a-z][a-z0-9_]*$"
                     }
                   },
-                  "required": ["kind", "id"],
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -721,13 +845,18 @@
                       "refKind": "achievement"
                     }
                   },
-                  "required": ["kind", "id"],
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": ["unlock"],
+          "required": [
+            "unlock"
+          ],
           "additionalProperties": false
         },
         {
@@ -748,10 +877,16 @@
                     },
                     "transition": {
                       "type": "string",
-                      "enum": ["fade", "cut"]
+                      "enum": [
+                        "fade",
+                        "cut"
+                      ]
                     }
                   },
-                  "required": ["type", "assetId"],
+                  "required": [
+                    "type",
+                    "assetId"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -767,10 +902,16 @@
                     },
                     "transition": {
                       "type": "string",
-                      "enum": ["fade", "cut"]
+                      "enum": [
+                        "fade",
+                        "cut"
+                      ]
                     }
                   },
-                  "required": ["type", "assetId"],
+                  "required": [
+                    "type",
+                    "assetId"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -786,10 +927,16 @@
                     },
                     "transition": {
                       "type": "string",
-                      "enum": ["fade", "cut"]
+                      "enum": [
+                        "fade",
+                        "cut"
+                      ]
                     }
                   },
-                  "required": ["type", "assetId"],
+                  "required": [
+                    "type",
+                    "assetId"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -804,7 +951,10 @@
                       "refKind": "media"
                     }
                   },
-                  "required": ["type", "assetId"],
+                  "required": [
+                    "type",
+                    "assetId"
+                  ],
                   "additionalProperties": false
                 },
                 {
@@ -819,13 +969,18 @@
                       "refKind": "media"
                     }
                   },
-                  "required": ["type", "assetId"],
+                  "required": [
+                    "type",
+                    "assetId"
+                  ],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": ["media"],
+          "required": [
+            "media"
+          ],
           "additionalProperties": false
         },
         {
@@ -860,11 +1015,15 @@
                   }
                 }
               },
-              "required": ["textKey"],
+              "required": [
+                "textKey"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["notify"],
+          "required": [
+            "notify"
+          ],
           "additionalProperties": false
         },
         {
@@ -885,11 +1044,15 @@
                   "additionalProperties": {}
                 }
               },
-              "required": ["fn"],
+              "required": [
+                "fn"
+              ],
               "additionalProperties": false
             }
           },
-          "required": ["call"],
+          "required": [
+            "call"
+          ],
           "additionalProperties": false
         }
       ]

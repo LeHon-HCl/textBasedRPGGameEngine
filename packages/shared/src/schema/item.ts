@@ -44,6 +44,12 @@ export const itemDefSchema = z
       .optional(),
     /** 装备栏位（equip 类型必填） */
     equipSlot: gameIdSchema.optional(),
+    /**
+     * 装备属性修正（FR-ITEM-03，§4.7 equipMods）：attrId → 修正表达式（加算）。
+     * 派生属性重算时并入：修正值叠加在基础值（数值属性）或派生公式值之上，
+     * 结果写入 derived 缓存；面板明细经引擎 equipModDetails 投影（13 号）。
+     */
+    equipMods: z.record(gameIdSchema, exprSchema).optional(),
     /** 服装声明（garment 类型必填） */
     garment: garmentDefSchema.optional(),
     /** 基准价（商店定价表达式的常用输入，FR-ECON-02） */
