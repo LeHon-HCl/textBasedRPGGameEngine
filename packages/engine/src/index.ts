@@ -123,9 +123,18 @@ export type {
 } from './narrative/index.js';
 
 // ---- time（§4.3 时间系统：Clock 推进纯函数 / 固定次序推进管线，09 号） ------
-export { advanceClock, dayOfMonth, TimePipeline, weekdayIndex } from './time/index.js';
+export {
+  advanceClock,
+  createTimeViewProvider,
+  dayOfMonth,
+  projectCalendar,
+  TimePipeline,
+  weekdayIndex,
+} from './time/index.js';
 export type {
+  CalendarView,
   ClockAdvanceResult,
+  TimeHooks,
   TimePipelineOptions,
   TimeStepContext,
   TimeStepProvider,
