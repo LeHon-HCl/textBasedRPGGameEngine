@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "slots": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "nameKey": {
+            "type": "string",
+            "minLength": 1,
+            "refKind": "text"
+          }
+        },
+        "required": [
+          "id",
+          "nameKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "weekdays": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nameKey": {
+            "type": "string",
+            "minLength": 1,
+            "refKind": "text"
+          }
+        },
+        "required": [
+          "nameKey"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "startWeekday": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "months": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "nameKey": {
+            "type": "string",
+            "minLength": 1,
+            "refKind": "text"
+          }
+        },
+        "required": [
+          "length",
+          "nameKey"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "slots",
+    "weekdays",
+    "startWeekday"
+  ],
+  "additionalProperties": false
+}

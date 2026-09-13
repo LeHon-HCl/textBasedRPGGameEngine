@@ -17,6 +17,7 @@ import {
   sceneDefSchema,
   shopDefSchema,
   statsPageDefSchema,
+  timeConfigSchema,
 } from '@game/shared';
 import type {
   AchievementDef,
@@ -39,6 +40,7 @@ import type {
   ShopDef,
   StatsPageDef,
   TextKey,
+  TimeConfig,
 } from '@game/shared';
 import { PACKAGE_PATHS } from './collect.js';
 import { mergeDiagnostics } from './diagnostics.js';
@@ -77,6 +79,7 @@ const SINGLE_FILE_DOMAINS = {
   'data/content-tags.yaml': contentTagsDefSchema,
   'data/stats-page.yaml': statsPageDefSchema,
   'data/loops.yaml': loopConfigSchema,
+  'data/time.yaml': timeConfigSchema,
 } as const;
 
 /** 单文件数组域：data/<name>.yaml → 定义对象数组（域内重复 id 检测） */
@@ -380,6 +383,7 @@ export function validatePackage(
   let contentTags: ContentTagsDef | undefined;
   let statsPage: StatsPageDef | undefined;
   let loop: LoopConfig | undefined;
+  let time: TimeConfig | undefined;
 
   if (manifest !== undefined) {
     // —— 单文件对象域（缺省 = 空定义，schema 逐一装配） ——
@@ -396,6 +400,7 @@ export function validatePackage(
       else if (path === 'data/content-tags.yaml') contentTags = result.data as ContentTagsDef;
       else if (path === 'data/stats-page.yaml') statsPage = result.data as StatsPageDef;
       else if (path === 'data/loops.yaml') loop = result.data as LoopConfig;
+      else if (path === 'data/time.yaml') time = result.data as TimeConfig;
     }
 
     // —— 单文件数组域 ——
@@ -526,6 +531,7 @@ export function validatePackage(
     contentTags,
     statsPage,
     loop,
+    time,
     areas,
     scenes,
     events: [...events.values()],

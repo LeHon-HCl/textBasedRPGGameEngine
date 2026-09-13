@@ -268,3 +268,53 @@ describe('validatePackage（管线步骤 3，06 任务 A3）', () => {
     ).toEqual([]);
   });
 });
+
+// ---- 09 任务 1：data/time.yaml（TimeConfig 可选单对象域） --------------------
+
+describe('validatePackage：data/time.yaml（09 任务 1）', () => {
+  const TIME_YAML = [
+    'slots:',
+    '  - {id: slot_morning, nameKey: time.slot.morning}',
+    '  - {id: slot_noon, nameKey: time.slot.noon}',
+    '  - {id: slot_evening, nameKey: time.slot.evening}',
+    '  - {id: slot_night, nameKey: time.slot.night}',
+    'weekdays:',
+    '  - {nameKey: time.weekday.1}',
+    '  - {nameKey: time.weekday.2}',
+    '  - {nameKey: time.weekday.3}',
+    '  - {nameKey: time.weekday.4}',
+    '  - {nameKey: time.weekday.5}',
+    '  - {nameKey: time.weekday.6}',
+    '  - {nameKey: time.weekday.7}',
+    'startWeekday: 1',
+  ].join('\n');
+
+  it('合法 time.yaml → domains.time 产出（时段/星期/起始星期）', async () => {
+    const files = { ...MINIMAL_PACKAGE, 'data/time.yaml': TIME_YAML };
+    const validated = await loadStages(files);
+    expect(validated.domains.time).toEqual({
+      slots: [
+        { id: 'slot_morning', nameKey: 'time.slot.morning' },
+        { id: 'slot_noon', nameKey: 'time.slot.noon' },
+        { id: 'slot_evening', nameKey: 'time.slot.evening' },
+        { id: 'slot_night', nameKey: 'time.slot.night' },
+      ],
+      weekdays: Array.from({ length: 7 }, (_, i) => ({ nameKey: `time.weekday.${i + 1}` })),
+      startWeekday: 1,
+    });
+    expect(validated.diagnostics.filter((d) => d.where['file'] === 'data/time.yaml')).toEqual([]);
+  });
+
+  it('缺省不产出 domains.time（时间域可选；宿主用缺省日历）', async () => {
+    const validated = await loadStages(MINIMAL_PACKAGE);
+    expect(validated.domains.time).toBeUndefined();
+  });
+
+  it('startWeekday 超出星期数 → error 级 SCHEMA_INVALID 定位 data/time.yaml', async () => {
+    const files = { ...MINIMAL_PACKAGE, 'data/time.yaml': `${TIME_YAML.replace('startWeekday: 1', 'startWeekday: 8')}` };
+    const validated = await loadStages(files);
+    const diag = validated.diagnostics.find((d) => d.where['file'] === 'data/time.yaml');
+    expect(diag).toMatchObject({ severity: 'error', code: 'SCHEMA_INVALID' });
+    expect(validated.domains.time).toBeUndefined();
+  });
+});

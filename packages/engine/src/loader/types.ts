@@ -25,6 +25,7 @@ import type {
   SceneDef,
   ShopDef,
   StatsPageDef,
+  TimeConfig,
 } from '@game/shared';
 import type {
   CheckRule,
@@ -157,6 +158,8 @@ export interface PackageDomains {
   readonly contentTags: ContentTagsDef | undefined;
   readonly statsPage: StatsPageDef | undefined;
   readonly loop: LoopConfig | undefined;
+  /** 时段制日历（§4.3 TimeConfig；data/time.yaml 缺省 = undefined，宿主用缺省日历） */
+  readonly time: TimeConfig | undefined;
   readonly areas: ReadonlyMap<GameId, AreaDef>;
   readonly scenes: ReadonlyMap<GameId, CompiledScene>;
   readonly events: readonly EventDef[];
@@ -232,6 +235,8 @@ export interface GameDefinition {
   readonly effectRegistry: EffectRegistry;
   /** 媒体目录（DD-05：assetId → {path, hash, preload, type}） */
   readonly mediaCatalog: MediaCatalog;
+  /** 时段制日历（§4.3 TimeConfig；data/time.yaml 缺省 = undefined，09 号） */
+  readonly time: TimeConfig | undefined;
   /** 语言包（FR-L10N-02：仅 manifest.langs 声明语言） */
   readonly locales: Record<Lang, LocalePack>;
   /** manifest.redirects（旧 ID → 新 ID，§5.7 迁移定向改写用） */
