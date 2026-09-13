@@ -23,6 +23,11 @@ export const garmentDefSchema = z.strictObject({
   layer: z.number().int().min(1).max(3),
   /** 遮挡度等开放数据字段（数值语义由游戏自用，引擎不解释，FR-ITEM-04） */
   coverage: z.number().min(0).optional(),
+  /**
+   * 冲突可替换（§4.7，13 任务 3）：同 part 同 layer 已有穿着时，新穿戴件
+   * swappable=true → 旧件回收背包并替换；缺省 false → 拒绝（EFFECT_FAILED）。
+   */
+  swappable: z.boolean().optional(),
 });
 
 export type GarmentDef = z.infer<typeof garmentDefSchema>;

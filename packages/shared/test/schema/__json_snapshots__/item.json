@@ -83,6 +83,9 @@
         "coverage": {
           "type": "number",
           "minimum": 0
+        },
+        "swappable": {
+          "type": "boolean"
         }
       },
       "required": [
