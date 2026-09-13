@@ -42,7 +42,7 @@
 - [ ] [10 事件系统](10-events.md)
 - [ ] [11 任务系统](11-quests.md)
 - [ ] [12 NPC 与阵营系统](12-npcs-factions.md)
-- [ ] [13 物品、装备与多层服装](13-items-outfit.md)
+- [x] [13 物品、装备与多层服装](13-items-outfit.md)
 - [ ] [14 身体与变身](14-body.md)
 - [ ] [20 存档系统](20-save.md)
 - [ ] [22 内容分级与过滤](22-content-filter.md)

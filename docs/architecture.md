@@ -78,7 +78,7 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 
 - **registry.ts**：`EffectRegistry implements EffectExecutor`——指令注册、参数 Zod 校验、重复 ID 冲突检测。
 - **types.ts**：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`（事务触域报告，供增量重算）、`eraseDef`；`CheckRequest / CheckRule / CheckRuleResolver` 为 15 号判定系统预留的规则缝。
-- **builtins/**（7 文件 25 条指令）：state（set/add/flag/money）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、util（call）。`createBuiltinEffectRegistry()` 装配全量。
+- **builtins/**（7 文件 25 条作者可见指令 + 3 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick`）：state（set/add/flag/money）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、util（call）。`createBuiltinEffectRegistry()` 装配全量。
 
 ### 3.5 loader/ —— 游戏包加载器（设计 §3.4，06 号）
 
@@ -102,7 +102,15 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 - **text-resolver.ts**：`createTextResolver()` → `TextResolver`——主语言 + 回退链、`{插值}`、文本变体（`alt first` / `again` 首次/重复差异）；`extractPlaceholderPaths()` 支撑翻译覆盖率。
 - **translation-stats.ts**：`collectTranslationStats()` 翻译覆盖率统计。
 
-### 3.7 narrative/ —— 叙事运行时（设计 §4.2，08 号）
+### 3.7 items/ —— 物品与装备（设计 §4.7，13 号）
+
+- **inventory.ts**：Inventory 纯函数集 `bagGive/bagTake/bagCount/bagSplit/bagMerge`——堆叠封顶（可堆叠条目 count ≤ stack，不可堆叠每件独占条目）、容量按条目数计（新建条目整体校验）、失败统一 EFFECT_FAILED；give/take 等指令层与 UI 投影共用。
+- **equip.ts**：`equipModDetails()` 装备修正明细投影（FR-STAT-03 面板）。修正本体（`ItemDef.equipMods`）在 `state/derived.ts` 重算时按目标属性分组求和并入 `player.derived`（残影清理防重复累计）。
+- **tick.ts + `__items.tick`**：耐久/时效 tick 挂时间管线步骤 2（`createItemTickProvider`）——时效按累计穿着时段（`expiresAfterSlots`）、耐久按跨天递减（`garment.durability`），触发 `item_expired` 事件并清除 `player.wornMeta`（只报一次）；引擎不自动脱下，后果由作者订阅事件决定。
+- **projection.ts**：`projectBag()` 背包 UI 投影——按种类聚合、关键道具分区、id/count 排序、itemId+本地化名称搜索、容量信息。
+- 换装预设：`player.outfitPresets`（设计偏差：§4.7 原定 world.flags，但 flag 值域仅标量）+ 内部指令 `__outfit.save_preset` 保存、`wear{preset}` 差量应用（缺件失败、单事务原子）。
+
+### 3.8 narrative/ —— 叙事运行时（设计 §4.2，08 号）
 
 - **scene-runner.ts**：`SceneRunner` 五相位状态机（`entering → await_advance → await_choice → resolving → finished`）；`renderList()` 产出 `RenderSegment` 段落流；`choices()` 产出置灰过滤后的 `ChoiceView`；`choose()` 消费 `ExecOutcome.jumps` 完成跳转。
   - `SUBSESSION_DEPTH_LIMIT = 3`：事件场景子会话挂起栈（深度超限发 warning）。
