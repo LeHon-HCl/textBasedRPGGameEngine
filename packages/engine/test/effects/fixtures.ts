@@ -182,6 +182,10 @@ export interface EffectRuntimeInit {
   bootstrap?: Parameters<typeof newGameState>[0];
   /** 运行时 Rng（缺省固定种子 1） */
   rng?: Rng;
+  /** 物品目录（派生重算的装备修正面，13 号；与 registryOptions.items 同目录注入） */
+  itemDefs?: ReadonlyMap<string, ItemDef>;
+  /** 属性定义（派生重算依据；运行时缺省 = 无派生属性） */
+  attrDefs?: import('@game/shared').AttrDefs;
 }
 
 /** 构造 GameRuntime + EffectRegistry 正式接线（05 号 EffectExecutor 接线缝） */
@@ -198,6 +202,8 @@ export function makeEffectRuntime(init: EffectRuntimeInit = {}): {
     state,
     rng: init.rng ?? createRng(1),
     effectExecutor: registry,
+    ...(init.itemDefs !== undefined ? { itemDefs: init.itemDefs } : {}),
+    ...(init.attrDefs !== undefined ? { attrDefs: init.attrDefs } : {}),
   });
   return { rt, registry };
 }

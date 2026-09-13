@@ -4,6 +4,7 @@ import type {
   CompiledExpr,
   EffectData,
   ExprFunctionRegistry,
+  ItemDef,
   Rng,
   RngState,
   SaveBlob,
@@ -59,6 +60,11 @@ export interface GameRuntimeOptions {
   functionRegistry?: ExprFunctionRegistry;
   /** time 求值视图提供器（缺省 = 默认投影；09 号以 TimeConfig 校准注入） */
   timeViewProvider?: TimeViewProvider;
+  /**
+   * 物品目录（派生重算时并入装备修正 equipMods，§4.7 / FR-ITEM-03，13 任务 2；
+   * 缺省 = 无装备修正。宿主从 GameDefinition.items 投影注入）。
+   */
+  itemDefs?: ReadonlyMap<string, ItemDef>;
   /** meta 求值投影提供器（缺省 = 空档视图；18 号接入 ProfileStore 后注入） */
   metaProvider?: () => MetaView;
   /** 效果执行器（05 号注册表实现；缺省时任何指令执行都会以 EFFECT_FAILED 报错） */
@@ -98,6 +104,7 @@ export class GameRuntime {
   #state: GameState;
   readonly #rng: Rng;
   readonly #attrDefs: AttrDefs | undefined;
+  readonly #itemDefs: ReadonlyMap<string, ItemDef> | undefined;
   readonly #registry: ExprFunctionRegistry;
   readonly #timeView: TimeViewProvider;
   readonly #metaProvider: () => MetaView;
@@ -111,6 +118,7 @@ export class GameRuntime {
     this.#state = freeze(options.state, true);
     this.#rng = options.rng;
     this.#attrDefs = options.attrDefs;
+    this.#itemDefs = options.itemDefs;
     this.#registry = options.functionRegistry ?? createBuiltinFunctionRegistry();
     this.#timeView = options.timeViewProvider ?? defaultTimeView;
     this.#metaProvider = options.metaProvider ?? (() => DEFAULT_META_VIEW);
@@ -410,6 +418,7 @@ export class GameRuntime {
           registry: this.#registry,
           timeView: this.#timeView(draft.world.time),
           meta: this.#metaProvider(),
+          ...(this.#itemDefs !== undefined ? { items: this.#itemDefs } : {}),
         });
       },
       (collected) => {

@@ -1,76 +1,27 @@
 import { effectParamSchemas } from '@game/shared';
-import type { GameId } from '@game/shared';
+import type { GameId, ItemDef } from '@game/shared';
 import type { WritableDraft } from 'immer';
 import type { GameState } from '../../state/index.js';
+import { bagGive, bagTake } from '../../items/index.js';
 import type { EffectExecuteContext, EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
 import type { EffectInstructionDef, ErasedEffectDef, TouchReport } from '../types.js';
 import { evalNumberParam, instructionError } from './util.js';
 
 /**
- * 物品类内置指令（设计 §3.3 give/take/equip/unequip/wear/remove；05 任务 B2）。
+ * 物品类内置指令（设计 §3.3 give/take/equip/unequip/wear/remove；05 任务 B2，
+ * 13 任务 2 起接入 Inventory 纯函数层与完整装备规则）。
  *
- * - 背包为 `player.bag`（BagEntry[]，{itemId, count}，FR-ITEM-02）：give/take
- *   增减计数；数量须为非负整数（0 = 无操作），不足即 EFFECT_FAILED；
- * - 容量（FR-ITEM-02 可选启用）：`bagCapacity` 按物品种类数（bag 条目数）计，
- *   仅在「获得新种类」（give 建新条目）时校验——堆叠与卸下（unequip/remove
- *   回收）不触发容量拒绝，避免穿戴物无法卸下的软锁；
- * - equip（FR-ITEM-03 最简版）：从背包消耗 1 件放入 `player.equip[slot]`
- *   （slot 取 ItemDef.equipSlot）；已占用即报错——完整交换/冲突规则属 13 号；
- * - wear（FR-ITEM-04 最简版）：消耗 1 件写入 `player.outfit[part][layer]`；
- *   **同 part 同 layer 已占用即报错**（§4.7 冲突基础规则；swappable/替换等
- *   完整规则与换装预设 preset 应用属 13 号，本模块对 preset 显性报错）；
+ * - 背包操作全部经 items/inventory.ts 纯函数（bagGive/bagTake）：堆叠封顶、
+ *   容量按条目数计（新建条目校验）、失败即 EFFECT_FAILED（事务回滚）；
+ * - equip（FR-ITEM-03 完整规则）：占用槽位 = 交换（现装备回收背包——容量不足
+ *   整体失败，再穿新件）；equipMods 修正并入派生重算（state/derived.ts）；
+ * - wear（FR-ITEM-04）：冲突规则（swappable 替换/拒绝）属 13 任务 3，本提交
+ *   保持「占用即报错」；preset 应用属 13 任务 4；
  * - remove：按 itemId 查找穿戴位，清除后回收至背包；未穿戴即报错。
  */
 
-/** 背包条目查找 */
-function findBagIndex(draft: WritableDraft<GameState>, itemId: GameId): number {
-  return draft.player.bag.findIndex((entry) => entry.itemId === itemId);
-}
-
-/** 背包增加（容量仅在新建条目时校验，见模块 TSDoc） */
-function addToBag(
-  draft: WritableDraft<GameState>,
-  itemId: GameId,
-  count: number,
-  op: string,
-  capacity?: number,
-): void {
-  const index = findBagIndex(draft, itemId);
-  const entry = index >= 0 ? draft.player.bag[index] : undefined;
-  if (entry !== undefined) {
-    entry.count += count;
-    return;
-  }
-  if (capacity !== undefined && draft.player.bag.length >= capacity) {
-    throw instructionError(op, `背包已满（容量 ${String(capacity)}，FR-ITEM-02）`, {
-      item: itemId,
-    });
-  }
-  draft.player.bag.push({ itemId, count });
-}
-
-/** 背包扣减（不足即 EFFECT_FAILED；归零移除条目） */
-function removeFromBag(
-  draft: WritableDraft<GameState>,
-  itemId: GameId,
-  count: number,
-  op: string,
-): void {
-  const index = findBagIndex(draft, itemId);
-  const entry = index >= 0 ? draft.player.bag[index] : undefined;
-  if (entry === undefined || entry.count < count) {
-    throw instructionError(
-      op,
-      `未持有足够物品 '${itemId}'（需要 ${String(count)}，实际 ${entry === undefined ? '0' : String(entry.count)}）`,
-      { item: itemId },
-    );
-  }
-  entry.count -= count;
-  if (entry.count === 0) draft.player.bag.splice(index, 1);
-}
-
-/** 数量参数：非负整数（0 = 无操作） */
+/** 数量参数：非负整数（0 = 无操作，指令层短路；纯函数层要求 ≥ 1） */
 function evalCountParam(
   ectx: EffectExecuteContext,
   op: string,
@@ -97,6 +48,11 @@ function omitKey<T extends object>(source: T, key: string): T {
   return copy;
 }
 
+/** 目录缺失时的合成定义（give/take 不依赖目录；按不可堆叠处理） */
+function fallbackDef(itemId: GameId): ItemDef {
+  return { id: itemId, nameKey: `items.${itemId}`, type: 'normal' };
+}
+
 /** 物品类指令全集（id 固定，§3.3 表格） */
 export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[] {
   const items = options.items;
@@ -116,7 +72,8 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
     execute: (arg, ectx) => {
       const count = evalCountParam(ectx, 'give', arg.count);
       if (count === 0) return;
-      addToBag(ectx.draft, arg.item, count, 'give', options.bagCapacity);
+      const def = items?.get(arg.item) ?? fallbackDef(arg.item);
+      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, count, options.bagCapacity);
     },
   };
 
@@ -127,7 +84,7 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
     execute: (arg, ectx) => {
       const count = evalCountParam(ectx, 'take', arg.count);
       if (count === 0) return;
-      removeFromBag(ectx.draft, arg.item, count, 'take');
+      ectx.draft.player.bag = bagTake(ectx.draft.player.bag, arg.item, count);
     },
   };
 
@@ -142,14 +99,14 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
           item: arg.item,
         });
       }
-      if (ectx.draft.player.equip[def.equipSlot] !== undefined) {
-        throw instructionError(
-          'equip',
-          `装备栏 '${def.equipSlot}' 已被 '${String(ectx.draft.player.equip[def.equipSlot])}' 占用（完整交换规则属 13 号）`,
-          { slot: def.equipSlot },
-        );
+      // 占用槽位 = 交换：现装备先回收背包（容量不足 → EFFECT_FAILED 整体回滚），
+      // 新件经 bagTake 消耗后穿上（FR-ITEM-03 完整规则，13 任务 2）
+      const occupied = ectx.draft.player.equip[def.equipSlot];
+      ectx.draft.player.bag = bagTake(ectx.draft.player.bag, arg.item, 1, 'equip');
+      if (occupied !== undefined) {
+        const oldDef = items?.get(occupied) ?? fallbackDef(occupied);
+        ectx.draft.player.bag = bagGive(ectx.draft.player.bag, oldDef, 1, options.bagCapacity, 'equip');
       }
-      removeFromBag(ectx.draft, arg.item, 1, 'equip');
       ectx.draft.player.equip[def.equipSlot] = arg.item;
     },
   };
@@ -163,9 +120,10 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
       if (current === undefined) {
         throw instructionError('unequip', `装备栏 '${arg.slot}' 为空`, { slot: arg.slot });
       }
-      // 卸下 = 槽位键移除（immer remove patch）
+      // 卸下 = 槽位键移除（immer remove patch）+ 回收背包（容量校验经 bagGive）
       ectx.draft.player.equip = omitKey(ectx.draft.player.equip, arg.slot);
-      addToBag(ectx.draft, current, 1, 'unequip');
+      const def = items?.get(current) ?? fallbackDef(current);
+      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, 1, options.bagCapacity, 'unequip');
     },
   };
 
@@ -197,7 +155,7 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
           { part: def.garment.part, layer: layerKey },
         );
       }
-      removeFromBag(ectx.draft, arg.item, 1, 'wear');
+      ectx.draft.player.bag = bagTake(ectx.draft.player.bag, arg.item, 1, 'wear');
       const partLayers = ectx.draft.player.outfit[def.garment.part];
       ectx.draft.player.outfit[def.garment.part] = { ...(partLayers ?? {}), [layerKey]: arg.item };
     },
@@ -234,7 +192,8 @@ export function createItemDefs(options: EffectRegistryOptions): ErasedEffectDef[
           [found.part]: restLayers,
         };
       }
-      addToBag(ectx.draft, arg.item, 1, 'remove');
+      const def = items?.get(arg.item) ?? fallbackDef(arg.item);
+      ectx.draft.player.bag = bagGive(ectx.draft.player.bag, def, 1, options.bagCapacity, 'unequip');
     },
   };
 

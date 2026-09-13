@@ -1,5 +1,12 @@
 import { EngineError, createRng } from '@game/shared';
-import type { AttrDefs, CompiledExpr, ExprFunctionRegistry, ExprTimeView, Rng } from '@game/shared';
+import type {
+  AttrDefs,
+  CompiledExpr,
+  ExprFunctionRegistry,
+  ExprTimeView,
+  ItemDef,
+  Rng,
+} from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry, evalExpr } from '../expr-eval/index.js';
 import type { GameState } from './game-state.js';
 import type { MetaView } from './expr-scope.js';
@@ -46,6 +53,13 @@ export interface DerivedEvalOptions {
   timeView?: ExprTimeView;
   /** meta 根 Profile 投影（缺省 = 空档视图，expr-scope.DEFAULT_META_VIEW） */
   meta?: MetaView;
+  /**
+   * 物品目录（装备修正并入重算，§4.7 equipMods / FR-ITEM-03，13 任务 2）：
+   * 缺省 = 无装备修正。已装备（player.equip）与已穿戴（player.outfit）物品的
+   * equipMods[attrId] 以加算并入（目标为派生属性时叠加公式值，数值属性时以
+   * 基础值为基），结果写入 player.derived[attrId]。
+   */
+  items?: ReadonlyMap<string, ItemDef>;
 }
 
 /** 编译后的派生公式条目（拓扑排序的工作单元） */
@@ -68,35 +82,105 @@ export function recomputeDerived(
   options: DerivedEvalOptions = {},
 ): void {
   const derivedDefs = Object.entries(attrDefs.derived);
-  if (derivedDefs.length === 0) return;
+  const derivedIds = new Set(derivedDefs.map(([id]) => id));
+  const registry = options.registry ?? createBuiltinFunctionRegistry();
   const touched = touchedRoots.some((root) => DERIVED_TRIGGER_DOMAINS.includes(root));
+  // 数值型修正条目残影清理：derived 键 ⊆ 派生 id ∪ 修正目标，非派生键只可能
+  // 来自上一轮装备修正——卸下后不得残留（重复累计防护），本轮按需重写
+  if (touched) {
+    for (const key of Object.keys(state.player.derived)) {
+      if (!derivedIds.has(key)) delete state.player.derived[key];
+    }
+  }
+  const equipMods = options.items !== undefined ? collectEquipMods(state, options.items, registry) : [];
+  if (derivedDefs.length === 0 && equipMods.length === 0) return;
   if (!touched) return;
 
-  const registry = options.registry ?? createBuiltinFunctionRegistry();
-  const compiled: CompiledDerived[] = derivedDefs.map(([id, def]) => ({
-    id,
-    expr: compileExpr(def.formula, registry),
-  }));
-  const ordered = topologicalOrderByRefs(compiled);
+  if (derivedDefs.length > 0) {
+    const compiled: CompiledDerived[] = derivedDefs.map(([id, def]) => ({
+      id,
+      expr: compileExpr(def.formula, registry),
+    }));
+    const ordered = topologicalOrderByRefs(compiled);
 
-  for (const { id, expr } of ordered) {
-    // 每条公式重建视图：前序派生结果立即可读（拓扑序保证无前向依赖）
-    const scope = buildExprScope(state, { time: options.timeView, meta: options.meta });
-    const rng = options.rng ?? createRng(0);
-    const value = evalExpr(expr, { state: scope, rng, registry });
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new EngineError({
-        code: 'EVAL_ERROR',
-        where: {
-          attr: id,
-          expr: expr.source,
-          detail: `派生属性公式结果须为有限 number，实际为 ${describeValue(value)}`,
-        },
-        messageKey: 'error.state.derivedNonNumeric',
-      });
+    for (const { id, expr } of ordered) {
+      // 每条公式重建视图：前序派生结果立即可读（拓扑序保证无前向依赖）
+      const scope = buildExprScope(state, { time: options.timeView, meta: options.meta });
+      const rng = options.rng ?? createRng(0);
+      const value = evalExpr(expr, { state: scope, rng, registry });
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new EngineError({
+          code: 'EVAL_ERROR',
+          where: {
+            attr: id,
+            expr: expr.source,
+            detail: `派生属性公式结果须为有限 number，实际为 ${describeValue(value)}`,
+          },
+          messageKey: 'error.state.derivedNonNumeric',
+        });
+      }
+      state.player.derived[id] = value;
     }
-    state.player.derived[id] = value;
   }
+
+  // 装备修正并入（公式值之后）：按目标属性分组求和后一次写入——目标为派生
+  // 属性时叠加本轮公式值，数值属性时以基础值为基（残影已清理，不重复累计）。
+  if (equipMods.length > 0) {
+    const sums = new Map<string, number>();
+    for (const mod of equipMods) {
+      const scope = buildExprScope(state, { time: options.timeView, meta: options.meta });
+      const rng = options.rng ?? createRng(0);
+      const value = evalExpr(mod.expr, { state: scope, rng, registry });
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new EngineError({
+          code: 'EVAL_ERROR',
+          where: {
+            attr: mod.attrId,
+            expr: mod.expr.source,
+            detail: `装备修正结果须为有限 number，实际为 ${describeValue(value)}`,
+          },
+          messageKey: 'error.state.equipModNonNumeric',
+        });
+      }
+      sums.set(mod.attrId, (sums.get(mod.attrId) ?? 0) + value);
+    }
+    for (const [attrId, sum] of sums) {
+      const base = derivedIds.has(attrId)
+        ? (state.player.derived[attrId] ?? 0)
+        : (state.player.attrs[attrId] ?? 0);
+      state.player.derived[attrId] = base + sum;
+    }
+  }
+}
+
+/** 编译后的单条装备修正（工作单元） */
+interface CompiledEquipMod {
+  attrId: string;
+  expr: CompiledExpr;
+}
+
+/**
+ * 收集当前已装备（player.equip）与已穿戴（player.outfit）物品的修正表达式。
+ * 未知物品跳过（悬空引用归加载器 crossRef）；无修正字段返回空表。
+ */
+function collectEquipMods(
+  state: GameState,
+  items: ReadonlyMap<string, ItemDef>,
+  registry: ExprFunctionRegistry,
+): CompiledEquipMod[] {
+  const mods: CompiledEquipMod[] = [];
+  const collect = (itemId: string): void => {
+    const def = items.get(itemId);
+    if (def?.equipMods === undefined) return;
+    for (const [attrId, source] of Object.entries(def.equipMods)) {
+      mods.push({ attrId, expr: compileExpr(source, registry) });
+    }
+  };
+  for (const itemId of Object.values(state.player.equip)) collect(itemId);
+  for (const layers of Object.values(state.player.outfit)) {
+    for (const itemId of Object.values(layers)) collect(itemId);
+  }
+  return mods;
 }
 
 /**
