@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-13，对应 main@b99e9ba（M0 完成态）。
+> 最后核对：2026-09-14，对应 feat/09（时间系统，M1 进行中）。
 
 ## 1. 总览
 
@@ -109,6 +109,14 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
   - `NARRATIVE_HISTORY_CAPACITY = 500`：环形历史缓冲（回想/回看数据源）。
   - readonly 会话：回想重放，无副作用。
 - **macros.ts**：三种叙事宏 `FirstAgainMacro` / `ConditionalMacro` / `RandomMacro` + 惰性展开（延迟插值）。
+
+### 3.8 time/ —— 时间系统与推进管线（设计 §4.3，09 号）
+
+- **clock.ts**：`advanceClock()` 推进纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月旗标）；`weekdayIndex()` / `dayOfMonth()` 日历基元；`DEFAULT_TIME_CONFIG` 宿主缺省日历（4 时段 × 7 天 × 周日起算，无月历）。week 恒启用；month 仅 `config.months` 启用时写入（循环月序，无年概念）。
+- **calendar.ts**：`projectCalendar()` 日历 UI 投影纯函数（FR-TIME-05）；`createTimeViewProvider()` TimeConfig 校准的求值视图（`time.slot` = 时段 id、`time.weekday` = 星期序），经 `GameRuntimeOptions.timeViewProvider` 装配。
+- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
+- **内部指令 `__time.advance`**（effects/builtins/system.ts）：时钟写入的事务内载体，作者包内不可达（effectDataSchema 拒绝）；需要 `EffectRegistryOptions.timeConfig`。
+- **共享 schema**：`timeConfigSchema`（shared/schema/time.ts，`data/time.yaml` 可选单对象域 → `GameDefinition.time`）；`advance_time` 指令只产 `JumpTarget.advanceTime` 意图，宿主消费后归约到 `TimePipeline.advance()`；移动消耗（`location.moveCost`，FR-XPLR-02）同径归约。
 
 ## 4. 应用层（apps/）
 
