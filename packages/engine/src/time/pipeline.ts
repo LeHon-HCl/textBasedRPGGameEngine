@@ -56,6 +56,20 @@ export interface TimePipelineOptions {
   eventEval?: TimeStepProvider;
   /** 步骤 7：任务截止/到期检查（§4.5 failWhen；11 号挂载） */
   questDeadline?: TimeStepProvider;
+  /** 作者钩子前后缀（子任务 6）：before_rollover（步骤 0）/ day_rollover（步骤 4） */
+  hooks?: TimeHooks;
+}
+
+/**
+ * 作者钩子（§4.3 / DD-10）：只允许推进管线的**前后缀**两个槽位，不可插入
+ * 步骤中间。跨天门控：仅当本次推进跨天时调用（「若本次将跨天」）。
+ * 钩子效果与全部引擎步骤合并进同一次事务（一个 undo 点，子任务 4 契约）。
+ */
+export interface TimeHooks {
+  /** 步骤 0：时钟推进前（跨天时）——房租预扣、跨天预警等作者逻辑 */
+  beforeRollover?: TimeStepProvider;
+  /** 步骤 4：状态 tick / 身体回退后、NPC 日程前（跨天时）——日结算（房租/惩罚/总结） */
+  dayRollover?: TimeStepProvider;
 }
 
 /** 事务定位（EFFECT_FAILED where 携带 pipeline: 'time' 供诊断定位） */
@@ -73,6 +87,7 @@ export class TimePipeline {
   readonly #npcSchedule: TimeStepProvider | undefined;
   readonly #eventEval: TimeStepProvider | undefined;
   readonly #questDeadline: TimeStepProvider | undefined;
+  readonly #hooks: TimeHooks | undefined;
 
   constructor(options: TimePipelineOptions) {
     this.#runtime = options.runtime;
@@ -82,6 +97,7 @@ export class TimePipeline {
     this.#npcSchedule = options.npcSchedule;
     this.#eventEval = options.eventEval;
     this.#questDeadline = options.questDeadline;
+    this.#hooks = options.hooks;
   }
 
   /**
@@ -112,12 +128,17 @@ export class TimePipeline {
       crossedWeek: plan.crossedWeek,
       crossedMonth: plan.crossedMonth,
     };
-    // 步骤 1：时钟推进（内部指令；子任务 6 将在其前后拼入跨天门控的作者钩子）
-    const effects: EffectData[] = [{ '__time.advance': { slots } } as unknown as EffectData];
+    const effects: EffectData[] = [];
+    // 步骤 0：before_rollover 作者钩子（跨天时；时钟推进前缀）
+    if (plan.crossedDay) this.#collect(effects, this.#hooks?.beforeRollover, ctx);
+    // 步骤 1：时钟推进（内部指令；钩子之外的位置对作者封闭）
+    effects.push(this.#advanceInstruction(slots));
     // 步骤 2：状态效果 tick
     this.#collect(effects, this.#statusTick, ctx);
     // 步骤 3：临时身体回退
     this.#collect(effects, this.#bodyRevert, ctx);
+    // 步骤 4：day_rollover 作者钩子（跨天时；日结算：房租/惩罚/总结）
+    if (plan.crossedDay) this.#collect(effects, this.#hooks?.dayRollover, ctx);
     // 步骤 5：NPC 日程移动
     this.#collect(effects, this.#npcSchedule, ctx);
     // 步骤 6：事件池评估
@@ -135,5 +156,10 @@ export class TimePipeline {
   ): void {
     if (provider === undefined) return;
     effects.push(...provider(ctx));
+  }
+
+  /** 内部时钟指令装配（§4.3 步骤 1；作者不可达，见 system.ts TSDoc） */
+  #advanceInstruction(slots: number): EffectData {
+    return { '__time.advance': { slots } } as unknown as EffectData;
   }
 }
