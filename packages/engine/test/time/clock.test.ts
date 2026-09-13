@@ -31,11 +31,7 @@ function makeConfig(overrides?: Partial<TimeConfig>): TimeConfig {
 
 describe('09-2 advanceClock：slot → day 递进', () => {
   it('时段内推进：day/week/month 不变，仅 slotIndex 前移', () => {
-    const result = advanceClock(
-      { day: 3, slotIndex: 0, week: 0, month: 0 },
-      makeConfig(),
-      2,
-    );
+    const result = advanceClock({ day: 3, slotIndex: 0, week: 0, month: 0 }, makeConfig(), 2);
     expect(result.clock).toEqual({ day: 3, slotIndex: 2, week: 0, month: 0 });
     expect(result.crossedDay).toBe(false);
     expect(result.crossedWeek).toBe(false);
@@ -107,7 +103,8 @@ describe('09-2 advanceClock：跨月边界（不等长月 + 循环）', () => {
   });
 
   it('未启用月历时 month 保持 undefined、不判跨月', () => {
-    const { months: _omitted, ...noMonths } = makeConfig();
+    const noMonths = { ...makeConfig() } as Partial<TimeConfig>;
+    delete noMonths.months;
     const result = advanceClock({ day: 29, slotIndex: 3 }, noMonths, 1);
     expect(result.clock.month).toBeUndefined();
     expect(result.crossedMonth).toBe(false);

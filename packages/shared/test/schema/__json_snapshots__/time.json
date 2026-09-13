@@ -18,10 +18,7 @@
             "refKind": "text"
           }
         },
-        "required": [
-          "id",
-          "nameKey"
-        ],
+        "required": ["id", "nameKey"],
         "additionalProperties": false
       }
     },
@@ -37,9 +34,7 @@
             "refKind": "text"
           }
         },
-        "required": [
-          "nameKey"
-        ],
+        "required": ["nameKey"],
         "additionalProperties": false
       }
     },
@@ -65,18 +60,11 @@
             "refKind": "text"
           }
         },
-        "required": [
-          "length",
-          "nameKey"
-        ],
+        "required": ["length", "nameKey"],
         "additionalProperties": false
       }
     }
   },
-  "required": [
-    "slots",
-    "weekdays",
-    "startWeekday"
-  ],
+  "required": ["slots", "weekdays", "startWeekday"],
   "additionalProperties": false
 }

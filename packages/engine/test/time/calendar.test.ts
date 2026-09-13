@@ -73,7 +73,11 @@ describe('09-7 createTimeViewProvider：TimeConfig 校准注入', () => {
 
   it('startWeekday 校准星期序（第 1 天 = 星期 3）', () => {
     const provider = createTimeViewProvider(makeConfigWithStartWeekday3());
-    expect(provider({ day: 1, slotIndex: 0 })).toEqual({ day: 1, weekday: '3', slot: 'slot_morning' });
+    expect(provider({ day: 1, slotIndex: 0 })).toEqual({
+      day: 1,
+      weekday: '3',
+      slot: 'slot_morning',
+    });
   });
 
   it('与缺省投影对照：缺省 slot 为数值串，校准后为时段 id（注入覆盖的价值）', () => {
@@ -89,9 +93,8 @@ function makeConfigWithStartWeekday3(): TimeConfig {
 
 describe('09-7 DEFAULT_TIME_CONFIG：无 time.yaml 游戏包的宿主缺省', () => {
   it('4 时段 × 7 天 × 周日起算，可装配视图提供器', async () => {
-    const engineTime = (await import('../../src/time/clock.js')) as typeof import(
-      '../../src/time/clock.js'
-    );
+    const engineTime =
+      (await import('../../src/time/clock.js')) as typeof import('../../src/time/clock.js');
     const config = engineTime.DEFAULT_TIME_CONFIG;
     expect(config.slots).toHaveLength(4);
     expect(config.weekdays).toHaveLength(7);
