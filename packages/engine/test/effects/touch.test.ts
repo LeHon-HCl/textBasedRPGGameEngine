@@ -78,6 +78,8 @@ const TOUCH_ARGS: Record<string, unknown> = {
   media: { type: 'sfx', assetId: 'sfx_x' },
   notify: { textKey: 'ui.x' },
   call: { fn: 'x.test.echo', with: {} }, // 未注册目标 → 委托回退空声明
+  // 09 号内部指令（时钟写入载体；作者包内不可达，见 system.ts TSDoc）
+  '__time.advance': { slots: 1 },
 };
 
 interface MatrixEntry {
@@ -196,9 +198,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 25 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 26 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(25);
+    expect(registry.ids().length).toBe(26);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();

@@ -7,6 +7,7 @@ import type {
   NpcDef,
   QuestDef,
   Rng,
+  TimeConfig,
 } from '@game/shared';
 import type { EffectContext, JumpTarget } from '../runtime/index.js';
 
@@ -123,6 +124,11 @@ export interface EffectRegistryOptions {
   bagCapacity?: number;
   /** 判定规则解析器（check 指令；缺省 = check 报 EFFECT_FAILED，15 号注入 coc/generic） */
   checkResolver?: CheckRuleResolver;
+  /**
+   * 时段制日历（§4.3 TimeConfig；09 号注入）：`__time.advance` 内部指令的
+   * 时钟写入依据。缺省 = 内部指令报 EFFECT_FAILED（时间管线未装配）。
+   */
+  timeConfig?: TimeConfig;
 }
 
 // —— 判定规则契约（§5.1 接口；本模块定义，15 号实现 coc/generic 与脚本扩展） ———

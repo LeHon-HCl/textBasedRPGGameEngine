@@ -33,10 +33,15 @@ function resolverFor(
 }
 
 describe('05-B6 内置指令矩阵：全量 25 个固定 id 注册（完成定义）', () => {
-  it('注册表 id 集合与 02 号 effectParamSchemas 键集一致', () => {
+  it('作者可见指令 id 集合与 02 号 effectParamSchemas 键集一致；内部指令（__ 前缀）单列', () => {
     const registry = createBuiltinEffectRegistry();
-    expect([...registry.ids()].sort()).toEqual(Object.keys(effectParamSchemas).sort());
-    expect(registry.ids()).toHaveLength(25);
+    const ids = [...registry.ids()];
+    // 作者可见指令 = effectParamSchemas 键集（加载期 effectDataSchema 的合法键）
+    expect(Object.keys(effectParamSchemas).filter((k) => !ids.includes(k))).toEqual([]);
+    // 内部指令（__ 前缀，不面向作者；09 号 __time.advance 为时钟写入载体）
+    const internal = ids.filter((id) => id.startsWith('__'));
+    expect(internal).toEqual(['__time.advance']);
+    expect(ids).toHaveLength(26);
   });
 });
 
