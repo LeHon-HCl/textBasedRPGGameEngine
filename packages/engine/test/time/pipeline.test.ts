@@ -139,10 +139,11 @@ describe('09-3 __time.advance 内部指令（引擎内部面）', () => {
   it('未注入 TimeConfig → EFFECT_FAILED（显性化，不静默）', () => {
     const { rt } = makeBuiltinRuntime();
     try {
-      rt.exec(
-        [{ '__time.advance': { slots: 1 } } as unknown as EffectData],
-        { source: 'hook', where: {}, rng: createRng(1) },
-      );
+      rt.exec([{ '__time.advance': { slots: 1 } } as unknown as EffectData], {
+        source: 'hook',
+        where: {},
+        rng: createRng(1),
+      });
       expect.unreachable('缺 TimeConfig 应当失败');
     } catch (err) {
       expect((err as EngineError).code).toBe('EFFECT_FAILED');
@@ -153,10 +154,11 @@ describe('09-3 __time.advance 内部指令（引擎内部面）', () => {
     const { rt } = makeBuiltinRuntime({ registryOptions: { timeConfig: CONFIG } });
     for (const bad of [-1, 2.5]) {
       try {
-        rt.exec(
-          [{ '__time.advance': { slots: bad } } as unknown as EffectData],
-          { source: 'hook', where: {}, rng: createRng(1) },
-        );
+        rt.exec([{ '__time.advance': { slots: bad } } as unknown as EffectData], {
+          source: 'hook',
+          where: {},
+          rng: createRng(1),
+        });
         expect.unreachable(`slots=${String(bad)} 应当失败`);
       } catch (err) {
         expect((err as EngineError).code).toBe('EFFECT_FAILED');

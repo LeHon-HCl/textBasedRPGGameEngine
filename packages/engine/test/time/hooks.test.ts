@@ -36,10 +36,7 @@ function recorder(log: string[], tag: string, effects: EffectData[] = []): TimeS
   };
 }
 
-function makeEnv(hooks: {
-  beforeRollover?: TimeStepProvider;
-  dayRollover?: TimeStepProvider;
-}) {
+function makeEnv(hooks: { beforeRollover?: TimeStepProvider; dayRollover?: TimeStepProvider }) {
   const { rt } = makeBuiltinRuntime({
     bootstrap: { versions: BASE_VERSIONS, attrs: { hp: 10 } },
     registryOptions: { timeConfig: CONFIG },
@@ -66,7 +63,9 @@ describe('09-6 作者钩子：前后缀槽位与跨天门控', () => {
     const outcome = pipeline.advance(5); // 4 时段日历 → 跨天
     const paths = outcome.patches.map((p) => p.path.join('.'));
     const timeIdx = paths.indexOf('world.time');
-    const beforeIdx = paths.findIndex((p) => p.startsWith('world.flags') && p.includes('hook_before'));
+    const beforeIdx = paths.findIndex(
+      (p) => p.startsWith('world.flags') && p.includes('hook_before'),
+    );
     const dayIdx = paths.findIndex((p) => p.includes('hook_day'));
     // before_rollover（步骤 0）先于时钟（步骤 1）；day_rollover（步骤 4）晚于时钟
     expect(beforeIdx).toBeGreaterThanOrEqual(0);

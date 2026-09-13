@@ -311,7 +311,10 @@ describe('validatePackage：data/time.yaml（09 任务 1）', () => {
   });
 
   it('startWeekday 超出星期数 → error 级 SCHEMA_INVALID 定位 data/time.yaml', async () => {
-    const files = { ...MINIMAL_PACKAGE, 'data/time.yaml': `${TIME_YAML.replace('startWeekday: 1', 'startWeekday: 8')}` };
+    const files = {
+      ...MINIMAL_PACKAGE,
+      'data/time.yaml': `${TIME_YAML.replace('startWeekday: 1', 'startWeekday: 8')}`,
+    };
     const validated = await loadStages(files);
     const diag = validated.diagnostics.find((d) => d.where['file'] === 'data/time.yaml');
     expect(diag).toMatchObject({ severity: 'error', code: 'SCHEMA_INVALID' });

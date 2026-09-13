@@ -7,4 +7,9 @@ export type { ClockAdvanceResult } from './clock.js';
 export { createTimeViewProvider, projectCalendar } from './calendar.js';
 export type { CalendarView } from './calendar.js';
 export { TimePipeline } from './pipeline.js';
-export type { TimeHooks, TimePipelineOptions, TimeStepContext, TimeStepProvider } from './pipeline.js';
+export type {
+  TimeHooks,
+  TimePipelineOptions,
+  TimeStepContext,
+  TimeStepProvider,
+} from './pipeline.js';

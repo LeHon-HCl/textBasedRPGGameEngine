@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { timeConfigSchema } from '@game/shared';
+import { timeConfigSchema } from '../../src/index.js';
 
 /**
  * 09 任务 1：TimeConfig（data/time.yaml）解析与校验。
@@ -43,7 +43,8 @@ describe('09-1 timeConfigSchema：字段与跨字段校验', () => {
   });
 
   it('months 可选（仅时段制日历；week/month 不入 Clock）', () => {
-    const { months: _omitted, ...minimal } = VALID_CONFIG;
+    const minimal = { ...VALID_CONFIG } as Partial<typeof VALID_CONFIG>;
+    delete minimal.months;
     const result = timeConfigSchema.safeParse(minimal);
     expect(result.success).toBe(true);
   });

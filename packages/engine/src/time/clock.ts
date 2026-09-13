@@ -25,7 +25,9 @@ export interface ClockAdvanceResult {
  */
 export function weekdayIndex(day: number, config: TimeConfig): number {
   const offset = (config.startWeekday - 1 + day - 1) % config.weekdays.length;
-  return ((offset % config.weekdays.length) + config.weekdays.length) % config.weekdays.length + 1;
+  return (
+    (((offset % config.weekdays.length) + config.weekdays.length) % config.weekdays.length) + 1
+  );
 }
 
 /** 周数（0 起）：day 1 所在周为第 0 周，星期序回绕即入下周 */
@@ -94,7 +96,8 @@ export function advanceClock(clock: Clock, config: TimeConfig, slots: number): C
     crossedDay: extraDays > 0,
     crossedWeek: next.week > weekNumber(clock.day, config),
     crossedMonth:
-      config.months !== undefined && absoluteMonth(next.day, config) > absoluteMonth(clock.day, config),
+      config.months !== undefined &&
+      absoluteMonth(next.day, config) > absoluteMonth(clock.day, config),
   };
 }
 

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '@game/shared';
 import type { EffectData, TimeConfig } from '@game/shared';
 import { BASE_VERSIONS, makeBuiltinRuntime } from '../effects/fixtures.js';
 import { TimePipeline } from '../../src/time/pipeline.js';

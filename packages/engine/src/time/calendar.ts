@@ -36,13 +36,13 @@ export function projectCalendar(clock: Clock, config: TimeConfig): CalendarView 
   const weekday = weekdayIndex(clock.day, config);
   const slot = config.slots[clock.slotIndex % config.slots.length];
   const monthDefs = config.months;
-  const week = clock.week ?? Math.floor((config.startWeekday - 1 + clock.day - 1) / config.weekdays.length);
+  const week =
+    clock.week ?? Math.floor((config.startWeekday - 1 + clock.day - 1) / config.weekdays.length);
   return {
     day: clock.day,
     week,
     weekdayIndex: weekday,
-    weekdayNameKey:
-      config.weekdays[weekday - 1]?.nameKey ?? (`time.weekday.${weekday}` as TextKey),
+    weekdayNameKey: config.weekdays[weekday - 1]?.nameKey ?? (`time.weekday.${weekday}` as TextKey),
     slotId: (slot?.id ?? `slot_${clock.slotIndex}`) as GameId,
     slotNameKey: slot?.nameKey ?? (`time.slot.${clock.slotIndex}` as TextKey),
     ...(monthDefs !== undefined
