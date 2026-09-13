@@ -62,6 +62,22 @@ const playerStateSchema = z.strictObject({
   outfitPresets: z
     .record(z.string(), z.record(z.string(), z.record(z.string(), refId('item'))))
     .optional(),
+  /**
+   * 穿着元数据（FR-ITEM-06，13 任务 5）：itemId → {wornSlots, durability?}。
+   * 时间管线 tick 的累计面；不入档不可（跨档续算），可从穿着关系重建初始值
+   * （读档后由 SaveService 重放归 20 号边界，schema 层随档持久）。
+   */
+  wornMeta: z
+    .record(
+      refId('item'),
+      z.strictObject({
+        /** 穿着期间累计时段数（__items.tick 累加，FR-ITEM-06 时效判据） */
+        wornSlots: z.number().int().min(0),
+        /** 剩余耐久（garment.durability 的动态值；缺省 = 无耐久概念） */
+        durability: z.number().int().min(0).optional(),
+      }),
+    )
+    .optional(),
   /** 新档 Perk 结算产物 + 玩家命名（FR-ACHV-06） */
   bootstrap: z.strictObject({ perks: z.array(z.string()), name: z.string() }),
 });

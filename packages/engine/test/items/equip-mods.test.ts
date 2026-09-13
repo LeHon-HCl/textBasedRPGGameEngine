@@ -43,7 +43,9 @@ const ATTR_DEFS = {
 };
 
 /** 运行时夹具：派生 max_hp = 10 + con*3（con=2 → 16），hp=30 */
-function makeEquipRuntime(bag: NonNullable<NonNullable<Parameters<typeof makeBuiltinRuntime>[0]>['bootstrap']>['bag']) {
+function makeEquipRuntime(
+  bag: NonNullable<NonNullable<Parameters<typeof makeBuiltinRuntime>[0]>['bootstrap']>['bag'],
+) {
   return makeBuiltinRuntime({
     bootstrap: {
       versions: BASE_VERSIONS,
@@ -78,10 +80,7 @@ describe('13-2 equipMods 并入派生属性重算', () => {
       { itemId: 'item_sword', count: 1 },
       { itemId: 'item_ring', count: 1 },
     ]);
-    rt.exec(
-      [{ equip: { item: 'item_sword' } }, { equip: { item: 'item_ring' } }],
-      makeCtx(),
-    );
+    rt.exec([{ equip: { item: 'item_sword' } }, { equip: { item: 'item_ring' } }], makeCtx());
     expect(rt.state.player.derived['hp']).toBe(34); // 30 + 2(sword) + 2(con)
   });
 
@@ -120,10 +119,7 @@ describe('13-2 equipMods 并入派生属性重算', () => {
       { itemId: 'item_sword', count: 1 },
       { itemId: 'item_ring', count: 1 },
     ]);
-    rt.exec(
-      [{ equip: { item: 'item_sword' } }, { equip: { item: 'item_ring' } }],
-      makeCtx(),
-    );
+    rt.exec([{ equip: { item: 'item_sword' } }, { equip: { item: 'item_ring' } }], makeCtx());
     const details = equipModDetails(rt.state, EQUIP_ITEMS);
     expect(details).toEqual([
       { slot: 'weapon', itemId: 'item_sword', mods: { max_hp: 5, hp: 2 } },

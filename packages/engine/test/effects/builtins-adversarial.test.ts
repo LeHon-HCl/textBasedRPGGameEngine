@@ -41,8 +41,8 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
     // 内部指令（__ 前缀，不面向作者；09 号 __time.advance 时钟写入载体、
     // 13 号 __outfit.save_preset 换装预设快照载体）
     const internal = ids.filter((id) => id.startsWith('__'));
-    expect(internal).toEqual(['__time.advance', '__outfit.save_preset']);
-    expect(ids).toHaveLength(27);
+    expect(internal).toEqual(['__time.advance', '__outfit.save_preset', '__items.tick']);
+    expect(ids).toHaveLength(28);
   });
 });
 

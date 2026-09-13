@@ -56,6 +56,7 @@ export type {
   UnlockEvent,
   UnlockKind,
   Unsubscribe,
+  ItemExpiredEvent,
 } from './runtime/index.js';
 
 // ---- effects（§3.3 效果指令系统：注册表机制 / 内置指令契约 / 判定规则缝） ----
@@ -142,12 +143,6 @@ export type {
 } from './time/index.js';
 
 // ---- items（§4.7 物品：Inventory 纯函数集 / 装备修正明细投影，13 号） --------
-export {
-  bagCount,
-  bagGive,
-  bagMerge,
-  bagSplit,
-  bagTake,
-  equipModDetails,
-} from './items/index.js';
+export { bagCount, bagGive, bagMerge, bagSplit, bagTake, equipModDetails } from './items/index.js';
 export type { EquipModDetail } from './items/index.js';
+export { createItemTickProvider } from './items/index.js';

@@ -126,6 +126,7 @@ export function newGameState(bootstrap: NewGameBootstrap, rng: Rng): GameState {
       wallet: { ...bootstrap.wallet },
       derived: {},
       outfitPresets: {},
+      wornMeta: {},
       bootstrap: { perks: [...(bootstrap.perks ?? [])], name: bootstrap.playerName ?? '' },
     },
     world: {

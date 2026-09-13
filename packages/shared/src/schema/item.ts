@@ -28,6 +28,16 @@ export const garmentDefSchema = z.strictObject({
    * swappable=true → 旧件回收背包并替换；缺省 false → 拒绝（EFFECT_FAILED）。
    */
   swappable: z.boolean().optional(),
+  /**
+   * 耐久（FR-ITEM-06，13 任务 5）：日磨损次数——时间管线每跨天 -1，归零
+   * emit item_expired{reason:'durability'}；字段开放不强制（缺省 = 无耐久）。
+   */
+  durability: z.number().int().min(1).optional(),
+  /**
+   * 时效（FR-ITEM-06，13 任务 5）：过期时段数——穿着期间累计达到即 emit
+   * item_expired{reason:'expired'}；缺省 = 永不过期。
+   */
+  expiresAfterSlots: z.number().int().min(1).optional(),
 });
 
 export type GarmentDef = z.infer<typeof garmentDefSchema>;

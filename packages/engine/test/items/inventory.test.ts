@@ -133,7 +133,10 @@ describe('13-1 bagSplit / bagMerge：堆叠管理', () => {
 
   it('split：非堆叠物品 / 数量非法 / 超出条目余量 → 拒绝', () => {
     expectFail(() => bagSplit([{ itemId: 'sword', count: 1 }], def('sword'), 1), '不可堆叠');
-    expectFail(() => bagSplit([{ itemId: 'herb', count: 3 }], def('herb', { stack: 9 }), 3), '余量');
+    expectFail(
+      () => bagSplit([{ itemId: 'herb', count: 3 }], def('herb', { stack: 9 }), 3),
+      '余量',
+    );
     expectFail(() => bagSplit([{ itemId: 'herb', count: 3 }], def('herb', { stack: 9 }), 0));
   });
 

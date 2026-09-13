@@ -108,6 +108,14 @@ export interface ReputationBandChangedEvent {
   to: string | undefined;
 }
 
+/** 物品过期（FR-ITEM-06，§4.7，13 任务 5）：引擎只报事件，后果由作者决定 */
+export interface ItemExpiredEvent {
+  type: 'item_expired';
+  item: GameId;
+  /** 'expired' = 时效届满；'durability' = 耐久归零 */
+  reason: 'expired' | 'durability';
+}
+
 /**
  * 引擎事件全集（04 号核心成员；后续模块在同一文件追加判别成员并纳入本联合）。
  */
@@ -119,4 +127,5 @@ export type EngineEvent =
   | MediaEvent
   | SnapshotWarnEvent
   | FavorStageChangedEvent
-  | ReputationBandChangedEvent;
+  | ReputationBandChangedEvent
+  | ItemExpiredEvent;

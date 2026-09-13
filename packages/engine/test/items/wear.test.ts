@@ -121,10 +121,7 @@ describe('13-3 wear 冲突规则：swappable 决定拒绝/替换', () => {
         { itemId: 'item_coat', count: 1 },
       ],
     });
-    rt.exec(
-      [{ wear: { item: 'item_shirt_a' } }, { wear: { item: 'item_coat' } }],
-      makeCtx(),
-    );
+    rt.exec([{ wear: { item: 'item_shirt_a' } }, { wear: { item: 'item_coat' } }], makeCtx());
     expect(rt.state.player.outfit['chest']).toEqual({
       '1': 'item_shirt_a',
       '2': 'item_coat',
