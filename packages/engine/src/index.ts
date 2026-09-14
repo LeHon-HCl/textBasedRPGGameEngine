@@ -50,6 +50,8 @@ export type {
   MediaEvent,
   MediaIntent,
   NotifyEvent,
+  QuestStageEvent,
+  QuestStateChangedEvent,
   ReputationBandChangedEvent,
   SnapshotWarnEvent,
   StatChangedEvent,

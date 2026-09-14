@@ -1,4 +1,4 @@
-import type { GameId, TextKey } from '@game/shared';
+import type { GameId, QuestState, TextKey } from '@game/shared';
 
 /**
  * EngineEvent 判别联合（设计 §3.1 ExecOutcome.events、DD-06 交互面；04 任务 B2）。
@@ -117,6 +117,37 @@ export interface ItemExpiredEvent {
 }
 
 /**
+ * 任务状态变化（FR-QUEST-02，§4.5，11 任务 1/2）：
+ * accept / 阶段推进至待提交 / submit / fail 等六态迁移统一 emit 本事件；
+ * from/to 为六态 id（undiscovered/available/active/ready_to_submit/done/failed）。
+ * 作者以事件订阅实现「状态变化触发效果」（如 on_accept / on_done / on_fail 的
+ * 作者侧等价物——QuestDef 无 on_* 效果字段，效果钩子经事件订阅表达）。
+ */
+export interface QuestStateChangedEvent {
+  type: 'quest_state_changed';
+  quest: GameId;
+  from: QuestState['state'];
+  to: QuestState['state'];
+}
+
+/**
+ * 任务阶段推进（on_stage；FR-QUEST-02，§4.5，11 任务 3）：
+ * active 内当前阶段 completeWhen 达成后推进到下一阶段时 emit（末阶段改为
+ * `quest_state_changed → ready_to_submit`，不再发本事件）；objectiveKey 为
+ * 新阶段目标文本键，供任务日志/toast 直接消费（FR-QUEST-03）。
+ */
+export interface QuestStageEvent {
+  type: 'quest_stage';
+  quest: GameId;
+  /** 原阶段 id（无阶段目录或缺省时 undefined） */
+  from: string | undefined;
+  /** 新阶段 id */
+  to: string;
+  /** 新阶段目标文本键（QuestDef.stages[].objectiveKey） */
+  objectiveKey: TextKey;
+}
+
+/**
  * 引擎事件全集（04 号核心成员；后续模块在同一文件追加判别成员并纳入本联合）。
  */
 export type EngineEvent =
@@ -128,4 +159,6 @@ export type EngineEvent =
   | SnapshotWarnEvent
   | FavorStageChangedEvent
   | ReputationBandChangedEvent
-  | ItemExpiredEvent;
+  | ItemExpiredEvent
+  | QuestStateChangedEvent
+  | QuestStageEvent;
