@@ -1,0 +1,7 @@
+# Attribute display names (StatusPanel materializes attrs.<id>.name via TextResolver)
+hp:
+  name: Health
+stamina:
+  name: Stamina
+insight:
+  name: Insight
