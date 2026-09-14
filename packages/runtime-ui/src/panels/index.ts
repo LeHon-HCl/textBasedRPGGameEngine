@@ -1,0 +1,19 @@
+/**
+ * panels 切片出口（设计 §6.4 功能面板）。
+ *
+ * 每个面板 = 纯投影（types.ts）+ 受控组件（*Panel.tsx）：投影可在 node 环境
+ * 单测，组件经 Testing Library 测渲染与交互。
+ */
+export { describeEquipMods, projectStatusPanel } from './types.js';
+export type {
+  StatusAttrView,
+  StatusEffectView,
+  StatusEquipView,
+  StatusOutfitView,
+  StatusPanelView,
+  StatusProjectionOptions,
+  StatusSkillView,
+  StatusWalletView,
+} from './types.js';
+export { DEFAULT_HIGHLIGHT_TTL_MS, StatusPanel } from './StatusPanel.js';
+export type { StatusPanelLabels, StatusPanelProps } from './StatusPanel.js';
