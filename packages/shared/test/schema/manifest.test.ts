@@ -36,6 +36,18 @@ describe('manifestSchema（设计 §2.4 Manifest，02 任务 A1）', () => {
     expect(parsed.redirects).toEqual({ old_gate: 'town_gate' });
   });
 
+  it('contentWarning 可选：缺省无警告页；给出时必须为文本键（FR-CGRD-04，2026-09-14 勘误补齐）', () => {
+    expect(manifestSchema.parse(VALID_MANIFEST).contentWarning).toBeUndefined();
+    const parsed = manifestSchema.parse({
+      ...VALID_MANIFEST,
+      contentWarning: 'ui.content_warning',
+    });
+    expect(parsed.contentWarning).toBe('ui.content_warning');
+    expect(() => manifestSchema.parse({ ...VALID_MANIFEST, contentWarning: 42 })).toThrow(
+      z.ZodError,
+    );
+  });
+
   it('z.infer 产出 TS 类型供四包共用（NFR-12）', () => {
     expectTypeOf<Manifest['gameId']>().toBeString();
     expectTypeOf<Manifest['schemaVersion']>().toBeNumber();

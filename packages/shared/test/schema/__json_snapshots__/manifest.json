@@ -29,6 +29,11 @@
         "pattern": "^[a-z][a-z0-9_]*$"
       }
     },
+    "contentWarning": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
     "gameVersion": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-]+)?(?:\\+[0-9A-Za-z-]+)?$"
