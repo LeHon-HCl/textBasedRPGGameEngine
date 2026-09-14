@@ -1,5 +1,5 @@
 import type { GameId, ItemType, ItemDef, TextKey } from '@game/shared';
-import type { BagEntry } from '@game/shared';
+import type { BagEntry } from '../state/index.js';
 
 /**
  * 背包 UI 数据投影（FR-ITEM-02，§4.7，13 任务 6）。

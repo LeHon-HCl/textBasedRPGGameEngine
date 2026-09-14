@@ -1,7 +1,8 @@
 import { createRng } from '@game/shared';
-import type { GameState, ItemDef } from '@game/shared';
+import type { ItemDef } from '@game/shared';
 import { compileExpr, createBuiltinFunctionRegistry, evalExpr } from '../expr-eval/index.js';
 import { buildExprScope } from '../state/index.js';
+import type { GameState } from '../state/index.js';
 
 /**
  * 装备修正明细投影（FR-STAT-03「面板显示修正明细」，§4.7，13 任务 2）。

@@ -78,7 +78,12 @@ export function restoreState(blob: SaveBlob): GameState {
       schemaVersion: blob.schemaVersion,
     },
     loop: snapshot.loop,
-    player: snapshot.player,
+    // 13 号新增域为 schema 可选（旧存档无此字段，只增不改）：恢复时补空缺省值
+    player: {
+      ...snapshot.player,
+      outfitPresets: snapshot.player.outfitPresets ?? {},
+      wornMeta: snapshot.player.wornMeta ?? {},
+    },
     world: { ...snapshot.world, npcLocationCache: {} },
     npcs: snapshot.npcs,
     factions: snapshot.factions,
