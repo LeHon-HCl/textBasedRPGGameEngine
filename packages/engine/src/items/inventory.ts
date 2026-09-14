@@ -1,5 +1,6 @@
 import { EngineError } from '@game/shared';
-import type { BagEntry, GameId, ItemDef } from '@game/shared';
+import type { GameId, ItemDef } from '@game/shared';
+import type { BagEntry } from '../state/index.js';
 
 /**
  * Inventory 纯函数集（设计 §4.7「give/take 指令内部走 Inventory 纯函数集」，

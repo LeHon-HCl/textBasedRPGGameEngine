@@ -82,10 +82,11 @@ export function advanceClock(clock: Clock, config: TimeConfig, slots: number): C
   const slotCount = config.slots.length;
   const total = clock.slotIndex + slots;
   const extraDays = Math.floor(total / slotCount);
+  const nextWeek = weekNumber(clock.day + extraDays, config);
   const next: Clock = {
     day: clock.day + extraDays,
     slotIndex: total % slotCount,
-    week: weekNumber(clock.day + extraDays, config),
+    week: nextWeek,
   };
   if (config.months !== undefined) {
     // Clock.month 存循环内月序（0 起，日历/表达式用）；绝对月计数只用于跨月判定
@@ -94,7 +95,7 @@ export function advanceClock(clock: Clock, config: TimeConfig, slots: number): C
   return {
     clock: next,
     crossedDay: extraDays > 0,
-    crossedWeek: next.week > weekNumber(clock.day, config),
+    crossedWeek: nextWeek > weekNumber(clock.day, config),
     crossedMonth:
       config.months !== undefined &&
       absoluteMonth(next.day, config) > absoluteMonth(clock.day, config),
