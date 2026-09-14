@@ -2,7 +2,7 @@ import { EngineError } from '@game/shared';
 import type { GameId, QuestDef, QuestState } from '@game/shared';
 import type { EngineEvent } from '../runtime/index.js';
 import { canTransition, transitionVias } from './transitions.js';
-import type { QuestContext, QuestStateEnum } from './types.js';
+import type { ObjectiveProgress, QuestContext, QuestStateEnum } from './types.js';
 
 /**
  * 任务状态机（设计 §4.5；11 号模块）。
@@ -43,6 +43,34 @@ export class QuestMachine {
   /** 六态迁移合法性（规则表查询；供调用方在写入前自检） */
   canTransition(from: QuestStateEnum, to: QuestStateEnum): boolean {
     return canTransition(from, to);
+  }
+
+  /**
+   * 目标进度投影（FR-QUEST-05 文本插值数据源；11 任务 6）。
+   *
+   * 对任务每一阶段输出 {stageId, objectiveKey, complete, value}：
+   * - complete：done / ready_to_submit 全阶段真；否则当前阶段之前的阶段为真；
+   * - value：优先取 `QuestState.objectives[stageId]`，缺省按 complete 取 1/0
+   *   （作者/宿主将进度计数写入 objectives；本投影不解释其来源）。
+   *
+   * 未接取（无 QuestState）或目录缺失 → 空数组。
+   */
+  progress(quests: Readonly<Record<GameId, QuestState>>, questId: GameId): ObjectiveProgress[] {
+    const def = this.#defs.get(questId);
+    const quest = quests[questId];
+    if (def === undefined || quest === undefined) return [];
+    const allComplete = quest.state === 'done' || quest.state === 'ready_to_submit';
+    const currentIndex = def.stages.findIndex((stage) => stage.id === quest.stage);
+    return def.stages.map((stage, index) => {
+      const complete = allComplete || (currentIndex >= 0 && index < currentIndex);
+      const value = quest.objectives[stage.id] ?? (complete ? 1 : 0);
+      return {
+        stageId: stage.id,
+        objectiveKey: stage.objectiveKey,
+        complete,
+        value,
+      };
+    });
   }
 
   /**
