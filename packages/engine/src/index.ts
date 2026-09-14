@@ -206,6 +206,7 @@ export type {
 // ---- npcs（§4.6 NPC 与阵营：日程解析 / 缓存维护 / 好感声望机制，12 号） ------
 export {
   applyFavorChange,
+  applyReputationChange,
   clamp,
   createNpcScheduleDeriver,
   createNpcScheduleProvider,
@@ -219,5 +220,6 @@ export type {
   NpcRelationSlice,
   NpcScheduleDeriverOptions,
   NpcScheduleQuery,
+  ReputationChange,
   ThresholdEntry,
 } from './npcs/index.js';
