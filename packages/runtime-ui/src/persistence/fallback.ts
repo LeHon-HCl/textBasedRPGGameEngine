@@ -1,6 +1,6 @@
 import { DexieAdapter } from './dexie-adapter.js';
 import { MemoryAdapter, PrivacyModeError } from './memory-adapter.js';
-import type { PersistenceAdapter } from './types.js';
+import type { UiPersistenceAdapter } from './types.js';
 
 /**
  * 持久化能力探测与降级选择（设计 §6.7 / NFR-10）。
@@ -20,7 +20,7 @@ export interface StorageProbeResult {
 
 /** 降级选择结果 */
 export interface AdapterSelection {
-  readonly adapter: PersistenceAdapter;
+  readonly adapter: UiPersistenceAdapter;
   /** true = 已降级到内存（数据不跨会话保留，宿主必须呈现提示） */
   readonly degraded: boolean;
   /** 降级原因（degraded=true 时有值） */
@@ -32,9 +32,9 @@ export interface SelectAdapterOptions {
   /** 可用性探测（缺省 {@link probeIndexedDb}） */
   readonly probe?: () => Promise<StorageProbeResult> | StorageProbeResult;
   /** Dexie 适配器工厂（缺省新建并 open；抛错即降级） */
-  readonly createDexie?: () => Promise<PersistenceAdapter> | PersistenceAdapter;
+  readonly createDexie?: () => Promise<UiPersistenceAdapter> | UiPersistenceAdapter;
   /** 内存适配器工厂（缺省新建） */
-  readonly createMemory?: () => PersistenceAdapter;
+  readonly createMemory?: () => UiPersistenceAdapter;
 }
 
 /**
@@ -110,6 +110,6 @@ export async function selectAdapter(options: SelectAdapterOptions = {}): Promise
 }
 
 /** 构造降级结果（统一补全原因文案，避免 undefined 流入横幅） */
-function degradedSelection(adapter: PersistenceAdapter, reason: string): AdapterSelection {
+function degradedSelection(adapter: UiPersistenceAdapter, reason: string): AdapterSelection {
   return { adapter, degraded: true, reason };
 }

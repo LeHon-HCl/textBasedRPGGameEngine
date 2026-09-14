@@ -20,7 +20,7 @@ const SLOT: SaveSlotSummary = {
   location: 'market_street',
   slotName: 'auto_1',
   playSeconds: 3600,
-  questSummary: ['quests.wall_rubbing.name'],
+  activeQuests: ['wall_rubbing'],
   createdAt: 1_700_000_000_000,
   versions: { engineVersion: '0.0.0', gameVersion: '1.0.0', schemaVersion: 1 },
 };
