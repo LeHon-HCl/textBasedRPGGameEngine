@@ -43,9 +43,7 @@ describe('24-5 media 与 notify 分离', () => {
     const { rt } = makeBuiltinRuntime();
     const log = subscribe(rt);
     rt.exec([{ media: { type: 'sfx', assetId: 'sfx_click' } }], makeCtx());
-    expect(log.media.map((event) => event.intent)).toEqual([
-      { type: 'sfx', assetId: 'sfx_click' },
-    ]);
+    expect(log.media.map((event) => event.intent)).toEqual([{ type: 'sfx', assetId: 'sfx_click' }]);
     expect(log.notify).toEqual([]);
   });
 

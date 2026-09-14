@@ -75,9 +75,7 @@ describe('24-2 场景/区域 bg/bgm 经解析器产出（FR-MEDIA-02）', () => 
     locales: BASE_LOCALES,
   });
 
-  const AREA_MEDIA = new Map([
-    ['old_town', { media: { bg: 'bg_area', bgm: 'bgm_area' } }],
-  ]);
+  const AREA_MEDIA = new Map([['old_town', { media: { bg: 'bg_area', bgm: 'bgm_area' } }]]);
 
   it('场景绑定 → 解析器产出的 intent 序列（bg 无 loop，bgm 恒 loop）', () => {
     const runner = makeRunner(DEF, {
@@ -183,7 +181,9 @@ describe('24-4 段落级 CG 与立绘切换（FR-MEDIA-04/03）', () => {
     [
       'npc_raven',
       {
-        sprites: [{ base: 'sprite_base', variants: [{ when: 'ravenBonded', asset: 'sprite_bonded' }] }],
+        sprites: [
+          { base: 'sprite_base', variants: [{ when: 'ravenBonded', asset: 'sprite_bonded' }] },
+        ],
       },
     ],
   ]);
@@ -211,7 +211,9 @@ describe('24-4 段落级 CG 与立绘切换（FR-MEDIA-04/03）', () => {
     runner.renderList();
     runner.advance();
     const segments = runner.renderList();
-    const text = segments.find((segment) => segment.kind === 'text' && segment.key === 'scenes.a.p2');
+    const text = segments.find(
+      (segment) => segment.kind === 'text' && segment.key === 'scenes.a.p2',
+    );
     expect(text?.media).toEqual([{ type: 'cg', assetId: 'cg_rain' }]);
   });
 

@@ -9,9 +9,4 @@
  * 最小视图消费本模块，不经横向 import（DD-06）。
  */
 export { MediaResolver } from './resolver.js';
-export type {
-  MediaCatalogLike,
-  MediaLookup,
-  MediaResolverOptions,
-  MediaWarning,
-} from './types.js';
+export type { MediaCatalogLike, MediaLookup, MediaResolverOptions, MediaWarning } from './types.js';

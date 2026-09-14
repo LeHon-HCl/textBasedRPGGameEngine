@@ -109,13 +109,15 @@ describe('24-4 段落级 CG 与立绘切换（FR-MEDIA-04）', () => {
   });
 
   it('sprite 不接受在段落侧声明资产/条件（差分逻辑只有 NpcDef 一份）', () => {
-    expect(segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', when: 'flag.y' } }).success).toBe(
+    expect(
+      segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', when: 'flag.y' } }).success,
+    ).toBe(false);
+    expect(segmentSchema.safeParse({ key: 'k', sprite: { asset: 'sprite_x' } }).success).toBe(
       false,
     );
-    expect(segmentSchema.safeParse({ key: 'k', sprite: { asset: 'sprite_x' } }).success).toBe(false);
-    expect(segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', asset: 'sprite_x' } }).success).toBe(
-      false,
-    );
+    expect(
+      segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', asset: 'sprite_x' } }).success,
+    ).toBe(false);
   });
 
   it('cg 与 sprite 均为可选，旧段落定义不变', () => {
