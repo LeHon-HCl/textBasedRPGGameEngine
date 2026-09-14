@@ -425,7 +425,9 @@ export class SceneRunner {
   /**
    * 选项视图（§4.2 ChoiceView：已过 show_if + 内容过滤 + 一次性隐藏）：
    * - show_if 不满足 → hiddenByFilter（整个选项不出现，FR-NARR-02）；
-   * - 选项内容标签命中 settings.disabledTags → hiddenByFilter（FR-CGRD-02）；
+   * - 选项内容标签被内容过滤命中 → hiddenByFilter（FR-CGRD-02）：注入
+   *   contentFilter 时经其单点判定（FR-CGRD-03），未注入时沿用 08 号既有的
+   *   `settings.disabledTags` 直查（缺省不过滤的向后兼容口径）；
    * - once 选项的已选标记（world.flags `__choice.<scene>.<choice>`，§4.2
    *   自动生成、无需作者声明）→ hiddenByFilter；
    * - disabledIf 满足 → enabled=false 的置灰视图（可见但不可用），
@@ -433,6 +435,7 @@ export class SceneRunner {
    */
   #choiceViews(choices: readonly ChoiceDef[]): ChoiceView[] {
     const scene = this.#frame.scene;
+    const filter = this.#contentFilter;
     const disabledTags = this.#rt.state.settings.disabledTags;
     const flags = this.#rt.state.world.flags;
     const out: ChoiceView[] = [];
@@ -440,7 +443,9 @@ export class SceneRunner {
       const hiddenByShowIf =
         choice.showIf !== undefined && !this.#evalSceneExpr(choice.showIf, scene, 'showIf');
       const hiddenByTags =
-        choice.tags !== undefined && choice.tags.some((tag) => disabledTags.includes(tag));
+        filter !== undefined
+          ? !filter.passes(choice.tags)
+          : choice.tags !== undefined && choice.tags.some((tag) => disabledTags.includes(tag));
       const hiddenByOnce =
         choice.once === true && flags[onceChoiceKey(scene.def.id, choice.id)] === true;
       const hidden = hiddenByShowIf || hiddenByTags || hiddenByOnce;
