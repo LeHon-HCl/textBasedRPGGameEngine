@@ -39,3 +39,11 @@ export {
 export { UiStoreContext } from './context.js';
 export { UiStoreProvider, useUiActions, useUiSelector, useUiStore } from './hooks.js';
 export type { UiStoreProviderProps } from './hooks.js';
+export {
+  AppShell,
+  MobileTabBar,
+  NARROW_BREAKPOINT_PX,
+  TOUCH_TARGET_PX,
+  useIsNarrow,
+} from './AppShell.js';
+export type { AppShellProps } from './AppShell.js';

@@ -51,3 +51,13 @@ export type {
   UiStoreApi,
   UiStoreProviderProps,
 } from './app/index.js';
+
+// ---- app.shell（§6.2 响应式外壳：双栏 / 窄屏 Tab；FR-UI-01/09） --------------
+export {
+  AppShell,
+  MobileTabBar,
+  NARROW_BREAKPOINT_PX,
+  TOUCH_TARGET_PX,
+  useIsNarrow,
+} from './app/index.js';
+export type { AppShellProps } from './app/index.js';
