@@ -1,4 +1,21 @@
-# Vibe Coding 主控 Prompt —— textBasedRPGGameEngine
+# 【已归档】Vibe Coding 主控 Prompt —— textBasedRPGGameEngine
+
+> **归档状态：2026-09-14。本文件不再生效，仅作历史溯源保留。**
+>
+> **取代关系**：本文档描述的「全自主无人工参与 + 主 Agent 派发子 Agent」工作模式，
+> 已被 `docs/develop.md`（分支 → TDD → PR → AI 自审 + CI → 里程碑人工验收）取代。
+> 冲突时以 `docs/develop.md` 为准。
+>
+> **仍然有效的部分**（已被 develop.md 与 AGENTS.md 吸收，此处不重复维护）：
+> 红线约束（§2）→ develop.md 约束 3 与 eslint 规则；门禁命令（§3）→ develop.md 约束 2
+> 与 CI workflow；文档权威顺序（§1）→ 见下方「资料索引」。
+>
+> **资料索引**（本项目权威文档的当前入口）：
+> [`README.md`](../../README.md)（人类入口）→ [`docs/architecture.md`](../architecture.md)（已实现架构）
+> → [`docs/proposal.md`](../proposal.md)（需求）→ [`docs/detail-design.md`](../detail-design.md)（设计）
+> → [`docs/tasks/progress.md`](../tasks/progress.md)（进度）→ [`docs/develop.md`](../develop.md)（流程）。
+
+> 以下为归档原文。
 
 > 本文档是整个项目的**自主开发起始 Prompt**。主 Agent 完整读取本文档后即接管工程，按 §4 工作循环推进，直至 §8 完成定义达成或输出 §7 阻塞报告。**全程无人工参与**——遇到问题按 §7 处理，不等待、不询问。
 

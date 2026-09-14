@@ -1,249 +1,562 @@
 # 项目架构（as-built）
 
-> **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
-> 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
+> **本文档回答三个问题：这个项目长什么样、一次点击到底发生了什么、想改 X 该动哪里。**
+> 完整反映已实现代码的逻辑架构，随代码变更同步更新（维护规则见 §8）。
+>
+> 上游依据：需求见 [`proposal.md`](proposal.md)（§ 与 FR/NFR 编号定义处）；设计意图见
+> [`detail-design.md`](detail-design.md)（§x.y 与 DD-nn）；进度见 [`tasks/progress.md`](tasks/progress.md)；
+> 开发流程见 [`develop.md`](develop.md)。
+>
 > 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/20/22/24 已合入（25A 进行中）。
 
-## 1. 总览
+---
 
-`text-based-rpg-game-engine`：纯前端文字 RPG 引擎，pnpm monorepo（pnpm@10.34.5，Node ≥20，TS ES2022 / NodeNext / strict 全开）。
+## 目录
 
+- [1. 这是什么](#1-这是什么) — 一分钟建立心智模型
+- [2. 仓库与依赖规则](#2-仓库与依赖规则)
+- [3. 一次点击的数据流](#3-一次点击的数据流) — 读这一节就能懂整个引擎
+- [4. 加载管线](#4-加载管线) — 游戏包怎么变成可运行对象
+- [5. engine 子系统](#5-engine-子系统) — 按模块导航到文件
+- [6. shared / apps / fixtures](#6-shared--apps--fixtures)
+- [7. 测试与质量门禁](#7-测试与质量门禁)
+- [8. 维护规则](#8-维护规则)
+
+---
+
+## 1. 这是什么
+
+三个词概括：**数据驱动**（游戏是 YAML 包，不是代码）、**引擎与渲染解耦**（engine 不碰 DOM/图像/音频）、
+**一切经由事务**（状态只能在一个 `exec` 里整体成功或整体回滚）。
+
+```mermaid
+flowchart LR
+  A["作者写的游戏包<br/>YAML + 受限表达式"] --> B["loader<br/>七步管线"]
+  B --> C["GameDefinition<br/>冻结的只读定义"]
+  D["玩家操作<br/>点击 / 推进 / 选择"] --> E["GameRuntime<br/>事务执行器"]
+  C --> E
+  E --> F["EngineEvent[]<br/>纯数据事件"]
+  E --> G["RenderSegment[]<br/>待渲染段落"]
+  F --> H["宿主 UI<br/>runtime-ui / player-demo"]
+  G --> H
 ```
-┌──────────────────────────── 仓库布局 ────────────────────────────┐
-│ packages/shared      @game/shared     类型/Schema/规则单一来源     │
-│ packages/engine      @game/engine     核心运行时（无 React/DOM）   │
-│ packages/runtime-ui  @game/runtime-ui 玩家界面组件库（占位，25 号） │
-│ packages/editor      @game/editor     可视化编辑器（占位，26 号）   │
-│ packages/exporter    @game/exporter   导出分发（占位，27 号）       │
-│ apps/player-demo     player-demo      M0 验收用最小可玩页          │
-│ apps/editor-app      editor-app       编辑器宿主页（占位）          │
-│ fixtures/mini-game   正例游戏包夹具（约 60 个 YAML）                │
-│ fixtures/negatives/  5 个单缺陷负例包（每包一个预期 ErrCode）        │
-│ fixtures/helpers/    跨包测试夹具包（InMemoryPackageSource 等）      │
-└──────────────────────────────────────────────────────────────────┘
+
+关键约束（后续各节反复出现）：
+
+| 约束 | 含义 | 为什么 |
+|---|---|---|
+| engine 零平台依赖 | 不 import React，不碰 DOM/图像/音频 | 能在 Node 里全量单测；UI 可替换 |
+| 状态只能经事务变更 | 所有写操作走 `exec`，immer 提交或回滚 | 回滚功能与存档一致性都靠它 |
+| 子系统间禁横向 import | 只用「事务 + EngineEvent + 时间管线编排」交互（DD-06） | 否则依赖图会退化成网状 |
+| 定义与状态分离 | `GameDefinition` 冻结只读；`GameState` 随事务演进 | 定义可多宿主共享；状态可序列化存档 |
+
+---
+
+## 2. 仓库与依赖规则
+
+```mermaid
+flowchart TB
+  subgraph apps["apps/"]
+    PD["player-demo<br/>M0 验收页"]
+    EA["editor-app<br/>占位"]
+  end
+  subgraph pkgs["packages/"]
+    RUI["runtime-ui<br/>玩家界面（占位，25 号）"]
+    EDT["editor<br/>编辑器内核（占位）"]
+    EXP["exporter<br/>静态包导出（占位）"]
+    ENG["engine<br/>核心运行时"]
+    SHD["shared<br/>类型 / Schema / 规则"]
+  end
+  subgraph fx["fixtures/"]
+    MG["mini-game<br/>正例包"]
+    NEG["negatives<br/>负例包"]
+    HLP["helpers<br/>跨包测试支撑"]
+  end
+  PD --> ENG
+  EA --> EDT
+  RUI --> ENG
+  EDT --> EXP
+  EDT --> ENG
+  EXP --> ENG
+  ENG --> SHD
+  HLP -.devOnly.-> ENG
 ```
 
-### 包依赖规则（设计 §1.2，ESLint flat config 强制）
+**依赖规则（ESLint flat config 强制，违反即 lint 红）：**
 
 | 规则 | 内容 | 强制手段 |
 |---|---|---|
-| R1 | shared 零包依赖（仅放行 zod），是类型与规则的唯一来源 | eslint `no-restricted-imports` + package.json |
-| R2 | engine 只依赖 shared；禁 React、禁 DOM/BOM 全局 | eslint import 限制 + env 白名单 |
-| R3 | 禁止深路径导入：包外只能 `import from '@game/<pkg>'` | eslint（各包 src/index.ts 是唯一出口） |
-| R4 | shared/engine 源码禁裸 `throw new Error`，必须抛 `EngineError`（code/where/messageKey，NFR-23） | eslint |
-| R5 | engine 子系统间禁止横向 import，只允许三种交互：事务、EngineEvent、时间管线编排（DD-06） | eslint |
+| R1 | `shared` 零包依赖（仅放行 zod），是类型与规则的唯一来源 | `no-restricted-imports` + package.json |
+| R2 | `engine` 只依赖 `shared`；禁 React、禁 DOM/BOM 全局（**src 与 test 同样适用**） | import 限制 + `no-restricted-globals` |
+| R3 | 禁止深路径导入：包外只能 `import from '@game/<pkg>'` | eslint（各包 `src/index.ts` 是唯一出口） |
+| R4 | `shared`/`engine` 源码禁裸 `throw new Error`，必须抛 `EngineError`（code/where/messageKey） | `no-restricted-syntax` |
+| R5 | engine 子系统间禁横向 import（DD-06）：只用事务 / EngineEvent / 时间管线编排 | 目录出口约定 + review |
 
-```
-mermaid 等价依赖图：
-apps/* ──> runtime-ui(未来) ──> engine ──> shared
-editor ──> exporter ──> engine/shared
-engine 内部：loader → (state, effects, expr) ；narrative → (state, runtime, i18n)
-content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrative 经结构化最小接口注入，不 import content。
-```
+> **R2 的一个实际后果**：engine 的测试不能 import `fixtures/helpers`。跨包共用的测试代码
+> 因此放在 `fixtures/helpers` 并由该包自己的 test 运行（见 §7）。
 
-## 2. shared 包（`packages/shared/src/`）
+---
 
-唯一出口 `index.ts`；零运行时依赖（仅 zod）。
+## 3. 一次点击的数据流
 
-- **ids.ts**：`GameId` / `Lang` / `TextKey` / `RefKind`、`refId()`、`GAME_ID_PATTERN`——全库 ID 规范的源头。
-- **errors.ts**：`EngineError`（`code` / `where` / `messageKey` 三元组）、`ErrCode` 枚举、`serializeError`。全库唯一异常类型。
-- **expr.ts**：表达式语言规格类型（`ExprNode` / `CompiledExpr` / `EvalContext` / `ExprScope` / `ExprFunctionRegistry` 等，DD-01）——engine 的 expr-eval 按此实现。
-- **rng.ts**：`createRng` / `Rng`——注入式随机（DD-09），状态可序列化进存档。
-- **schema/**（23 个域文件）：全部数据域的 Zod schema——manifest、scene、area、attrs、event、quest、npc、faction、item、body、shop、perk、achievement、ending、loop、tags、stats-page、save、profile、effects、time、common 等。02 号模块产物，兼作 JSON Schema 导出基线（快照测试锁定，NFR-12/15「只增不改」）。
-- **validation/**：跨域校验辅助。
+这一节是理解全项目的关键。以「玩家点击一个选项」为例：
 
-## 3. engine 包（`packages/engine/src/`）
+```mermaid
+sequenceDiagram
+  participant U as 宿主 UI
+  participant SR as SceneRunner
+  participant RT as GameRuntime
+  participant FN as 内置指令
+  participant TR as TextResolver
 
-核心运行时；只依赖 shared + immer / jsep / yaml / zod。各子系统经 `src/index.ts` 统一 re-export。
-
-### 3.1 state/ —— 状态树与事务底座（设计 §3.1，04 号）
-
-- **game-state.ts**：`GameState` 状态树（attrs / flags / bag / outfit / npcs / quests / seen / checkpoints / world.time 等）。
-- **new-game.ts**：`newGameState()` + bootstrap（新档初始化，接受清单驱动的初始值）。
-- **derived.ts**：`recomputeDerived()` 派生属性重算；`DERIVED_TRIGGER_DOMAINS` 声明哪些域变化触发重算。
-- **expr-scope.ts**：`buildExprScope()`——GameState → 表达式求值作用域的投影（含 `MetaView` / `TimeViewProvider` 缝）；返回 `EngineExprScope`（shared `ExprScope` 的结构超集，12 号补出 `world.npcLocationCache` 供 `npc.<id>.at` 读取）。
-- **serialize.ts**：`serializeState()` / `restoreState()`，经 shared `serializedStateSchema` 校验（20 号存档的地基）。
-
-### 3.2 expr-eval/ —— 表达式语言与求值器（设计 §3.2，03 号）
-
-- **parse.ts** `parseExpr()`（自研解析器）、**compile.ts** `compileExpr()`（→ `CompiledExpr`，带缓存）、**eval.ts** `evalExpr()` / `evalCondition()` / `truthy()`、**paths.ts**（`EXPR_ROOTS` 状态访问白名单根）、**builtins.ts**（`createBuiltinFunctionRegistry` 内置函数表）。`npc.<id>` 路径读 `favor` / `stage` / `met` / `flags.<name>`（及简写 `npc.<id>.<name>`），12 号新增保留字段 `at`（读日程缓存，不在场 → null，渐进域）。
-
-### 3.3 runtime/ —— 状态事务核心（设计 §3.1）
-
-- **game-runtime.ts**：`GameRuntime` 类——immer draft 之上实现 `TransactionFrame`（jumps / events / patches 合并提交），支持子事务与 `checkpoint(label)` 快照栈（超限丢最旧并发出 snapshot_warn 事件）。事务后置派生器 `TransactionDeriver`（`derivers` 选项，§4.5 任务状态机首用）：指令全部执行后、提交前按本次补丁路径（`touched`）调用，状态变更 / 事件 / 子效果并入同一事务（原子性不变，11 号）。
-- **exec-context.ts**：**核心抽象** `ExecContext` / `ExecOutcome`（含 `JumpTarget`）——效果执行与叙事跳转的统一通道；`EffectExecutor` 接口、`EffectContext` 与 `TransactionDeriver` / `TransactionDeriveContext` 亦定义于此。
-- **engine-events.ts**：`EngineEvent` 事件集（StatChanged / Unlock / Notify / Media / FavorStageChanged / ReputationBandChanged / CheckResult / SnapshotWarn…），订阅式外泄 UI。
-- **perf-guard.ts**：`PERF_GUARD` 性能预算常量（NFR-02）。
-
-### 3.4 effects/ —— 效果指令系统（设计 §3.3，05 号）
-
-- **registry.ts**：`EffectRegistry implements EffectExecutor`——指令注册、参数 Zod 校验、重复 ID 冲突检测。
-- **types.ts**：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`（事务触域报告，供增量重算）、`eraseDef`；`CheckRequest / CheckRule / CheckRuleResolver` 为 15 号判定系统预留的规则缝。
-- **builtins/**（8 文件 25 条作者可见指令 + 7 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline` / `__npc.resolve` / `__body.revert` / `__events.eval`）：state（set/add/flag/money，set/add 的 key 自 12 号扩展 `npc.<id>.flags.<名>` 记忆命名空间）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation，委托 npcs 纯机制）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、npcs（内部 `__npc.resolve` 日程缓存重建）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
-
-### 3.5 loader/ —— 游戏包加载器（设计 §3.4，06 号）
-
-七步管线 **`pipeline.ts` `loadGamePackage()`**（DD-02）：
-
-```
-1 collect   扫描 scenes/<areaId>/<sceneId>.yaml 目录聚合（PackageSource 抽象）
-2 parse     YAML → 对象
-3 validate  逐域 Zod 校验 + DUP_ID / 语言包检查
-4 crossRef  refKind 元数据驱动的悬空引用检查（DANGLING_REF）
-5 compile   表达式编译缓存 / PoolIndex / refs 反查表 / mediaCatalog
-6 scripts   宿主 ScriptModule 注入 → x.* 调用校验 → 冻结
-7 freeze    deepFreeze → 不可变 GameDefinition
+  U->>SR: checkpoint("选择前")<br/>FR-READ-03 回滚点
+  U->>SR: choose("go_market")
+  SR->>RT: exec(effects, {source:'choice', rng})
+  Note over RT: 1. immer draft 开始
+  RT->>FN: set / add / flag / give …
+  FN-->>RT: 写入 draft + emit(EngineEvent)
+  RT->>RT: 后置派生器（任务状态机 / NPC 日程 / 派生属性）
+  Note over RT: 2. 全部成功 → 提交；任一失败 → 整体回滚
+  RT-->>SR: ExecOutcome{jumps, events, patches}
+  RT-->>U: on(type, handler) 送达事件
+  SR->>SR: 消费 jumps → 进入新场景帧
+  SR-->>U: renderList() → RenderSegment[]
+  U->>TR: resolve(key, lang, vars)
+  TR-->>U: 已插值文本 → sanitize → ReactNode
 ```
 
-- 诊断分两类：error **阻断加载**；warning 进入 `definition.diagnostics` 随包携带。
-- `GameDefinition` 发布全部实体域（`npcs` / `items` / `quests` / `shops` / `achievements` / `perks` / `endings` / `factions` + `scenes` / `areas` / `events`）——宿主由此投影装配运行时目录注入面（`GameRuntimeOptions.itemDefs`、`createNpcScheduleDeriver` 等）。24 号补齐：此前 validate 已校验这些域、crossRef 与 scripts 亦已消费，但 freeze 组装漏发布，宿主不可达。
-- 负例包（fixtures/negatives）逐一对应预期 `ErrCode`，是管线的回归夹具。
+**三个要点：**
 
-### 3.6 i18n/ —— 文本解析与本地化运行时（设计 §4.1，07 号）
+1. **事务边界 = 一个 undo 点**。一次选项点击、一次时段推进、一次事件子会话，都是一个
+   `exec`。任一步失败整批回滚，不会留下半成品状态。回滚栈由 `checkpoint()` 打点（栈深可配）。
+2. **事件是唯一的外泄副作用**。指令不直接改 UI，而是 `emit` 事件；UI 经 `on(type, handler)`
+   订阅。测试因此可以断言「事件序列」而不需要 UI。
+3. **跳转与状态分离**。`goto`/`ending`/`battle` 这类指令只往 `ExecOutcome.jumps` 追加意图，
+   不改状态；由 `SceneRunner` 或宿主消费。这让战斗/结局可从任意入口进入。
 
-- **text-resolver.ts**：`createTextResolver()` → `TextResolver`——主语言 + 回退链、`{插值}`、文本变体（`alt first` / `again` 首次/重复差异）；`extractPlaceholderPaths()` 支撑翻译覆盖率。
-- **translation-stats.ts**：`collectTranslationStats()` 翻译覆盖率统计。
+<details>
+<summary><b>状态树结构（GameState，改状态时看这里）</b></summary>
 
-### 3.7 items/ —— 物品与装备（设计 §4.7，13 号）
+```
+GameState
+├─ versions     三层版本 + engineVersion（FR-MIGR-01，入档）
+├─ loop         周目数（FR-LOOP）
+├─ player
+│  ├─ attrs / skills / statuses          属性、技能、状态效果实例
+│  ├─ derived                            派生属性缓存（读档后重算，不入档）
+│  ├─ body / bodyTemp / bodyProgress     身体部位、临时变身、渐进变身（14 号）
+│  ├─ equip / outfit / outfitPresets     装备栏、多层服装、换装预设（13 号）
+│  ├─ bag / wallet                       背包、多货币
+│  └─ bootstrap                          新档初始化产物（perks 等）
+├─ world
+│  ├─ time                               Clock（day/slotIndex/week/month）
+│  ├─ unlockedAreas / flags / counters
+│  ├─ npcLocationCache                   日程解析缓存（可重建，不入档）
+│  └─ eventCooldowns                     事件冷却
+├─ npcs / factions / quests              各实体状态
+├─ seen                                  scenes / gallery / cg / endings / codex
+├─ readStats                             用时、事件计数、判定与战斗统计
+├─ settings                              PlayerSettings（语言/文本/媒体/过滤）
+└─ checkpoints                           回滚栈元数据（负载存内存，不入档）
+```
 
-- **inventory.ts**：Inventory 纯函数集 `bagGive/bagTake/bagCount/bagSplit/bagMerge`——堆叠封顶（可堆叠条目 count ≤ stack，不可堆叠每件独占条目）、容量按条目数计（新建条目整体校验）、失败统一 EFFECT_FAILED；give/take 等指令层与 UI 投影共用。
-- **equip.ts**：`equipModDetails()` 装备修正明细投影（FR-STAT-03 面板）。修正本体（`ItemDef.equipMods`）在 `state/derived.ts` 重算时按目标属性分组求和并入 `player.derived`（残影清理防重复累计）。
-- **tick.ts + `__items.tick`**：耐久/时效 tick 挂时间管线步骤 2（`createItemTickProvider`）——时效按累计穿着时段（`expiresAfterSlots`）、耐久按跨天递减（`garment.durability`），触发 `item_expired` 事件并清除 `player.wornMeta`（只报一次）；引擎不自动脱下，后果由作者订阅事件决定。
-- **projection.ts**：`projectBag()` 背包 UI 投影——按种类聚合、关键道具分区、id/count 排序、itemId+本地化名称搜索、容量信息。
-- 换装预设：`player.outfitPresets`（设计偏差：§4.7 原定 world.flags，但 flag 值域仅标量）+ 内部指令 `__outfit.save_preset` 保存、`wear{preset}` 差量应用（缺件失败、单事务原子）。
+入档投影见 `packages/shared/src/schema/save.ts` 的 `serializedStateSchema`；
+`npcLocationCache` 与 `checkpoints` 明确不入档，读档后重建。
+</details>
 
-### 3.8 narrative/ —— 叙事运行时（设计 §4.2，08 号）
+<details>
+<summary><b>时间推进的固定次序（DD-10，改动管线前必读）</b></summary>
 
-- **scene-runner.ts**：`SceneRunner` 五相位状态机（`entering → await_advance → await_choice → resolving → finished`）；`renderList()` 产出 `RenderSegment` 段落流；`choices()` 产出置灰过滤后的 `ChoiceView`；`choose()` 消费 `ExecOutcome.jumps` 完成跳转。
-  - `SUBSESSION_DEPTH_LIMIT = 3`：事件场景子会话挂起栈（深度超限发 warning）。
-  - `NARRATIVE_HISTORY_CAPACITY = 500`：环形历史缓冲（回想/回看数据源）。
-  - readonly 会话：回想重放，无副作用。
-  - 内容过滤注入（22 号）：`contentFilter?: NarrativeContentFilter` 可选注入——段落渲染前占位替换/跳过、`choices()` 标签过滤收敛单点；缺省不注入时行为与 08 号一致。
-  - 媒体注入（24 号）：`mediaResolver?`（存在性核对 + 缺失占位）、`evalSpriteCondition?`（立绘差分条件求值）、`def.npcs` / `def.areas`（差分声明与区域绑定数据源）；`cgSeen()` 暴露 seen.cg 只读视图。段落计划改携带源段落引用（`ExpandedSegment`），使段落级媒体在揭示时可查（宏分支只改文本键，媒体声明属于源段落）。
-- **macros.ts**：三种叙事宏 `FirstAgainMacro` / `ConditionalMacro` / `RandomMacro` + 惰性展开（延迟插值）。
+一次 `advance(n)` = **一个** `exec` 事务 = 一个 undo 点。步骤次序固定，不可插入中间：
 
-### 3.9 time/ —— 时间系统与推进管线（设计 §4.3，09 号）
+```mermaid
+flowchart TB
+  S0["0 before_rollover<br/>（作者钩子，仅跨天）"] --> S1["1 时钟推进"]
+  S1 --> S2["2 状态效果 tick"]
+  S2 --> S3["3 临时身体回退"]
+  S3 --> S4["4 day_rollover<br/>（作者钩子，仅跨天）"]
+  S4 --> S5["5 NPC 日程移动"]
+  S5 --> S6["6 事件池评估"]
+  S6 --> S7["7 任务截止检查"]
+```
 
-- **clock.ts**：`advanceClock()` 推进纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月旗标）；`weekdayIndex()` / `dayOfMonth()` 日历基元；`DEFAULT_TIME_CONFIG` 宿主缺省日历（4 时段 × 7 天 × 周日起算，无月历）。week 恒启用；month 仅 `config.months` 启用时写入（循环月序，无年概念）。
-- **calendar.ts**：`projectCalendar()` 日历 UI 投影纯函数（FR-TIME-05）；`createTimeViewProvider()` TimeConfig 校准的求值视图（`time.slot` = 时段 id、`time.weekday` = 星期序），经 `GameRuntimeOptions.timeViewProvider` 装配。
-- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点；步骤 5 由 12 号 `createNpcScheduleProvider` 提供 `__npc.resolve` 内部指令重建 `world.npcLocationCache`；步骤 7 由 11 号 `createQuestDeadlineProvider` 提供 `__quest.deadline` 内部指令，在推进后时钟上做 failWhen 全量判定）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
-- **内部指令 `__time.advance`**（effects/builtins/system.ts）：时钟写入的事务内载体，作者包内不可达（effectDataSchema 拒绝）；需要 `EffectRegistryOptions.timeConfig`。
-- **共享 schema**：`timeConfigSchema`（shared/schema/time.ts，`data/time.yaml` 可选单对象域 → `GameDefinition.time`）；`advance_time` 指令只产 `JumpTarget.advanceTime` 意图，宿主消费后归约到 `TimePipeline.advance()`；移动消耗（`location.moveCost`，FR-XPLR-02）同径归约。
+各步骤经 `TimePipelineOptions` 的**槽位钩子**注入（依赖模块挂载点），作者只能挂
+`before_rollover` / `day_rollover` 两个前后缀位置。时钟写入本身是内部指令
+`__time.advance`，作者包内不可达。
 
-### 3.10 quests/ —— 任务系统（设计 §4.5，11 号）
+| 步骤 | 归属模块 | 挂载方式 |
+|---|---|---|
+| 2 状态 tick | 13 号物品 | `createItemTickProvider` → `__items.tick` |
+| 3 身体回退 | 14 号身体 | `createBodyRevertProvider` → `__body.revert` |
+| 5 NPC 日程 | 12 号 NPC | `createNpcScheduleProvider` → `__npc.resolve` |
+| 6 事件评估 | 10 号事件 | `createEventStepProvider` → `__events.eval` |
+| 7 任务截止 | 11 号任务 | `createQuestDeadlineProvider` → `__quest.deadline` |
+</details>
 
-- **transitions.ts**：六态（undiscovered / available / active / ready_to_submit / done / failed）+ 迁移规则表 `QUEST_TRANSITIONS`、`canTransition` / `transitionVias` / `assertTransition`（表驱动；非法迁移 EFFECT_FAILED，detail 可读）。
-- **quest-machine.ts**：`QuestMachine`——与 runtime 解耦的纯状态机（经 `QuestContext` 在调用方事务 draft 上操作，DD-06 / R5）：
-  - `accept`：状态门 + conflicts（对方 active/ready 互斥）+ requires（须 done）+ acceptIf 校验矩阵（拒绝原因可读，FR-QUEST-04）；
-  - `advance` / `complete` / `fail`：显式迁移入口（`complete` 在 ready_to_submit 走 `submit` 结算，active 走强制完成兼容 05 号）；
-  - `submit`：ready_to_submit → done，rewards 经 `ctx.child` 在同一 draft 原子执行（失败整批回滚，任务保持 ready_to_submit）；
-  - `evaluateTouched`：`questRefs` 反查表（compile 产物）将条件表达式归一化为状态路径前缀，按事务补丁路径（TouchReport）判定受影响任务——命中即评估、未命中零求值（不轮询，NFR-02）；阶段可级联推进，末阶段达成 → ready_to_submit；
-  - `evaluateFailures`：时间管线步骤 7 的全量 failWhen 扫描（`__quest.deadline` 载体，含时间截止）；
-  - `progress`：FR-QUEST-05 目标进度投影（阶段 → objectiveKey/complete/value）。
-- **deriver.ts**：`createQuestDeriver` 将 `evaluateTouched` 注册为 `GameRuntime.derivers`；`createQuestConditionEvaluator` 为缺省条件求值器（compileExpr 缓存 + buildExprScope + evalExpr）。
-- **deadline.ts**：`createQuestDeadlineProvider`——时间管线步骤 7 钩子，产出 `__quest.deadline` 内部指令。
-- **projection.ts**：`projectQuestLog`（FR-QUEST-03：按状态分组 + 追踪置顶；追踪为 UI 状态，引擎只投影）。
-- 事件面：`quest_stage`（阶段推进，on_stage）与 `quest_state_changed`（六态迁移）加入 EngineEvent。QuestDef 无 on_* 效果字段，作者经事件订阅实现「状态变化触发效果」（on_accept / on_done / on_fail 的作者侧等价物）。
+---
 
-### 3.11 content/ —— 内容分级与过滤（设计 §5.8，22 号）
+## 4. 加载管线
 
-- **filter.ts**：`ContentFilter` 单点纯谓词（构造时快照 `settings.disabledTags` + 可选占位键；实例不可变，设置变更靠重建实例即时生效，FR-CGRD-03）：
-  - `passes(tags)`：无标签恒放行，任一标签被玩家关闭即屏蔽（多标签取「任一命中」；引擎不解释标签语义，中立性红线，FR-CGRD-01/02）；
-  - `eventAdmissible(event)`：应用点 1 的事件池 prune 判据（真正接线归 10 号事件系统；本模块接口预留 + 桩测试，接入零改动换实现）；
-  - `placeholderFor(tags)`：应用点 2 的占位文本键（游戏配置；未配置返回 null → 调用方跳过）；放行时返回 null；
-  - `initialDisabledTags()`：由 `ContentTagsDef.defaultOn` 投影初始禁用集，供首启向导/设置面板初始化（FR-CGRD-04 数据支撑）。
-- **wizard.ts**：`contentWarningKey(manifest)` / `resolveContentWizard(settings, manifest)`——首启内容向导数据投影（FR-CGRD-04，§6.5）：读 `GameDefinition.manifest.contentWarning`（shared `manifestSchema` 可选字段，缺省 → null）并组合 `settings.wizardDone` 返回宿主可用值；引擎不承载向导 UI 流程。
-- **应用点接线（2/3）**：`SceneRunnerOptions.contentFilter`（结构化最小接口 `NarrativeContentFilter`，避免 narrative → content 横向 import，DD-06）——段落渲染前按**场景标签**占位替换/跳过（被跳过的屏蔽内容不入历史缓冲），`choices()` 的标签过滤收敛本单点。**缺省不注入 = 08 号既有行为逐字不变**（选项沿用 `settings.disabledTags` 直查）。
-- **边界**：任务可完成性属静态校验——26 号编辑器 `filter-quest-break` 可达性分析（detail-design §7.7），运行时不管控（§5.8 末段）。
+游戏包（目录 / 静态 JSON / 编辑器内存）经**同一条**七步管线变成冻结的 `GameDefinition`：
 
-### 3.12 npcs/ —— NPC 与阵营（设计 §4.6，12 号）
+```mermaid
+flowchart LR
+  P1["1 collect<br/>列目录<br/>场景按 DD-02 聚合"] --> P2["2 parse<br/>YAML → 对象"]
+  P2 --> P3["3 validate<br/>逐域 Zod + 重复 ID"]
+  P3 --> P4["4 crossRef<br/>悬空引用检查"]
+  P4 --> P5["5 compile<br/>表达式编译缓存<br/>PoolIndex / mediaCatalog"]
+  P5 --> P6["6 scripts<br/>宿主脚本注入 + 冻结"]
+  P6 --> P7["7 freeze<br/>deepFreeze → GameDefinition"]
+```
 
-- **schedule.ts**：`resolveNpcLocation(def, clock, state, query?)` 日程解析纯函数——按声明顺序取首个 `slots ∧ weekdays ∧ showIf` 全匹配项，无匹配/无日程 → `null`（不在场）；`query.slot/weekday` 缺省走 `defaultTimeView` 数值串口径，`query.evaluate` 供宿主注入运行时注册表同源的 showIf 求值器（缺省内置 20 函数）。`resolveNpcLocations` 批量解析（仅在场者落条目）、`sameNpcLocationCache` 稀疏比较。
-- **step.ts**：`createNpcScheduleProvider(config?)`——时间管线步骤 5 钩子，收集期用推进纯函数预计算推进后时钟并按 TimeConfig 校准 slot/weekday，产出 `__npc.resolve` 内部指令（effects/builtins/npcs.ts）：同一事务内批量解析日程并重建 `world.npcLocationCache`（可重建、不入档）。
-- **deriver.ts**：`createNpcScheduleDeriver({ npcs, config?, functionRegistry?, rng? })` 注册为 `GameRuntime.derivers`——非时间事务（flag/声望/属性等 showIf 条件变更）后按最新 draft 全量重建缓存（不轮询、NPC 规模小；无变化不写回，避免冗余补丁），保证 `npc.<id>.at` 不陈旧。
-- **thresholds.ts / favor.ts / reputation.ts**：引擎中立纯机制——`thresholdFor` 阈值表二分（好感/声望共用）、`clamp` 区间收敛；`applyFavorChange`（clamp → 阶段切换，from/to/changed 供 emit `favor_stage_changed`）、`applyReputationChange`（全局 bounds clamp → 波段切换，供 emit `reputation_band_changed`）。`effects/builtins/relations.ts` 只做指令层装配（建档/写回/发事件）。
-- **projection.ts**：`projectRelationships(state, npcs, options?)` 关系面板 UI 投影（FR-NPCR-05）——已结识筛选（缺省只列 met）、阶段 id → nameKey、好感数值显隐策略（缺省隐藏）、当前地点读日程缓存；纯函数供 25 号消费。
-- **状态/表达式面**：`npcs[id].flags` 记忆命名空间经 `set/add` 的 `npc.<id>.flags.<名>` key 写入（未知 NPC 自动建档）；表达式 `npc.<id>.flags.<名>`（显式）与 `npc.<id>.<名>`（简写）读取；`npc.<id>.at` 保留字段映射日程缓存（不在场 → null）。
+- **错误分两级**：`error` 阻断加载并抛 `EngineError`；`warning` 进入 `definition.diagnostics`
+  随包携带（编辑器校验中心复用同一规则集）。
+- **引用类型驱动校验**（§2.1 `refKind` 元数据）：场景跳转/物品/NPC 引用缺失 → error；
+  媒体/文本键缺失 → warning（运行期占位或回退显示原始键）。
+- **`GameDefinition` 发布全部实体域**（scenes/areas/events/npcs/items/quests/shops/
+  achievements/perks/endings/factions），宿主由此投影装配运行时的目录注入面。
 
-### 3.13 body/ —— 身体与变身（设计 §4.8，14 号）
+> 快速定位：入口 `loader/pipeline.ts` 的 `loadGamePackage()`；每步一个文件
+> （collect / parse / validate / cross-ref / compile / freeze / scripts）。
 
-- **tick.ts**：`createBodyRevertProvider()` 挂时间管线步骤 3——`__body.revert` 内部指令递减 `player.bodyTemp[*].remainingSlots`，归零还原原值 + emit `body_reverted`（引擎不解释语义，中立性）；`set_body{revertAfter:{slots|days}}` 登记临时项，days 按 TimeConfig 每日时段数换算，同部位重复登记保留首次原值。
-- **pronouns.ts**：`createPronounInjector(bodyDefs)` 按 `BodyDef.pronouns`（`rule: 'by_part'`）的当前部位值产出 `player.they` / `player.them` / `player.their` 插值键（FR-BODY-04）；无映射项/未配置 → 空注入（插值失败归 resolver 告警）；映射数组可短于 3。
-- **状态域**：`player.bodyTemp`（临时变身登记 original + remainingSlots；设计原定 `world.flags.__body_temp`，因 flag 值域仅标量而独立成域）与 `player.bodyProgress`（FR-BODY-05 P2 预留 0..100，表达式经 `body.progress.<part>` 可读，白名单与求值器已同步扩展）。
-- **set_body 指令**（effects/builtins/adversarial.ts）：part/value ∈ BodyDef 校验（违例 EFFECT_FAILED）+ 永久变更；`revertAfter`/`progress` 参数驱动上两域。描写组合（FR-BODY-03）无专门机制——body 值驱动的条件经 03 号求值器直接可用。
+<details>
+<summary><b>GameDefinition 的完整字段（写宿主接线时查）</b></summary>
 
-### 3.14 events/ —— 事件系统（设计 §4.4，10 号）
+```ts
+interface GameDefinition {
+  manifest; scenes; areas; events; npcs; items; quests; shops;
+  achievements; perks; endings; factions;      // 全部实体域（Map 承载）
+  poolIndex;          // 事件池索引：byScope / dirtyMap / mutexGroups
+  exprCache;          // 全包表达式编译缓存（键 = 表达式原文）
+  functionRegistry;   // 冻结后的表达式函数注册表（内置 20 + x.* 扩展）
+  effectRegistry;     // 冻结的效果指令注册表 → GameRuntime 的 executor
+  mediaCatalog;       // assetId → {path, hash, preload, type}
+  time;               // TimeConfig（data/time.yaml，缺省 undefined）
+  locales;            // 仅 manifest.langs 声明的语言
+  redirects;          // manifest.redirects（迁移定向改写用）
+  diagnostics;        // 仅 warning 级
+}
+```
+</details>
 
-- **evaluator.ts**：四步评估的纯函数核心——`collectCandidates`（作用域候选 + when.slots/weekdays 静态窗口）、`pruneCandidates`（冷却 days/slots、once save/loop、ContentFilter 接入）、`selectCandidates`（condition 按 priority 降序全出且可配 onlyFirst；random 型加权抽取 + mutexGroup 约束，无组者共用默认池每时段至多一个）、`exploreCandidates`（探索子池按权重降序呈现，不消耗随机）。
-- **pool.ts**：`EventPool`——编排四步 + 脏标记增量（`dirtyMap` 经 `state/ref-paths.ts` 归一化为状态路径前缀，未命中事件零求值 NFR-02）+ 冷却登记以 `cooldownUpdates` 返回（由事务 draft 应用）+ debugLog 环形日志（FR-DEBG-05）。错过窗口不排队（FR-XPLR-06 设计裁决）。
-- **instruction.ts**：`__events.eval` 内部指令（引擎内部面，经 `EffectRegistryOptions.eventPool` 装配）。
-- **step.ts**：`createEventStepProvider()` 挂时间管线步骤 6。
-- **state/ref-paths.ts**（10/11 号共用）：`exprRefToStatePrefixes`（表达式 ref 路径 → 状态树路径前缀；`attr.<id>` 同时登记 attrs 与 derived 两个写入点）、`touchedMatchesPrefix`（三形态前缀匹配）、`buildStatePrefixIndex`（反查表归一化）——任务与事件共用同一脏标记口径（曾因各写一份导致派生属性唤醒失效）。
+---
 
-### 3.15 save/ —— 存档服务（设计 §5.6，20 号）
+## 5. engine 子系统
 
-- **types.ts**：`PersistenceAdapter` 契约（listSaves/load/write/remove/rename/loadBackup）
-  与 `SaveMeta` 元信息（槽位/名称/周目/位置/天/时长/三版本/活动任务摘要）。
-  **依赖倒置（DD-04）**：engine 只定义接口；MemoryAdapter（本包）与 DexieAdapter
-  （runtime-ui §6.7）各自实现，后者必须通过同一份契约套件。
-- **memory-adapter.ts**：`MemoryAdapter`——写前旧档入备份位（FR-SAVE-05 原子写
-  语义）、写失败注入缝（`beforeWrite` 钩子模拟 quota 异常）、存取深拷贝隔离；
-  供测试基座与浏览器隐私模式降级（NFR-10）两用。`projectSaveMeta()` 为 blob →
-  元信息投影（活动任务只含 `active`，按 id 排序）。
-- **service.ts**：`SaveService`——`save` 组装 SaveBlob（序列化 + 三层版本 +
-  rngState + meta）；`load` 版本闸门（高版本 → `VERSION_UNSUPPORTED` **不触碰
-  运行时**，FR-MIGR-02；低版本 → 注入的 `migrate` 入口，21 号接入点；相等 →
-  Zod 终验 → `runtime.restore`）；`autosave` 三点触发 + `auto_1..3` 环形轮换
-  （先补空缺再覆盖最旧）；`quicksave/quickload` 独立 `quick` 槽；`exportSlot/
-  importSlot` JSON 往返（导入同走迁移路径、不写槽位）；`restoreBackup` 备份救援；
-  `rename/remove` 服务层纯操作。写失败统一包装 `SAVE_CORRUPT`（保留 cause）。
-- **契约套件位置**：`fixtures/helpers/src/persistence-contract.ts`
-  （`describePersistenceAdapterContract`）——跨包共用；运行点在同包 test 下，
-  因为 §1.2 R2「engine 只依赖 shared」对 test 同样适用（lint 强制）。
+**24 个目录中 16 个有实现**（其余 8 个是空占位，对应 M2+ 模块，见 §5 末）。
+下表是导航索引——想改什么，找对应行。
 
-### 3.16 media/ —— 媒体解析引擎侧（设计 §5.10，24 号）
+### 5.1 有实现的子系统
 
-- **resolver.ts**：`MediaResolver`——只做两件事：查 `mediaCatalog` 核对 assetId 存在性、给缺失资源补 `missing: true` 占位标记（`decorate()`；意图形态归调用方，不在解析器里分叉）。缺失告警经 `onWarn` 出口按 assetId 去重（整局只报一次，不逐段落刷屏）；`lookup()` 为免告警查询（预载清单/差分探测）。**引擎零图像/音频依赖**：全部产出为纯数据 `MediaIntent`（模块验收红线）。
-- **Intent 流（叙事层，§5.10「叙事层产出 MediaIntent[]」）**：
-  - 场景级：`SceneRunner` 进入场景时产出 bg/bgm（`#createFrame`）——场景声明优先、**逐项回落区域绑定**（FR-MEDIA-02，`def.areas.get(scene.area).media`）；
-  - 段落级：随段落**揭示**产出（未揭示不产出）——`segment.cg` → cg intent 并登记 `seen.cg`（FR-MEDIA-04 图鉴数据源，只读会话不登记、被内容过滤屏蔽的段落不登记）；`segment.sprite.npc` → 按 `NpcDef.sprites` 差分声明求值选资产（首个条件命中变体 → 回落 `base` → 无产出），条件经 `SceneRunnerOptions.evalSpriteCondition` 求值；
-  - 段落级媒体挂在文本段落自身（`RenderSegment.media`），intent 序固定 cg 在前、sprite 在后。
-- **指令面**：`media` 指令（sfx 一次性播放，FR-MEDIA-05）经 `EffectRegistryOptions.mediaResolver` 核对后发 `MediaEvent`；与 `notify`（`NotifyEvent`，文本提示）两条通道独立——订阅面按事件 type 分发，UI Toast 与播放器互不干涉。
-- **依赖缝（DD-06）**：narrative 与 effects 均不 import media 子系统，各自声明结构化最小视图（`NarrativeMediaResolver` / `EffectRegistryOptions.mediaResolver`），宿主注入 `MediaResolver` 实例即得核对语义；缺省 = 裸 intent（08/05 号既有行为逐字不变）。
-- **schema 面（shared）**：`mediaBindingSchema`（bg/bgm 绑定，场景与区域共用一形态）、`spriteDeclSchema`（字符串旧形态 | `{base, variants[{when, asset}]}`）、`segmentSchema` 增可选 `cg` / `sprite`（立绘切换只声明 npc，资产由 NpcDef 差分声明选出——差分逻辑只有一份）。
+| 子系统 | 一句话职责 | 关键入口 | 模块 |
+|---|---|---|---|
+| [`state/`](../packages/engine/src/state/) | 状态树、新档初始化、派生属性重算、序列化 | `GameState` / `newGameState` / `recomputeDerived` | 04 |
+| [`runtime/`](../packages/engine/src/runtime/) | **事务执行器**：immer draft → 提交/回滚；事件总线；回滚栈 | `GameRuntime.exec` / `checkpoint` / `on` | 04 |
+| [`expr-eval/`](../packages/engine/src/expr-eval/) | 受限表达式语言：解析 → 编译 → 求值（AST 解释，禁 eval） | `parseExpr` / `compileExpr` / `evalExpr` | 03 |
+| [`effects/`](../packages/engine/src/effects/) | 效果指令注册表 + 25 条作者可见指令 + 7 条内部指令 | `EffectRegistry` / `createBuiltinEffectRegistry` | 05 起 |
+| [`loader/`](../packages/engine/src/loader/) | 七步加载管线（见 §4） | `loadGamePackage` | 06 |
+| [`i18n/`](../packages/engine/src/i18n/) | 文本键解析、回退链、插值、变体 | `createTextResolver` | 07 |
+| [`narrative/`](../packages/engine/src/narrative/) | 场景会话状态机：段落推进 / 选项 / 子会话栈 / 历史缓冲 | `SceneRunner` | 08 |
+| [`time/`](../packages/engine/src/time/) | 时钟推进纯函数 + 固定次序推进管线（见 §3 折叠块） | `advanceClock` / `TimePipeline` | 09 |
+| [`content/`](../packages/engine/src/content/) | 内容分级过滤谓词 + 占位回退 + 首启向导 | `ContentFilter` | 22 |
+| [`items/`](../packages/engine/src/items/) | 背包纯函数集、装备修正、耐久 tick、背包投影 | `bagGive` / `projectBag` | 13 |
+| [`quests/`](../packages/engine/src/quests/) | 任务六态状态机、阶段推进、奖励原子事务 | `QuestMachine` | 11 |
+| [`npcs/`](../packages/engine/src/npcs/) | 日程解析（位置缓存）、好感/声望机制、关系投影 | `resolveNpcLocations` / `applyFavorChange` | 12 |
+| [`body/`](../packages/engine/src/body/) | 身体部位、临时变身回退、代词注入 | `createBodyRevertProvider` | 14 |
+| [`events/`](../packages/engine/src/events/) | 事件池四步评估（collect→prune→select→dispatch）+ 脏标记增量 | `EventPool` | 10 |
+| [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
+| [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
-## 4. 应用层（apps/）
+### 5.2 子系统详解（实现细节，按需展开）
 
-- **player-demo**（`src/main.ts`）：M0 验收用 vanilla TS 页面。数据流：Vite `import.meta.glob(?raw)` 读 fixtures/mini-game → `InMemoryPackageSource` → `loadGamePackage` → `newGameState` + `GameRuntime` → `SceneRunner` + `TextResolver` 端到端渲染。是 runtime-ui（25 号）落地前的接线参考。
-- **editor-app**：占位页（26 号）。
+<details>
+<summary><b>state/ — 状态树与事务底座</b>（设计 §3.1，04 号）</summary>
 
-## 5. 测试体系
+- `game-state.ts`：`GameState` 状态树类型（结构见 §3 折叠块）。
+- `new-game.ts`：`newGameState()` + `NewGameBootstrap`（从清单驱动的初始值建新档）。
+- `derived.ts`：`recomputeDerived()` 派生属性重算；`DERIVED_TRIGGER_DOMAINS` 声明哪些域
+  变化触发重算（仅五域：attr/equip/outfit/body/statuses）。装备修正 `equipMods` 按目标属性
+  分组求和并入 `player.derived`，并清理残影防重复累计。
+- `expr-scope.ts`：`buildExprScope()` 把 GameState 投影成表达式求值作用域（含 `MetaView` /
+  `TimeViewProvider` 注入缝）。
+- `ref-paths.ts`：表达式引用路径 → 状态树路径前缀映射（10/11 号共用的脏标记口径）。
+- `serialize.ts`：`serializeState()` / `restoreState()`，经 shared schema 终验。
+</details>
 
-- 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、events、smoke）、media、save；shared/test 按 schema + 基础；fixtures/helpers/test 承载跨包契约（持久化适配器）。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（20 号存档入库后）：130 个测试文件 / 2011 个用例全绿。
-- 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
+<details>
+<summary><b>runtime/ — 状态事务核心</b>（设计 §3.1）</summary>
 
-## 6. 质量门禁与工具链
+- `game-runtime.ts`：`GameRuntime`——immer draft 上实现 `TransactionFrame`（jumps/events/patches
+  合并提交）；`checkpoint(label)` 快照栈（超限丢最旧并发 `snapshot_warn`）；`rollback(n)`；
+  `serialize()` / `restore()`；`derivers` 后置派生器（指令执行完、提交前按补丁路径调用，
+  状态变更/事件/子效果并入同一事务）。
+- `exec-context.ts`：`ExecContext` / `ExecOutcome` / `JumpTarget` / `EffectExecutor` /
+  `TransactionDeriver`——效果执行与叙事跳转的统一通道。
+- `engine-events.ts`：`EngineEvent` 判别联合全集（StatChanged / Notify / Unlock / Media /
+  FavorStageChanged / ReputationBandChanged / CheckResult / ItemExpired / BodyReverted /
+  QuestStateChanged / QuestStage / SnapshotWarn）。
+- `perf-guard.ts`：`PERF_GUARD` 性能预算常量。
+</details>
 
-- **CI**（`.github/workflows/ci.yml`）：install(--frozen-lockfile) → `pnpm -w lint && pnpm -w test && pnpm -w build && pnpm -w typecheck` → `node scripts/validate-docs.mjs`。
-- **lint**：eslint flat config（依赖规则 R1–R5）+ prettier check。
-- **validate-docs.mjs**（零依赖）：必需文档非空/一级标题、无 TODO 占位、代码围栏闭合、FR/NFR/OQ 交叉引用一致（proposal 为权威）、DD 决策自洽、FR 模块覆盖率 100%、tasks checkbox 与 progress.md 登记一致。
-- **开发流程**：见 `docs/develop.md`（主线保护 / TDD / PR 自审清单 / 文档同步）。
+<details>
+<summary><b>effects/ — 效果指令系统</b>（设计 §3.3，05 号）</summary>
 
-## 7. 维护规则（随代码变更更新本文档）
+- `registry.ts`：`EffectRegistry`——指令注册、参数 Zod 校验、重复 ID 报 `DUP_ID`；
+  作者扩展指令 id 必须 `x.<script>.<name>` 形态。
+- `types.ts`：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`
+  （事务触域报告，供增量重算与迁移登记）、`eraseDef`。
+- `builtins/`：分 8 个文件组织。**25 条作者可见指令**：
 
-发生以下任一变更时，**同一 PR 内**必须更新本文档对应小节（约束见 `docs/develop.md` 约束 4）：
+| 分组 | 指令 | 文件 |
+|---|---|---|
+| 状态 | `set` `add` `flag` `money` | `state.ts` |
+| 物品 | `give` `take` `equip` `unequip` `wear` `remove` | `items.ts` |
+| 关系 | `favor` `reputation` | `relations.ts` |
+| 流程跳转 | `goto` `back` `ending` `loop_transition` | `flow.ts` |
+| 系统 | `advance_time` `quest` `unlock` `notify` `media` | `system.ts` |
+| 判定/战斗/身体 | `check` `battle` `set_body` | `adversarial.ts` |
+| 扩展 | `call`（DD-08） | `util.ts` |
 
-| 变更 | 必须更新的小节 |
+- **7 条内部指令**（`__` 前缀，作者包内不可达）：`__time.advance` `__outfit.save_preset`
+  `__items.tick` `__quest.deadline` `__npc.resolve` `__body.revert` `__events.eval`。
+  经 `EffectRegistryOptions` 在构造期装配——`registry.register()` 会拒绝 `__` 前缀。
+- `EffectRegistryOptions` 是**依赖注入面**：items / npcs / factions / bodyDefs / quests /
+  bagCapacity / checkResolver / timeConfig / eventPool / mediaResolver。缺省语义各指令
+  自行定义（多为「不做对应校验」或「报 EFFECT_FAILED」）。
+</details>
+
+<details>
+<summary><b>loader/ — 七步管线</b>（设计 §3.4，06 号）</summary>
+
+一文件一步：`collect.ts` → `parse.ts` → `validate.ts` → `cross-ref.ts` → `compile.ts` →
+`scripts.ts` → `freeze.ts`，由 `pipeline.ts` 串联。
+
+- `source-memory.ts`：`InMemoryPackageSource`（`Record<path, content>` 构造），三宿主
+  共用的包源抽象之一。
+- `walk.ts`：schema 元数据驱动的包内容盘点（refKind 引用位点 / exprSchema 表达式位点 /
+  call 指令位点），单遍遍历，结果供 crossRef / compile / scripts 三方消费。
+- `compile.ts` 另建 `PoolIndex`（byScope / dirtyMap / mutexGroups / questRefs /
+  achievementRefs）与 `mediaCatalog`（FNV-1a 内容指纹）。
+</details>
+
+<details>
+<summary><b>narrative/ — 叙事运行时</b>（设计 §4.2，08 号）</summary>
+
+- `scene-runner.ts`：`SceneRunner` 五相位状态机
+  （`entering → await_advance → await_choice → resolving → finished`）。
+
+```mermaid
+stateDiagram-v2
+  [*] --> entering: 构造（entry.require 校验）
+  entering --> await_advance: 首次 renderList
+  await_advance --> await_advance: advance()（还有段落）
+  await_advance --> await_choice: 段落尽 + 有可见选项
+  await_advance --> finished: 段落尽 + 无选项
+  await_choice --> resolving: choose(id)
+  resolving --> entering: jumps.scene
+  resolving --> finished: ending / back（无挂起）/ loop
+  resolving --> await_choice: 无流程跳转
+```
+
+  - `SUBSESSION_DEPTH_LIMIT = 3`：事件场景子会话挂起栈，超限发 warning。
+  - `NARRATIVE_HISTORY_CAPACITY = 500`：环形历史缓冲（回看数据源）。
+  - `readonly` 会话：回想重放，不写 `seen`、无任何副作用。
+  - 注入缝：`contentFilter`（22 号）/ `mediaResolver` + `evalSpriteCondition`（24 号）/
+    `def.npcs` + `def.areas`（立绘差分与区域媒体回落）。
+- `macros.ts`：三类叙事宏（`first`/`again` 首访差异、`if` 条件、`random` 随机），
+  在 `renderList` 惰性展开，按访问快照缓存。
+</details>
+
+<details>
+<summary><b>time/ — 时间系统与推进管线</b>（设计 §4.3，09 号）</summary>
+
+- `clock.ts`：`advanceClock()` 纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月
+  旗标）；`weekdayIndex()` / `dayOfMonth()`；`DEFAULT_TIME_CONFIG`（4 时段 × 7 天）。
+- `calendar.ts`：`projectCalendar()` 日历 UI 投影；`createTimeViewProvider()` 求值视图校准。
+- `pipeline.ts`：`TimePipeline.advance(slots)` 固定次序编排（§3 折叠块有图）。
+</details>
+
+<details>
+<summary><b>events/ — 事件系统</b>（设计 §4.4，10 号）</summary>
+
+- `evaluator.ts`：四步纯函数——`collectCandidates`（作用域 + 静态窗口过滤）→
+  `pruneCandidates`（冷却 + 内容过滤）→ `selectCandidates`（priority 降序 / 权重随机 +
+  互斥组）→ `exploreCandidates`（探索发现型子池）。
+- `pool.ts`：`EventPool` 编排四步 + **脏标记增量**（`dirtyMap` 经 `ref-paths.ts` 归一化，
+  未命中事件零求值，NFR-02）。冷却是**返回值**而非原地写（状态冻结），由事务 draft 应用。
+- `instruction.ts` / `step.ts`：`__events.eval` 内部指令与时间管线步骤 6 挂载。
+- 错过窗口不排队（FR-XPLR-06 设计裁决，作者用 condition + flag 实现预约式剧情）。
+</details>
+
+<details>
+<summary><b>quests/ — 任务系统</b>（设计 §4.5，11 号）</summary>
+
+- `quest-machine.ts`：`QuestMachine` 六态状态机 + `TransactionDeriver` 接入点。
+- `transitions.ts`：`QUEST_STATES` / `QUEST_TRANSITIONS` / `assertTransition` / `canTransition`
+  ——合法迁移表的唯一来源。
+- `deriver.ts`：`createQuestDeriver`——事务后按触碰路径推进引用该路径的任务（脏标记）。
+- `deadline.ts`：`createQuestDeadlineProvider` → 时间管线步骤 7（`failWhen` 全量判定）。
+- `projection.ts`：`projectQuestLog` 任务日志投影（分组/追踪上限）。
+</details>
+
+<details>
+<summary><b>npcs/ — NPC 与阵营</b>（设计 §4.6，12 号）</summary>
+
+- `schedule.ts`：`resolveNpcLocation(s)` 日程解析（按声明序取首个匹配；无匹配 = 不在场）。
+- `deriver.ts`：`createNpcScheduleDeriver`——日程缓存维护（脏标记：时间/flag/解锁变化时重建）。
+- `favor.ts` / `reputation.ts` / `thresholds.ts`：好感与声望的 clamp、阶段/波段阈值二分、
+  变化时 emit 事件。
+- `projection.ts`：`projectRelationships` 关系面板投影。
+</details>
+
+<details>
+<summary><b>items/ — 物品与装备</b>（设计 §4.7，13 号）</summary>
+
+- `inventory.ts`：`bagGive` / `bagTake` / `bagCount` / `bagSplit` / `bagMerge` 纯函数集
+  （堆叠封顶、容量按条目数、失败统一 `EFFECT_FAILED`）。
+- `equip.ts`：`equipModDetails()` 装备修正明细投影（面板数据源）。
+- `tick.ts`：`createItemTickProvider` → 管线步骤 2（时效按穿着时段、耐久按跨天递减，
+  触发 `item_expired` 后清除 wornMeta，引擎不自动脱下）。
+- `projection.ts`：`projectBag()` 背包 UI 投影（按种类聚合、关键道具分区、搜索）。
+- 换装预设存 `player.outfitPresets`（设计偏差：§4.7 原定 world.flags，但 flag 值域仅标量）。
+</details>
+
+<details>
+<summary><b>body/ — 身体与变身</b>（设计 §4.8，14 号）</summary>
+
+- `tick.ts`：`createBodyRevertProvider` → 管线步骤 3（`bodyTemp` 为空时短路）。
+- `pronouns.ts`：`createPronounInjector` 代词注入（`player.they/them/their`），
+  partial mapping 容错。
+</details>
+
+<details>
+<summary><b>content/ — 内容分级与过滤</b>（设计 §5.8，22 号）</summary>
+
+- `filter.ts`：`ContentFilter` 三谓词（`passes` / `placeholderFor` / …），单点判定，
+  注入式消费（narrative / events / 选项三处应用点复用同一实例）。
+- `wizard.ts`：`resolveContentWizard` 首启向导信息（从 manifest.contentWarning 读取）。
+</details>
+
+<details>
+<summary><b>media/ — 媒体解析（引擎侧）</b>（设计 §5.10，24 号）</summary>
+
+- `resolver.ts`：`MediaResolver` 只做两件事——查 `mediaCatalog` 核对 assetId 存在性、
+  给缺失资源补 `missing: true` 占位标记（`decorate()`）。意图形态归调用方决定，避免
+  语义在解析器里分叉。告警按 assetId 去重；`lookup()` 为免告警查询。
+- **intent 流**：场景级 bg/bgm 进场景时产出（场景声明优先、逐项回落区域绑定）；
+  段落级 cg/sprite 随段落**揭示**产出（未揭示不产出），CG 揭示即登记 `seen.cg`。
+  段落级媒体挂在文本段落自身，intent 序 cg 在前 sprite 在后。
+- **依赖缝**：narrative 与 effects 都不 import 本子系统，各自声明结构化最小视图
+  （`NarrativeMediaResolver` / `EffectRegistryOptions.mediaResolver`）。
+</details>
+
+<details>
+<summary><b>persistence/ — 存档服务</b>（设计 §5.6，20 号）</summary>
+
+- `types.ts`：`PersistenceAdapter` 契约（listSaves / load / write / remove / rename /
+  loadBackup）与 `SaveMeta`。**依赖倒置（DD-04）**：engine 只定义接口。
+- `memory-adapter.ts`：`MemoryAdapter`——写前旧档入备份位（FR-SAVE-05 原子写）、写失败
+  注入缝（`beforeWrite` 模拟 quota）、存取深拷贝隔离；供测试基座与浏览器隐私模式降级
+  两用。`projectSaveMeta()` 为 blob → 元信息投影。
+- `service.ts`：`SaveService`——`save` 组装 SaveBlob；`load` 版本闸门
+  （高版本 → `VERSION_UNSUPPORTED` 且**不触碰运行时**；低版本 → 注入的 `migrate` 入口，
+  21 号接入点；相等 → Zod 终验 → `runtime.restore`）；`autosave` 三点触发 +
+  `auto_1..3` 环形轮换；`quicksave/quickload` 独立 `quick` 槽；`exportSlot/importSlot`
+  JSON 往返；`restoreBackup` 备份救援。写失败统一包装 `SAVE_CORRUPT`（保留 cause）。
+- **契约套件**：`fixtures/helpers/src/persistence-contract.ts`——跨包共用，
+  25 号 DexieAdapter 在此追加一行即可复用全套 14 条用例。
+</details>
+
+### 5.3 空占位子系统（M2+ 待实现）
+
+`achievements/`（18 号）、`battle/`（16 号）、`checks/`（15 号）、`economy/`（17 号）、
+`loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
+模块开工时填充。
+
+---
+
+## 6. shared / apps / fixtures
+
+| 位置 | 内容 | 备注 |
+|---|---|---|
+| `shared/src/ids.ts` | `GameId` / `Lang` / `TextKey` / `RefKind`、`refId()`、`GAME_ID_PATTERN` | 全库 ID 规范源头 |
+| `shared/src/errors.ts` | `EngineError`（code/where/messageKey 三元组）、`ErrCode` | 全库唯一异常类型 |
+| `shared/src/expr.ts` | 表达式语言规格类型（`ExprNode` / `CompiledExpr` / `EvalContext` 等） | engine/expr-eval 按此实现 |
+| `shared/src/rng.ts` | `createRng` / `Rng`（状态可序列化） | 注入式随机，回放一致性根基 |
+| `shared/src/schema/` | 23 个数据域的 Zod schema | 兼作 JSON Schema 快照基线 |
+| `shared/src/validation/` | 跨域校验辅助 | |
+| `apps/player-demo` | M0 验收页（vanilla TS） | 接线参考：glob 读包 → 加载 → 运行时 → 渲染 |
+| `fixtures/mini-game` | 正例游戏包（1 区域 / 5 场景 / 2 事件 / 1 任务 / 2 NPC） | 全部测试共享 |
+| `fixtures/negatives` | 负例包（每包一个预期 `ErrCode`） | 管线校验的回归夹具 |
+| `fixtures/helpers` | 跨包测试支撑（`InMemoryPackageSource` / 适配器契约套件） | R2 约束下的跨包测试唯一去处 |
+
+---
+
+## 7. 测试与质量门禁
+
+### 7.1 测试布局
+
+- 位置：`packages/<pkg>/test/**/*.test.ts`；workspace 包经 vitest alias 解析到**源码**
+  （不是 dist），保证跨包导入与包内导入共用同一模块实例。
+- 组织：engine 按子系统分目录，每目录配 `fixtures.ts` 局部夹具；跨包夹具在
+  `fixtures/helpers`（由该包自己的 test 运行，因为 R2 禁止 engine 测试 import 它）。
+- 规模（20 号入库后）：**130 个测试文件 / 2011 个用例**。
+- 实测覆盖率：语句 **94.26%**、分支 **86.08%**、函数 **96.28%**、行 **95.55%**。
+
+### 7.2 CI 四道门禁
+
+```mermaid
+flowchart LR
+  G0["门禁 0<br/>pnpm install<br/>--frozen-lockfile"] --> G1["门禁 1<br/>lint + test"]
+  G1 --> G2["门禁 2<br/>build + typecheck"]
+  G2 --> G3["门禁 3<br/>validate-docs"]
+```
+
+| # | 命令 | 内容 |
+|---|---|---|
+| 0 | `pnpm install --frozen-lockfile` | 锁文件一致性 |
+| 1 | `pnpm -w lint && pnpm -w test` | eslint（R1–R5 + 依赖规则）+ prettier check；全量单元测试 |
+| 2 | `pnpm -w build && pnpm -w typecheck` | 递归构建 + 全仓类型检查 |
+| 3 | `node scripts/validate-docs.mjs` | 文档一致性（编号交叉引用 / 任务登记 / **架构文档与代码结构一致** / 归档标注） |
+
+**覆盖率门禁**（v8，`vitest.config.ts`）：shared ≥ 90%、engine ≥ 80%（四指标）。本地用
+`pnpm test:coverage` 查看——`pnpm test` 不带覆盖率统计。
+
+### 7.3 本地验证须知
+
+从 `packages/<pkg>/` 目录内直接跑 vitest 会解析到 `dist`（构建产物，不入库）而非源码，
+产生假失败。**统一从仓库根跑**：
+
+```bash
+pnpm exec vitest run --root .                    # 全量
+pnpm exec vitest run --root . packages/engine     # 限定范围
+```
+
+---
+
+## 8. 维护规则
+
+发生以下任一变更时，**同一 PR 内**必须更新本文档对应小节（约束见 `develop.md` 约束 4）：
+
+| 变更 | 必须更新 |
 |---|---|
-| 新增/变更包或目录 | §1 布局与依赖规则 |
-| shared 新增/变更类型域或 Schema | §2 |
-| engine 新增/变更子系统、核心类型、导出面 | §3 对应小节（必要时 §1 依赖图） |
-| 新增/删除效果指令 | §3.4 指令清单 |
-| 加载管线步骤增删或次序调整 | §3.5 管线图 |
-| 新增应用（apps）或数据流 | §4 |
-| 测试组织/覆盖率门禁变化 | §5 |
-| CI/lint/文档门禁变化 | §6 |
+| 新增/变更包或目录 | §2 仓库布局与依赖规则 |
+| shared 新增/变更类型域或 Schema | §6 表格 |
+| engine 新增/变更子系统 | §5.1 索引表 + §5.2 详解（**新增目录不写会被 validate-docs 拦下**） |
+| 新增/删除效果指令 | §5.2 的 `effects/` 折叠块指令清单 |
+| 加载管线步骤增删或次序调整 | §4 管线图 |
+| 时间管线步骤变更 | §3 折叠块的时间管线图 |
+| 测试组织/覆盖率门禁变化 | §7 |
+| CI/lint/文档门禁变化 | §7.2 |
 
-每次更新在文首「最后核对」行登记对应 commit 与里程碑状态。
+**写作规范**（保持本文档的可读性，勿退化）：
+
+1. **先图后字**。核心逻辑用 mermaid；一张图能说清的不写段落。
+2. **主线在正文，细节进折叠块**。正文回答「是什么/为什么」；文件级细节、字段清单、
+   状态树、指令表放 `<details>`，需要时展开。
+3. **每节服务于一个具体问题**。写之前先问：「读者在什么场景下会读这一段？」
+   回答不了就别写。
+4. **条文带溯源**。提到设计依据就标 §x.y 或 DD-nn，便于回溯与冲突裁决。
+5. **不抄代码**。写职责与约束，接口细节以代码为准（避免双份维护漂移）。
+
+每次更新在文首「最后核对」行登记日期与里程碑状态。
