@@ -369,8 +369,14 @@ export function createGameHost(options: GameHostOptions): GameHost {
         attrs: { ...(options.initialAttrs ?? {}) },
         // 钱包初值（见 GameHostOptions.initialWallet：wallet 是封闭域，读前必须先有键）
         wallet: { ...(options.initialWallet ?? {}) },
+        // 缺省解锁区域 = **入口场景所在区域**（语义口径，不是 areas.keys() 的首项：
+        // 后者依赖字典序，多区域夹具下会解锁到字母序最前的区域而非玩家真正起步的区域。
+        // 见 docs/architecture.md §5.4 宿主装配。）
         unlockedAreas: [
-          ...(options.initialUnlockedAreas ?? [...definition.areas.keys()].slice(0, 1)),
+          ...(options.initialUnlockedAreas ??
+            [definition.scenes.get(definition.manifest.entryScene)?.def.area].filter(
+              (area): area is GameId => area !== undefined,
+            )),
         ],
       },
       rng,
