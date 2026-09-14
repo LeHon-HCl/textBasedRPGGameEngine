@@ -193,3 +193,7 @@ export type { MergeToastOptions, ToastInput, ToastStackProps } from './notificat
 // ---- onboarding（§6.5 首启内容向导：警告页 + 标签开关；FR-CGRD-04；任务 12） ----
 export { ContentWizard } from './onboarding/index.js';
 export type { ContentWizardLabels, ContentWizardProps } from './onboarding/index.js';
+
+// ---- app.host（§6.1/§6.2 集成层：定义 → 可玩会话；A 组验收载体） ---------------
+export { createGameHost, DEFAULT_HOST_SEED } from './app/game-host.js';
+export type { GameHost, GameHostOptions, HostError } from './app/game-host.js';
