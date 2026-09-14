@@ -39,10 +39,15 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
     // 作者可见指令 = effectParamSchemas 键集（加载期 effectDataSchema 的合法键）
     expect(Object.keys(effectParamSchemas).filter((k) => !ids.includes(k))).toEqual([]);
     // 内部指令（__ 前缀，不面向作者；09 号 __time.advance 时钟写入载体、
-    // 13 号 __outfit.save_preset 换装预设快照载体）
+    // 13 号 __outfit.save_preset / __items.tick、11 号 __quest.deadline 任务截止载体）
     const internal = ids.filter((id) => id.startsWith('__'));
-    expect(internal).toEqual(['__time.advance', '__outfit.save_preset', '__items.tick']);
-    expect(ids).toHaveLength(28);
+    expect(internal).toEqual([
+      '__quest.deadline',
+      '__time.advance',
+      '__outfit.save_preset',
+      '__items.tick',
+    ]);
+    expect(ids).toHaveLength(29);
   });
 });
 

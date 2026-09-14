@@ -154,6 +154,23 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
     },
   };
 
+  /**
+   * `__quest.deadline` 内部指令（§4.3 步骤 7 / §4.5；11 任务 5）。
+   *
+   * **引擎内部面，不面向作者**：时间管线步骤 7 的载体（与 `__time.advance` 同
+   * 形态）。在时钟推进后的同一事务内对全部 active/ready_to_submit 任务做
+   * failWhen 全量判定（时间截止），命中即转 failed；作者包内书写会被
+   * effectDataSchema 拒绝（未知指令键）。
+   */
+  const deadlineDef: EffectInstructionDef<Record<string, never>> = {
+    id: '__quest.deadline',
+    schema: z.strictObject({}),
+    touch: (): TouchReport => ({ reads: [], writes: ['quests'] }),
+    execute: (_arg, ectx) => {
+      questMachine.evaluateFailures(buildQuestContext(ectx));
+    },
+  };
+
   const unlockDef: EffectInstructionDef<UnlockParams> = {
     id: 'unlock',
     schema: effectParamSchemas.unlock,
@@ -224,6 +241,7 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
   return [
     eraseDef(advanceTimeDef),
     eraseDef(questDef),
+    eraseDef(deadlineDef),
     eraseDef(unlockDef),
     eraseDef(mediaDef),
     eraseDef(notifyDef),

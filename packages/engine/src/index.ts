@@ -169,6 +169,7 @@ export {
   assertTransition,
   canTransition,
   createQuestConditionEvaluator,
+  createQuestDeadlineProvider,
   createQuestDeriver,
   QUEST_STATES,
   QUEST_TRANSITIONS,

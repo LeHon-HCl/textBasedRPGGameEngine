@@ -253,9 +253,55 @@ export class QuestMachine {
       if (current === undefined || current.state !== 'active') continue;
       const def = this.#defs.get(questId);
       if (def === undefined) continue;
+      // failWhen 优先于阶段推进：条件触达即失败（终态不再推进）
+      if (this.#evaluateFailWhen(ctx, questId, current, def, emit)) continue;
       this.#advanceStages(ctx, questId, current, def, emit);
     }
     return events;
+  }
+
+  /**
+   * 全量失败判定（时间截止挂载点：§4.3 管线步骤 7 / 11 任务 5）。
+   *
+   * 遍历任务目录，对 active / ready_to_submit 且 failWhen 为真者转 failed。
+   * 与 evaluateTouched 的差异：本方法是**主动全量**扫描（时间推进后必须检查所有
+   * 活跃任务，即便其 failWhen 未登记 refs）；仅应由时间管线步骤 7 的
+   * `__quest.deadline` 调用，常规事务仍走脏标记 evaluateTouched（不轮询）。
+   *
+   * 返回本次产出的事件列表（同时已 ctx.emit）。
+   */
+  evaluateFailures(ctx: QuestContext): EngineEvent[] {
+    const events: EngineEvent[] = [];
+    const emit = (event: EngineEvent): void => {
+      events.push(event);
+      ctx.emit(event);
+    };
+    for (const [questId, def] of this.#defs) {
+      if (def.failWhen === undefined) continue;
+      const current = ctx.quests[questId];
+      if (current === undefined) continue;
+      if (current.state !== 'active' && current.state !== 'ready_to_submit') continue;
+      this.#evaluateFailWhen(ctx, questId, current, def, emit);
+    }
+    return events;
+  }
+
+  /**
+   * 单任务 failWhen 判定：为真则 active/ready_to_submit → failed 并 emit
+   * `quest_state_changed`（on_fail 的作者侧等价物——QuestDef 无 on_* 效果字段，
+   * 作者经事件订阅挂后果）。返回是否已失败。
+   */
+  #evaluateFailWhen(
+    ctx: QuestContext,
+    questId: GameId,
+    current: QuestState,
+    def: QuestDef,
+    emit: (event: EngineEvent) => void,
+  ): boolean {
+    if (def.failWhen === undefined || !ctx.evalCondition(def.failWhen)) return false;
+    ctx.quests[questId] = { ...current, state: 'failed' };
+    emit({ type: 'quest_state_changed', quest: questId, from: current.state, to: 'failed' });
+    return true;
   }
 
   /** 阶段推进（含级联）：current 为 active 态，def 为目录 */
