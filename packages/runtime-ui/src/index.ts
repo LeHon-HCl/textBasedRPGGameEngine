@@ -146,3 +146,7 @@ export type {
   MapPosition,
   MapProjectionOptions,
 } from './panels/index.js';
+
+// ---- panels.quest（§6.4 任务日志：分组/追踪置顶；FR-QUEST-03；任务 8） ----------
+export { QuestLogPanel } from './panels/index.js';
+export type { QuestLogLabels, QuestLogPanelProps } from './panels/index.js';

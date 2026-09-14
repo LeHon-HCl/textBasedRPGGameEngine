@@ -21,3 +21,5 @@ export { projectAreaViews } from './map-projection.js';
 export type { MapAreaView, MapLocationView, MapProjectionOptions } from './map-projection.js';
 export { MapPanel } from './MapPanel.js';
 export type { MapPanelLabels, MapPanelProps, MapPosition } from './MapPanel.js';
+export { QuestLogPanel } from './QuestLogPanel.js';
+export type { QuestLogLabels, QuestLogPanelProps } from './QuestLogPanel.js';
