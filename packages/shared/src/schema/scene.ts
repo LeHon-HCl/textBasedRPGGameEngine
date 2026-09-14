@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { refId } from '../ids.js';
-import { gameIdSchema, exprSchema, mediaRefSchema, textKeySchema } from './common.js';
+import { exprSchema, gameIdSchema, mediaBindingSchema, textKeySchema } from './common.js';
 import { effectListSchema } from './effects.js';
 
 /**
@@ -8,14 +8,33 @@ import { effectListSchema } from './effects.js';
  *
  * - 文本一律键引用（D4）；段落宏（if/first/again/random，FR-NARR-04）由 08 号
  *   叙事运行时在 renderList 惰性展开，schema 层先承载「键 + 显示条件」最小面；
+ * - 段落级媒体（FR-MEDIA-04）：`cg` 插图与 `sprite` 立绘切换随段落揭示产出
+ *   intent（24 号），CG 自动登记 seen.cg（图鉴数据源）；
  * - 选项 = 显示条件/置灰条件/一次性/内容标签/效果序列/跳转（FR-NARR-02）；
  * - goto 与 effects[].goto 的悬空引用由加载器 crossRef 检查（§3.4 步骤 4，不在此阻断）。
  */
 
-/** 叙事段落：文本键 + 可选显示条件（条件不满足的段落不进入渲染列表） */
+/** 段落级立绘切换（FR-MEDIA-03/04）：指定 NPC，可选覆盖差分条件 */
+export const segmentSpriteSchema = z.strictObject({
+  /** 立绘归属 NPC（差分声明取自 NpcDef.sprites） */
+  npc: refId('npc'),
+  /** 覆盖该 NPC 差分声明的条件表达式（缺省 = 用 NpcDef 声明的差分自动选） */
+  when: exprSchema.optional(),
+});
+
+export type SegmentSprite = z.infer<typeof segmentSpriteSchema>;
+
+/**
+ * 叙事段落：文本键 + 可选显示条件（条件不满足的段落不进入渲染列表）+
+ * 可选媒体（段落级插图与立绘切换，FR-MEDIA-04）。
+ */
 export const segmentSchema = z.strictObject({
   key: textKeySchema,
   showIf: exprSchema.optional(),
+  /** 段落级插图（CG）：随段落揭示产出 cg intent 并登记 seen.cg（FR-MEDIA-04） */
+  cg: refId('media').optional(),
+  /** 段落级立绘切换（FR-MEDIA-03：表情/状态差分） */
+  sprite: segmentSpriteSchema.optional(),
 });
 
 export type SegmentDef = z.infer<typeof segmentSchema>;
@@ -41,11 +60,11 @@ export const choiceSchema = z.strictObject({
 
 export type ChoiceDef = z.infer<typeof choiceSchema>;
 
-/** 场景级媒体绑定（FR-NARR-01：背景图 + BGM，DD-05） */
-export const sceneMediaSchema = z.strictObject({
-  bg: mediaRefSchema.optional(),
-  bgm: mediaRefSchema.optional(),
-});
+/**
+ * 场景级媒体绑定（FR-NARR-01/FR-MEDIA-02：背景图 + BGM，DD-05）。
+ * 与区域级绑定同形（common.mediaBindingSchema）——区域为回落层。
+ */
+export const sceneMediaSchema = mediaBindingSchema;
 
 export const sceneDefSchema = z.strictObject({
   id: gameIdSchema,

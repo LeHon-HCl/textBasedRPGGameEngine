@@ -14,8 +14,42 @@
     "sprites": {
       "type": "array",
       "items": {
-        "type": "string",
-        "refKind": "media"
+        "anyOf": [
+          {
+            "type": "string",
+            "refKind": "media"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "base": {
+                "type": "string",
+                "refKind": "media"
+              },
+              "variants": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "when": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "asset": {
+                      "type": "string",
+                      "refKind": "media"
+                    }
+                  },
+                  "required": ["when", "asset"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["variants"],
+            "additionalProperties": false
+          }
+        ]
       }
     },
     "schedule": {

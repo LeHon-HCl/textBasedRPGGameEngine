@@ -52,6 +52,20 @@
         "required": ["nameKey", "moveCost", "mapPos"],
         "additionalProperties": false
       }
+    },
+    "media": {
+      "type": "object",
+      "properties": {
+        "bg": {
+          "type": "string",
+          "refKind": "media"
+        },
+        "bgm": {
+          "type": "string",
+          "refKind": "media"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["id", "nameKey", "locations"],
