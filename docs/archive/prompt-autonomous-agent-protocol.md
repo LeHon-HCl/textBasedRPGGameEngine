@@ -7,7 +7,7 @@
 > 冲突时以 `docs/develop.md` 为准。
 >
 > **仍然有效的部分**（已被 develop.md 与 AGENTS.md 吸收，此处不重复维护）：
-> 红线约束（§2）→ develop.md 约束 3 与 eslint 规则；门禁命令（§3）→ develop.md 约束 2
+> 红线约束（§2）→ develop.md 约束 9 与 eslint 规则；门禁命令（§3）→ develop.md 约束 6
 > 与 CI workflow；文档权威顺序（§1）→ 见下方「资料索引」。
 >
 > **资料索引**（本项目权威文档的当前入口）：

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright E2E 配置（M1 收尾引入；develop.md 约束 5 第 6 项「验收 demo」的自动化面）。
+ * Playwright E2E 配置（M1 收尾引入；develop.md 约束 10 第 6 项「验收 demo」的自动化面）。
  *
  * 定位与 Vitest 的分工：
  * - Vitest：单元 + 组件（node / jsdom 两环境），覆盖模块内行为与投影；
