@@ -45,6 +45,30 @@ const playerStateSchema = z.strictObject({
   statuses: z.array(statusInstanceSchema),
   /** 身体部位 → 当前值（FR-BODY-01） */
   body: z.record(z.string(), z.string()),
+  /**
+   * 临时变身登记（FR-BODY-02，14 号）：part → {original, remainingSlots}。
+   * 设计 §4.8 原定存 world.flags 专用域 `__body_temp`，但 flag 值域仅标量
+   * （boolean|number|string）而本项需结构化记录——偏差为独立状态域（只增）。
+   * remainingSlots 由时间管线步骤 3 递减，归零还原 original 并 emit
+   * body_reverted。不入档亦可（读档后由存档面保留，见 20 号）。
+   */
+  /**
+   * 渐进变身进度（FR-BODY-05 P2 预留，14 号）：part → 0..100。
+   * 引擎只存取不解释（中立性）；「不进冻结范围」指不参与 GameDefinition 冻结，
+   * 作为玩家状态随档持久。
+   */
+  bodyProgress: z.record(z.string(), z.number().min(0).max(100)).optional(),
+  bodyTemp: z
+    .record(
+      z.string(),
+      z.strictObject({
+        /** 首次登记前的原值（还原目标；同部位重复登记不覆盖） */
+        original: z.string(),
+        /** 剩余时段数（slots 直存；days 已按当日时段数换算） */
+        remainingSlots: z.number().int().min(0),
+      }),
+    )
+    .optional(),
   /** 装备栏 slot → itemId（FR-ITEM-03） */
   equip: z.record(z.string(), refId('item')),
   /** 多层服装 part → layer → itemId（FR-ITEM-04，§4.7 Outfit） */

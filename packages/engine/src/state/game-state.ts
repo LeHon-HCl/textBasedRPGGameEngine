@@ -38,6 +38,14 @@ export interface BagEntry {
   count: number;
 }
 
+/** 临时变身登记项（FR-BODY-02；结构即 serializedStateSchema.bodyTemp 值的推断类型） */
+export interface BodyTempEntry {
+  /** 首次登记前的原值（还原目标） */
+  original: string;
+  /** 剩余时段数（管线步骤 3 递减，归零还原） */
+  remainingSlots: number;
+}
+
 /** 穿着元数据（FR-ITEM-06；结构即 serializedStateSchema.wornMeta 值的推断类型） */
 export interface WornMeta {
   /** 穿着期间累计时段数（时效判据） */
@@ -80,6 +88,10 @@ export interface GameState {
     statuses: StatusInstance[];
     /** 身体部位 → 当前值（FR-BODY-01） */
     body: Record<string, string>;
+    /** 临时变身登记（FR-BODY-02；结构即 serializedStateSchema.bodyTemp 的推断类型） */
+    bodyTemp: Record<string, BodyTempEntry>;
+    /** 渐进变身进度（FR-BODY-05 P2 预留；part → 0..100，表达式可读） */
+    bodyProgress: Record<string, number>;
     /** 装备栏 slot → itemId（FR-ITEM-03） */
     equip: Record<string, GameId>;
     outfit: Outfit;

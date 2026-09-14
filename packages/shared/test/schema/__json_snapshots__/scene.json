@@ -373,6 +373,11 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "progress": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
                 "revertAfter": {
                   "type": "object",
                   "properties": {

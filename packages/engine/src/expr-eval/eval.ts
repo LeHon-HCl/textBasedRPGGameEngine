@@ -232,6 +232,11 @@ function resolvePath(segments: string[], ctx: EvalContext, source: string): unkn
       return part?.[second as string] ?? null; // 渐进域：该层未穿戴 → null
     }
     case 'body': {
+      // 渐进变身进度（FR-BODY-05 P2 预留，14 号）：body.progress.<part>
+      if (first === 'progress' && second !== undefined) {
+        const progress = state.player.bodyProgress?.[second];
+        return strictValue(progress, path, second, source);
+      }
       const value = state.player.body[first as string];
       return strictValue(value, path, first as string, source);
     }

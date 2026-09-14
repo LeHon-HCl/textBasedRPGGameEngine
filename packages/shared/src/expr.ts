@@ -110,6 +110,11 @@ export interface ExprScope {
     /** 多层服装 part → layer → itemId（§3.1 Outfit；layer 键为层数字符串，如 '1'） */
     readonly outfit: Readonly<Record<string, Readonly<Record<string, string>>>>;
     readonly body: Readonly<Record<string, string>>;
+    /**
+     * 渐进变身进度（FR-BODY-05 P2 预留，14 号）：part → 0..100。
+     * 引擎只存取不解释语义（中立性）；P2 功能写入此域。
+     */
+    readonly bodyProgress?: Readonly<Record<string, number>>;
     readonly wallet: Readonly<Record<string, number>>;
   };
   readonly world: {

@@ -84,6 +84,7 @@ export function buildExprScope(state: GameState, views: ExprScopeViews = {}): En
       skills: state.player.skills,
       outfit: state.player.outfit,
       body: state.player.body,
+      bodyProgress: state.player.bodyProgress,
       wallet: state.player.wallet,
     },
     world: {

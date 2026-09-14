@@ -83,6 +83,8 @@ export function restoreState(blob: SaveBlob): GameState {
       ...snapshot.player,
       outfitPresets: snapshot.player.outfitPresets ?? {},
       wornMeta: snapshot.player.wornMeta ?? {},
+      bodyTemp: snapshot.player.bodyTemp ?? {},
+      bodyProgress: snapshot.player.bodyProgress ?? {},
     },
     world: { ...snapshot.world, npcLocationCache: {} },
     npcs: snapshot.npcs,
