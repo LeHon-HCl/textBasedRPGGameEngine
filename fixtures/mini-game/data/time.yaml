@@ -1,0 +1,22 @@
+# 时段制日历（TimeConfig，设计 §4.3 / FR-TIME-01；09 号模块）
+#
+# 为什么需要本文件：事件的 `when.slots` 与 NPC 日程的 `at.slots` 一律与
+# TimeConfig.slots[].id 比对（§4.4 collect 静态窗口 / §4.6 日程解析）。引擎缺省
+# 日历的时段 id 是 `slot_morning` 等（DEFAULT_TIME_CONFIG），而本夹具的既有场景/
+# 事件/NPC 数据写作 `morning`——两者不匹配会让所有时段窗口失效、事件永不触发。
+# 本文件把时段 id 显式声明为与数据一致的四个短名（旧镇的一天：早/午/晚/夜）。
+slots:
+  - { id: morning, nameKey: time.slot.morning }
+  - { id: afternoon, nameKey: time.slot.afternoon }
+  - { id: evening, nameKey: time.slot.evening }
+  - { id: night, nameKey: time.slot.night }
+weekdays:
+  - { nameKey: time.weekday.1 }
+  - { nameKey: time.weekday.2 }
+  - { nameKey: time.weekday.3 }
+  - { nameKey: time.weekday.4 }
+  - { nameKey: time.weekday.5 }
+  - { nameKey: time.weekday.6 }
+  - { nameKey: time.weekday.7 }
+# 第 1 天从「一」起（位置序 1 起算，∈ [1, weekdays.length]）
+startWeekday: 1
