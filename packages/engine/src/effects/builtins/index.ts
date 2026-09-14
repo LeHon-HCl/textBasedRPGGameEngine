@@ -8,6 +8,7 @@ import { createRelationDefs } from './relations.js';
 import { createStateDefs } from './state.js';
 import { createSystemDefs } from './system.js';
 import { createCallDef } from './system.js';
+import { createEventDefs } from '../../events/instruction.js';
 
 /**
  * 内置指令装配（设计 §3.3 内置指令注册表，FR-NARR-03）。
@@ -32,6 +33,7 @@ export function createBuiltinEffectDefs(ctx: BuiltinDefContext): ErasedEffectDef
     ...createFlowDefs(),
     ...createAdversarialDefs(ctx.options),
     ...createNpcDefs(ctx.options),
+    ...createEventDefs(ctx.options),
   ];
 }
 

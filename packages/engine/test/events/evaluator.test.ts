@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDef, GameState } from '@game/shared';
+import type { EventDef } from '@game/shared';
+import type { GameState } from '../../src/state/index.js';
 import { createRng } from '@game/shared';
 import { DEFAULT_TIME_CONFIG } from '../../src/time/index.js';
-import { collectCandidates, pruneCandidates, selectCandidates } from '../../src/events/evaluator.js';
+import {
+  collectCandidates,
+  pruneCandidates,
+  selectCandidates,
+} from '../../src/events/evaluator.js';
 
 /**
  * 10 任务 2/3/4：事件池评估流程 collect → prune → select（设计 §4.4）。
@@ -103,10 +108,16 @@ describe('10-3 prune：冷却 / once / 内容过滤', () => {
       event('ev_cool', { trigger: { type: 'random', weight: 1, cooldown: { days: 2 } } }),
     ];
     // 上次触发 day 1；当前 day 2（差 1 < 2）→ 裁剪
-    const pruned = pruneCandidates(events, makeState({ day: 2, cooldowns: { ev_cool: { lastDay: 1, fired: 1 } } }));
+    const pruned = pruneCandidates(
+      events,
+      makeState({ day: 2, cooldowns: { ev_cool: { lastDay: 1, fired: 1 } } }),
+    );
     expect(pruned.map((e) => e.id)).toEqual([]);
     // 当前 day 3（差 2 ≥ 2）→ 保留
-    const ok = pruneCandidates(events, makeState({ day: 3, cooldowns: { ev_cool: { lastDay: 1, fired: 1 } } }));
+    const ok = pruneCandidates(
+      events,
+      makeState({ day: 3, cooldowns: { ev_cool: { lastDay: 1, fired: 1 } } }),
+    );
     expect(ok.map((e) => e.id)).toEqual(['ev_cool']);
   });
 
@@ -116,10 +127,14 @@ describe('10-3 prune：冷却 / once / 内容过滤', () => {
       event('ev_slotcool', { trigger: { type: 'random', weight: 1, cooldown: { slots: 3 } } }),
     ];
     // 上次触发 day1/slot1；当前 day1/slot3（差 2 < 3）→ 裁剪
-    const pruned = pruneCandidates(events, makeState({ day: 1, slotIndex: 3, cooldowns: { ev_slotcool: { lastDay: 1, fired: 1 } } }), {
-      config: CONFIG,
-      lastSlotIndex: { ev_slotcool: 1 },
-    });
+    const pruned = pruneCandidates(
+      events,
+      makeState({ day: 1, slotIndex: 3, cooldowns: { ev_slotcool: { lastDay: 1, fired: 1 } } }),
+      {
+        config: CONFIG,
+        lastSlotIndex: { ev_slotcool: 1 },
+      },
+    );
     expect(pruned.map((e) => e.id)).toEqual([]);
     void slotsPerDay;
   });
@@ -128,17 +143,17 @@ describe('10-3 prune：冷却 / once / 内容过滤', () => {
     const events = [
       event('ev_once', { trigger: { type: 'condition', require: 'flag.x', once: 'save' } }),
     ];
-    const pruned = pruneCandidates(events, makeState({ cooldowns: { ev_once: { lastDay: 1, fired: 1 } } }));
+    const pruned = pruneCandidates(
+      events,
+      makeState({ cooldowns: { ev_once: { lastDay: 1, fired: 1 } } }),
+    );
     expect(pruned.map((e) => e.id)).toEqual([]);
     const fresh = pruneCandidates(events, makeState());
     expect(fresh.map((e) => e.id)).toEqual(['ev_once']);
   });
 
   it('内容过滤：ContentFilter 拒绝的事件被裁剪（22 号应用点 1 正式接入）', () => {
-    const events = [
-      event('ev_tagged', { tags: ['tag_gore'] }),
-      event('ev_clean'),
-    ];
+    const events = [event('ev_tagged', { tags: ['tag_gore'] }), event('ev_clean')];
     const pruned = pruneCandidates(events, makeState(), {
       contentFilter: { eventAdmissible: (e) => !(e.tags ?? []).includes('tag_gore') },
     });
@@ -176,9 +191,7 @@ describe('10-4 select：condition 优先级 / random 权重 + 互斥', () => {
   });
 
   it('require 为假的事件不入选（condition 与 random 通用）', () => {
-    const events = [
-      event('ev_no', { trigger: { type: 'condition', require: 'flag.never' } }),
-    ];
+    const events = [event('ev_no', { trigger: { type: 'condition', require: 'flag.never' } })];
     expect(selectCandidates(events, makeState(), cond(), createRng(1))).toEqual([]);
   });
 
@@ -199,7 +212,12 @@ describe('10-4 select：condition 优先级 / random 权重 + 互斥', () => {
       event('ev_cond', { priority: 5, mutexGroup: 'grp' }),
       event('ev_rand', { trigger: { type: 'random', weight: 100 }, mutexGroup: 'grp' }),
     ];
-    const selected = selectCandidates(events, makeState(), cond({ 'flag.always': true }), createRng(1));
+    const selected = selectCandidates(
+      events,
+      makeState(),
+      cond({ 'flag.always': true }),
+      createRng(1),
+    );
     expect(selected.map((c) => c.event.id)).toEqual(['ev_cond']);
   });
 
@@ -217,7 +235,40 @@ describe('10-4 select：condition 优先级 / random 权重 + 互斥', () => {
       event('ev_exp', { trigger: { type: 'explore', weight: 5 } }),
       event('ev_cond', { priority: 1 }),
     ];
-    const selected = selectCandidates(events, makeState(), cond({ 'flag.always': true }), createRng(1));
+    const selected = selectCandidates(
+      events,
+      makeState(),
+      cond({ 'flag.always': true }),
+      createRng(1),
+    );
     expect(selected.map((c) => c.event.id)).toEqual(['ev_cond']);
+  });
+});
+
+// ---- 10 任务 7：探索发现型子池（FR-XPLR-04③/08） ---------------------------
+
+describe('10-7 探索子池：地点行动的交互点呈现', () => {
+  it('exploreCandidates：按权重降序返回可用交互点（不消耗随机）', async () => {
+    const { exploreCandidates } = await import('../../src/events/evaluator.js');
+    const events = [
+      event('ev_heavy', { trigger: { type: 'explore', weight: 10 } }),
+      event('ev_light', { trigger: { type: 'explore', weight: 1 } }),
+      event('ev_gated', {
+        trigger: { type: 'explore', weight: 5, require: 'flag.locked' },
+      }),
+      event('ev_cond', { priority: 1 }),
+    ];
+    const listed = exploreCandidates(events, (source) => source !== 'flag.locked');
+    expect(listed.map((c) => c.event.id)).toEqual(['ev_heavy', 'ev_light']);
+    expect(listed.every((c) => c.reason === 'explore')).toBe(true);
+  });
+
+  it('explore 型条件为真时才呈现（require 过滤）', async () => {
+    const { exploreCandidates } = await import('../../src/events/evaluator.js');
+    const events = [
+      event('ev_open', { trigger: { type: 'explore', weight: 1, require: 'flag.open' } }),
+    ];
+    expect(exploreCandidates(events, () => false)).toEqual([]);
+    expect(exploreCandidates(events, () => true).map((c) => c.event.id)).toEqual(['ev_open']);
   });
 });

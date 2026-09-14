@@ -39,7 +39,7 @@
 - [x] [06 游戏包加载器](06-package-loader.md)（管线 4–7）
 - [x] [08 叙事运行时](08-narrative.md)（宏/选项/子会话）
 - [x] [09 时间系统与推进管线](09-time.md)
-- [ ] [10 事件系统](10-events.md)
+- [x] [10 事件系统](10-events.md)
 - [x] [11 任务系统](11-quests.md)
 - [x] [12 NPC 与阵营系统](12-npcs-factions.md)
 - [x] [13 物品、装备与多层服装](13-items-outfit.md)

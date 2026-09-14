@@ -228,3 +228,23 @@ export type {
   ReputationChange,
   ThresholdEntry,
 } from './npcs/index.js';
+
+// ---- events（§4.4 事件系统：池评估 / 脏标记 / 探索子池，10 号） ---------------
+export {
+  collectCandidates,
+  createEventStepProvider,
+  EventPool,
+  EVENT_DEBUG_LOG_CAPACITY,
+  exploreCandidates,
+  pruneCandidates,
+  selectCandidates,
+} from './events/index.js';
+export type {
+  CooldownRecord,
+  EventCandidate,
+  EventDebugEntry,
+  EventPoolOptions,
+  EventStepInput,
+  EventStepResult,
+  UntriggeredReason,
+} from './events/index.js';

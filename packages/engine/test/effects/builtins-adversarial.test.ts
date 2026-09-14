@@ -40,7 +40,8 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
     expect(Object.keys(effectParamSchemas).filter((k) => !ids.includes(k))).toEqual([]);
     // 内部指令（__ 前缀，不面向作者；09 号 __time.advance 时钟写入载体、
     // 13 号 __outfit.save_preset / __items.tick、11 号 __quest.deadline 任务截止载体、
-    // 12 号 __npc.resolve 日程缓存重建载体、14 号 __body.revert 临时变身回退载体）
+    // 12 号 __npc.resolve 日程缓存重建载体、14 号 __body.revert 临时变身回退载体、
+    // 10 号 __events.eval 事件池评估载体）
     const internal = ids.filter((id) => id.startsWith('__'));
     expect(internal).toEqual([
       '__quest.deadline',
@@ -49,8 +50,9 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
       '__items.tick',
       '__body.revert',
       '__npc.resolve',
+      '__events.eval',
     ]);
-    expect(ids).toHaveLength(31);
+    expect(ids).toHaveLength(32);
   });
 });
 

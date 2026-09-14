@@ -125,6 +125,27 @@ export interface EffectRegistryOptions {
   /** 判定规则解析器（check 指令；缺省 = check 报 EFFECT_FAILED，15 号注入 coc/generic） */
   checkResolver?: CheckRuleResolver;
   /**
+   * 事件池（`__events.eval` 内部指令的评估面，10 号；缺省 = 该指令未装配）。
+   * 结构化最小视图：只要求 evaluate 面，避免 effects 横向依赖 events 子系统类型
+   * 细节（DD-06）。宿主装配：new EventPool(...) 后注入。
+   */
+  eventPool?: {
+    evaluate(input: {
+      state: unknown;
+      evalCondition: (source: string) => boolean;
+      rng: { next(): number };
+      touched?: readonly string[];
+    }): {
+      jumps: readonly { type: string; scene?: string; [key: string]: unknown }[];
+      cooldownUpdates: readonly {
+        eventId: string;
+        lastDay: number;
+        lastSlotIndex?: number;
+        fired: number;
+      }[];
+    };
+  };
+  /**
    * 时段制日历（§4.3 TimeConfig；09 号注入）：`__time.advance` 内部指令的
    * 时钟写入依据。缺省 = 内部指令报 EFFECT_FAILED（时间管线未装配）。
    */

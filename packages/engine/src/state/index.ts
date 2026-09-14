@@ -20,3 +20,8 @@ export type { DerivedEvalOptions, DerivedTriggerDomain } from './derived.js';
 export { DEFAULT_META_VIEW, buildExprScope, defaultTimeView } from './expr-scope.js';
 export type { EngineExprScope, ExprScopeViews, MetaView, TimeViewProvider } from './expr-scope.js';
 export { restoreState, serializeState } from './serialize.js';
+export {
+  buildStatePrefixIndex,
+  exprRefToStatePrefixes,
+  touchedMatchesPrefix,
+} from './ref-paths.js';

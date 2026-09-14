@@ -115,7 +115,12 @@ const worldStateSchema = z.strictObject({
   /** 事件冷却（§4.4 prune；随档持久） */
   eventCooldowns: z.record(
     z.string(),
-    z.strictObject({ lastDay: z.number().int().min(0), fired: z.number().int().min(0) }),
+    z.strictObject({
+      lastDay: z.number().int().min(0),
+      /** 上次触发时的 slotIndex（slots 冷却的判定补充面，10 号；只增） */
+      lastSlotIndex: z.number().int().min(0).optional(),
+      fired: z.number().int().min(0),
+    }),
   ),
 });
 
