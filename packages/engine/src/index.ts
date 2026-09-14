@@ -159,3 +159,25 @@ export type {
   BagProjectionOptions,
   EquipModDetail,
 } from './items/index.js';
+
+// ---- quests（§4.5 任务系统：六态状态机 / 接取校验 / 阶段推进 / 投影，11 号） --
+export {
+  assertTransition,
+  canTransition,
+  QUEST_STATES,
+  QUEST_TRANSITIONS,
+  QuestMachine,
+  transitionVias,
+} from './quests/index.js';
+export type {
+  ObjectiveProgress,
+  QuestContext,
+  QuestLogEntry,
+  QuestLogGroup,
+  QuestLogProjectionOptions,
+  QuestLogView,
+  QuestMachineOptions,
+  QuestStateEnum,
+  QuestTransitionRule,
+  QuestTransitionVia,
+} from './quests/index.js';
