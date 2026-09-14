@@ -1,0 +1,6 @@
+open: 巷口一盏灯晃晃悠悠地往深处挪，不像有人提着。
+notify:
+  followed: 你跟了两步，那灯忽然灭了，只剩巷子里的风声。
+choice:
+  follow: 跟上去看看
+  home: 转身回去

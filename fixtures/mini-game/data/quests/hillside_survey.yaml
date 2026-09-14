@@ -1,0 +1,23 @@
+# 任务「山道勘察」（QuestDef，设计 §2.4 / FR-QUEST）：三阶段推进 + 多档奖励
+#
+# M1 收尾的第 2 条任务线：与 wall_rubbing 并行可选，二者无互斥（可同时进行），
+# 但 requires 关系体现「先看到徽记再往山上去」的叙事因果。
+id: hillside_survey
+giver: ferryman
+acceptIf: 'npc.ferryman.met && attr.insight >= 3'
+requires: [wall_rubbing]
+stages:
+  - id: reach_trailhead
+    objectiveKey: quests.hillside_survey.obj_trailhead
+    completeWhen: 'flag.quarry_open || attr.insight >= 4'
+  - id: survey_quarry
+    objectiveKey: quests.hillside_survey.obj_quarry
+    completeWhen: 'flag.quarry_surveyed'
+  - id: report_shrine
+    objectiveKey: quests.hillside_survey.obj_shrine
+    completeWhen: 'flag.shrine_marked'
+rewards:
+  - money: { town_silver: 35 }
+  - favor: { npc: ferryman, amount: 20 }
+  - add: { key: 'attr.insight', amount: 3 }
+failWhen: 'time.day > 20 && !flag.shrine_marked'

@@ -1,0 +1,28 @@
+# 山道口（hillside 入口场景；由河堤上堤道进入）
+id: hillside_trailhead
+area: hillside
+segments:
+  - key: scenes.hillside_trailhead.desc
+  - key: scenes.hillside_trailhead.wind
+    showIf: "time.slot == 'morning'"
+  - key: scenes.hillside_trailhead.quarry_hint
+    showIf: 'flag.embankment_found'
+choices:
+  - id: to_quarry
+    textKey: scenes.hillside_trailhead.choice.to_quarry
+    showIf: 'flag.quarry_open || attr.insight >= 4'
+    goto: hillside_quarry
+  - id: to_shrine
+    textKey: scenes.hillside_trailhead.choice.to_shrine
+    showIf: 'flag.embankment_found || attr.insight >= 6'
+    goto: hillside_shrine
+  - id: open_quarry
+    textKey: scenes.hillside_trailhead.choice.open_quarry
+    showIf: '!flag.quarry_open'
+    once: true
+    effects:
+      - set: { key: 'flag.quarry_open', value: true }
+      - notify: { textKey: 'scenes.hillside_trailhead.notify.opened' }
+  - id: back_town
+    textKey: scenes.hillside_trailhead.choice.back
+    goto: market_street

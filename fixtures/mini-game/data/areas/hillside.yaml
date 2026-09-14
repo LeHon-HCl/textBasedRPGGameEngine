@@ -1,0 +1,21 @@
+# 山丘区域（AreaDef，设计 §2.4 / FR-XPLR-01/02）
+#
+# 旧镇背后的坡地：采石场、废弃神龛、山道。经河堤上堤道可达（见
+# scenes/riverside/riverside_embankment.yaml 的 to_town 与镇内路径）。
+id: hillside
+nameKey: areas.hillside.name
+locations:
+  trailhead:
+    nameKey: areas.hillside.trailhead
+    moveCost: 1
+    mapPos: [180, 300]
+  quarry:
+    nameKey: areas.hillside.quarry
+    unlockIf: 'flag.quarry_open || attr.insight >= 4'
+    moveCost: 2
+    mapPos: [120, 380]
+  shrine:
+    nameKey: areas.hillside.shrine
+    unlockIf: 'flag.embankment_found || attr.insight >= 6'
+    moveCost: 2
+    mapPos: [240, 360]

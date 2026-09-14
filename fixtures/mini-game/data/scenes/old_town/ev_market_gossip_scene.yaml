@@ -1,0 +1,16 @@
+# 集市闲谈（ev_market_gossip 的子会话入口；random 型）
+id: ev_market_gossip_scene
+area: old_town
+segments:
+  - key: scenes.ev_market_gossip_scene.open
+  - key: scenes.ev_market_gossip_scene.riverside_hint
+    showIf: '!flag.heard_riverside'
+choices:
+  - id: listen_closely
+    textKey: scenes.ev_market_gossip_scene.choice.listen
+    effects:
+      - set: { key: 'flag.heard_riverside', value: true }
+      - add: { key: 'attr.insight', amount: 1 }
+      - notify: { textKey: 'scenes.ev_market_gossip_scene.notify.heard' }
+  - id: skip
+    textKey: scenes.ev_market_gossip_scene.choice.skip

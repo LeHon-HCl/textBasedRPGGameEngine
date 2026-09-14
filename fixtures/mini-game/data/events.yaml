@@ -72,4 +72,75 @@
   priority: 5
   tags: [general]
   scene: ev_embankment_find_scene
-
+# —— 山丘区域事件（M1 收尾：第 2 条任务线 hillside_survey 的现场事件）——
+- id: ev_quarry_echo
+  where:
+    area: hillside
+    location: quarry
+  when:
+    slots: [morning, afternoon]
+  trigger:
+    type: explore
+    weight: 5
+    require: 'attr.insight >= 4 && !flag.quarry_echo_seen'
+    once: loop
+  priority: 4
+  tags: [general]
+  scene: ev_quarry_echo_scene
+- id: ev_shrine_dream
+  where:
+    area: hillside
+    location: shrine
+  when:
+    slots: [night]
+  trigger:
+    type: condition
+    require: 'flag.shrine_marked && !flag.shrine_dream_seen'
+  priority: 9
+  mutexGroup: shrine_line
+  tags: [general]
+  scene: ev_shrine_dream_scene
+- id: ev_trail_wanderer
+  where:
+    area: hillside
+  when:
+    slots: [evening]
+  trigger:
+    type: random
+    weight: 3
+    require: 'npc.ferryman.met'
+    cooldown:
+      days: 3
+  priority: 0
+  tags: [general]
+  scene: ev_trail_wanderer_scene
+# —— old_town 补充事件（M1 收尾：使事件池达 10+ 条）——
+- id: ev_market_gossip
+  where:
+    area: old_town
+    location: market
+  when:
+    slots: [afternoon, evening]
+  trigger:
+    type: random
+    weight: 4
+    require: '!flag.heard_riverside'
+    cooldown:
+      days: 2
+  priority: 0
+  tags: [general]
+  scene: ev_market_gossip_scene
+- id: ev_night_lantern
+  where:
+    area: old_town
+    location: market
+  when:
+    slots: [night]
+  trigger:
+    type: random
+    weight: 3
+    require: '!flag.lantern_followed'
+    once: save
+  priority: 1
+  tags: [general]
+  scene: ev_night_lantern_scene

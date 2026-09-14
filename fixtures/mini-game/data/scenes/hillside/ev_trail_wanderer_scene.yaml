@@ -1,0 +1,14 @@
+# 事件场景：山道行者（ev_trail_wanderer 的子会话入口；random 型）
+id: ev_trail_wanderer_scene
+area: hillside
+segments:
+  - key: scenes.ev_trail_wanderer_scene.open
+choices:
+  - id: share_water
+    textKey: scenes.ev_trail_wanderer_scene.choice.share
+    effects:
+      - add: { key: 'attr.stamina', amount: -5 }
+      - favor: { npc: ferryman, amount: 5 }
+      - notify: { textKey: 'scenes.ev_trail_wanderer_scene.notify.shared' }
+  - id: pass_by
+    textKey: scenes.ev_trail_wanderer_scene.choice.pass

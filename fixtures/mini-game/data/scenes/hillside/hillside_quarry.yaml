@@ -1,0 +1,26 @@
+# 采石场（hillside 地点 quarry；任务 hillside_survey 第 2 阶段现场）
+id: hillside_quarry
+area: hillside
+segments:
+  - key: scenes.hillside_quarry.desc
+  - key: scenes.hillside_quarry.tracks
+    showIf: '!flag.quarry_surveyed'
+  - key: scenes.hillside_quarry.surveyed
+    showIf: 'flag.quarry_surveyed'
+choices:
+  - id: survey
+    textKey: scenes.hillside_quarry.choice.survey
+    showIf: '!flag.quarry_surveyed'
+    effects:
+      - set: { key: 'flag.quarry_surveyed', value: true }
+      - add: { key: 'attr.insight', amount: 2 }
+      - notify: { textKey: 'scenes.hillside_quarry.notify.surveyed' }
+  - id: rest_here
+    textKey: scenes.hillside_quarry.choice.rest
+    once: true
+    effects:
+      - add: { key: 'attr.stamina', amount: 10 }
+      - notify: { textKey: 'scenes.hillside_quarry.notify.rested' }
+  - id: back_trail
+    textKey: scenes.hillside_quarry.choice.back
+    goto: hillside_trailhead
