@@ -4,6 +4,10 @@
  */
 export { resolveNpcLocation, resolveNpcLocations, sameNpcLocationCache } from './schedule.js';
 export type { NpcScheduleQuery } from './schedule.js';
+export { applyFavorChange } from './favor.js';
+export type { FavorChange, NpcRelationSlice } from './favor.js';
+export { clamp, thresholdFor } from './thresholds.js';
+export type { ThresholdEntry } from './thresholds.js';
 export { createNpcScheduleProvider } from './step.js';
 export { createNpcScheduleDeriver } from './deriver.js';
 export type { NpcScheduleDeriverOptions } from './deriver.js';

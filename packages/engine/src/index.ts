@@ -205,10 +205,19 @@ export type {
 
 // ---- npcs（§4.6 NPC 与阵营：日程解析 / 缓存维护 / 好感声望机制，12 号） ------
 export {
+  applyFavorChange,
+  clamp,
   createNpcScheduleDeriver,
   createNpcScheduleProvider,
   resolveNpcLocation,
   resolveNpcLocations,
   sameNpcLocationCache,
+  thresholdFor,
 } from './npcs/index.js';
-export type { NpcScheduleDeriverOptions, NpcScheduleQuery } from './npcs/index.js';
+export type {
+  FavorChange,
+  NpcRelationSlice,
+  NpcScheduleDeriverOptions,
+  NpcScheduleQuery,
+  ThresholdEntry,
+} from './npcs/index.js';
