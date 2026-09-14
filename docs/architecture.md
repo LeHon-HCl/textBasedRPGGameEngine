@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，对应 feat/22（内容分级与过滤机制，M1）。
+> 最后核对：2026-09-14，对应 feat/12（NPC 与阵营系统，M1）。
 
 ## 1. 总览
 
@@ -61,12 +61,12 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **game-state.ts**：`GameState` 状态树（attrs / flags / bag / outfit / npcs / quests / seen / checkpoints / world.time 等）。
 - **new-game.ts**：`newGameState()` + bootstrap（新档初始化，接受清单驱动的初始值）。
 - **derived.ts**：`recomputeDerived()` 派生属性重算；`DERIVED_TRIGGER_DOMAINS` 声明哪些域变化触发重算。
-- **expr-scope.ts**：`buildExprScope()`——GameState → 表达式求值作用域的投影（含 `MetaView` / `TimeViewProvider` 缝）。
+- **expr-scope.ts**：`buildExprScope()`——GameState → 表达式求值作用域的投影（含 `MetaView` / `TimeViewProvider` 缝）；返回 `EngineExprScope`（shared `ExprScope` 的结构超集，12 号补出 `world.npcLocationCache` 供 `npc.<id>.at` 读取）。
 - **serialize.ts**：`serializeState()` / `restoreState()`，经 shared `serializedStateSchema` 校验（20 号存档的地基）。
 
 ### 3.2 expr-eval/ —— 表达式语言与求值器（设计 §3.2，03 号）
 
-- **parse.ts** `parseExpr()`（自研解析器）、**compile.ts** `compileExpr()`（→ `CompiledExpr`，带缓存）、**eval.ts** `evalExpr()` / `evalCondition()` / `truthy()`、**paths.ts**（`EXPR_ROOTS` 状态访问白名单根）、**builtins.ts**（`createBuiltinFunctionRegistry` 内置函数表）。
+- **parse.ts** `parseExpr()`（自研解析器）、**compile.ts** `compileExpr()`（→ `CompiledExpr`，带缓存）、**eval.ts** `evalExpr()` / `evalCondition()` / `truthy()`、**paths.ts**（`EXPR_ROOTS` 状态访问白名单根）、**builtins.ts**（`createBuiltinFunctionRegistry` 内置函数表）。`npc.<id>` 路径读 `favor` / `stage` / `met` / `flags.<name>`（及简写 `npc.<id>.<name>`），12 号新增保留字段 `at`（读日程缓存，不在场 → null，渐进域）。
 
 ### 3.3 runtime/ —— 状态事务核心（设计 §3.1）
 
@@ -79,7 +79,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 
 - **registry.ts**：`EffectRegistry implements EffectExecutor`——指令注册、参数 Zod 校验、重复 ID 冲突检测。
 - **types.ts**：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`（事务触域报告，供增量重算）、`eraseDef`；`CheckRequest / CheckRule / CheckRuleResolver` 为 15 号判定系统预留的规则缝。
-- **builtins/**（7 文件 25 条作者可见指令 + 4 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline`）：state（set/add/flag/money）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
+- **builtins/**（8 文件 25 条作者可见指令 + 5 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline` / `__npc.resolve`）：state（set/add/flag/money，set/add 的 key 自 12 号扩展 `npc.<id>.flags.<名>` 记忆命名空间）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation，委托 npcs 纯机制）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、npcs（内部 `__npc.resolve` 日程缓存重建）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
 
 ### 3.5 loader/ —— 游戏包加载器（设计 §3.4，06 号）
 
@@ -124,7 +124,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 
 - **clock.ts**：`advanceClock()` 推进纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月旗标）；`weekdayIndex()` / `dayOfMonth()` 日历基元；`DEFAULT_TIME_CONFIG` 宿主缺省日历（4 时段 × 7 天 × 周日起算，无月历）。week 恒启用；month 仅 `config.months` 启用时写入（循环月序，无年概念）。
 - **calendar.ts**：`projectCalendar()` 日历 UI 投影纯函数（FR-TIME-05）；`createTimeViewProvider()` TimeConfig 校准的求值视图（`time.slot` = 时段 id、`time.weekday` = 星期序），经 `GameRuntimeOptions.timeViewProvider` 装配。
-- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点；步骤 7 由 11 号 `createQuestDeadlineProvider` 提供 `__quest.deadline` 内部指令，在推进后时钟上做 failWhen 全量判定）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
+- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点；步骤 5 由 12 号 `createNpcScheduleProvider` 提供 `__npc.resolve` 内部指令重建 `world.npcLocationCache`；步骤 7 由 11 号 `createQuestDeadlineProvider` 提供 `__quest.deadline` 内部指令，在推进后时钟上做 failWhen 全量判定）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
 - **内部指令 `__time.advance`**（effects/builtins/system.ts）：时钟写入的事务内载体，作者包内不可达（effectDataSchema 拒绝）；需要 `EffectRegistryOptions.timeConfig`。
 - **共享 schema**：`timeConfigSchema`（shared/schema/time.ts，`data/time.yaml` 可选单对象域 → `GameDefinition.time`）；`advance_time` 指令只产 `JumpTarget.advanceTime` 意图，宿主消费后归约到 `TimePipeline.advance()`；移动消耗（`location.moveCost`，FR-XPLR-02）同径归约。
 
@@ -154,6 +154,15 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **应用点接线（2/3）**：`SceneRunnerOptions.contentFilter`（结构化最小接口 `NarrativeContentFilter`，避免 narrative → content 横向 import，DD-06）——段落渲染前按**场景标签**占位替换/跳过（被跳过的屏蔽内容不入历史缓冲），`choices()` 的标签过滤收敛本单点。**缺省不注入 = 08 号既有行为逐字不变**（选项沿用 `settings.disabledTags` 直查）。
 - **边界**：任务可完成性属静态校验——26 号编辑器 `filter-quest-break` 可达性分析（detail-design §7.7），运行时不管控（§5.8 末段）。
 
+### 3.11 npcs/ —— NPC 与阵营（设计 §4.6，12 号）
+
+- **schedule.ts**：`resolveNpcLocation(def, clock, state, query?)` 日程解析纯函数——按声明顺序取首个 `slots ∧ weekdays ∧ showIf` 全匹配项，无匹配/无日程 → `null`（不在场）；`query.slot/weekday` 缺省走 `defaultTimeView` 数值串口径，`query.evaluate` 供宿主注入运行时注册表同源的 showIf 求值器（缺省内置 20 函数）。`resolveNpcLocations` 批量解析（仅在场者落条目）、`sameNpcLocationCache` 稀疏比较。
+- **step.ts**：`createNpcScheduleProvider(config?)`——时间管线步骤 5 钩子，收集期用推进纯函数预计算推进后时钟并按 TimeConfig 校准 slot/weekday，产出 `__npc.resolve` 内部指令（effects/builtins/npcs.ts）：同一事务内批量解析日程并重建 `world.npcLocationCache`（可重建、不入档）。
+- **deriver.ts**：`createNpcScheduleDeriver({ npcs, config?, functionRegistry?, rng? })` 注册为 `GameRuntime.derivers`——非时间事务（flag/声望/属性等 showIf 条件变更）后按最新 draft 全量重建缓存（不轮询、NPC 规模小；无变化不写回，避免冗余补丁），保证 `npc.<id>.at` 不陈旧。
+- **thresholds.ts / favor.ts / reputation.ts**：引擎中立纯机制——`thresholdFor` 阈值表二分（好感/声望共用）、`clamp` 区间收敛；`applyFavorChange`（clamp → 阶段切换，from/to/changed 供 emit `favor_stage_changed`）、`applyReputationChange`（全局 bounds clamp → 波段切换，供 emit `reputation_band_changed`）。`effects/builtins/relations.ts` 只做指令层装配（建档/写回/发事件）。
+- **projection.ts**：`projectRelationships(state, npcs, options?)` 关系面板 UI 投影（FR-NPCR-05）——已结识筛选（缺省只列 met）、阶段 id → nameKey、好感数值显隐策略（缺省隐藏）、当前地点读日程缓存；纯函数供 25 号消费。
+- **状态/表达式面**：`npcs[id].flags` 记忆命名空间经 `set/add` 的 `npc.<id>.flags.<名>` key 写入（未知 NPC 自动建档）；表达式 `npc.<id>.flags.<名>`（显式）与 `npc.<id>.<名>`（简写）读取；`npc.<id>.at` 保留字段映射日程缓存（不在场 → null）。
+
 ## 4. 应用层（apps/）
 
 - **player-demo**（`src/main.ts`）：M0 验收用 vanilla TS 页面。数据流：Vite `import.meta.glob(?raw)` 读 fixtures/mini-game → `InMemoryPackageSource` → `loadGamePackage` → `newGameState` + `GameRuntime` → `SceneRunner` + `TextResolver` 端到端渲染。是 runtime-ui（25 号）落地前的接线参考。
@@ -162,8 +171,8 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（22 号内容分级入库后）：109 个测试文件 / 1788 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（12 号 NPC 与阵营入库后）：116 个测试文件 / 1855 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
