@@ -135,3 +135,14 @@ export type {
   StatusSkillView,
   StatusWalletView,
 } from './panels/index.js';
+
+// ---- panels.map（§6.2 地图导航：区域图/移动消耗/解锁提示；FR-UI-02；任务 7） ----
+export { MapPanel, projectAreaViews } from './panels/index.js';
+export type {
+  MapAreaView,
+  MapLocationView,
+  MapPanelLabels,
+  MapPanelProps,
+  MapPosition,
+  MapProjectionOptions,
+} from './panels/index.js';
