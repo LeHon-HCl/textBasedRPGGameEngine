@@ -392,11 +392,11 @@ function buildConditionPrefixes(
 ): ReadonlyMap<GameId, readonly string[]> {
   const table = new Map<GameId, Set<string>>();
   for (const [refPath, questIds] of questRefs ?? []) {
-    const prefix = exprRefToStatePrefix(refPath);
-    if (prefix === undefined) continue;
+    const prefixes = exprRefToStatePrefixes(refPath);
+    if (prefixes.length === 0) continue;
     for (const questId of questIds) {
       const bucket = table.get(questId) ?? new Set<string>();
-      bucket.add(prefix);
+      for (const prefix of prefixes) bucket.add(prefix);
       table.set(questId, bucket);
     }
   }
@@ -404,47 +404,59 @@ function buildConditionPrefixes(
 }
 
 /**
- * 表达式 ref 路径 → GameState 路径前缀（§2.3 白名单 → §3.1 状态树映射，
- * 11 任务 3）。meta 等不入 GameState 的域返回 undefined（Profile 由宿主路由）。
+ * 表达式 ref 路径 → GameState 路径前缀候选集（§2.3 白名单 → §3.1 状态树映射，
+ * 11 任务 3；fix/11-quest-refs-derived 修正）。
+ *
+ * 返回**数组**：同一表达式路径可能对应多个状态写入点，任一被触碰都应唤醒条件——
+ * - `attr.<id>`：数值属性写 `player.attrs.<id>`，派生属性（FR-STAT-05）写
+ *   `player.derived.<id>`（`recomputeDerived` 的落位），两者互为数据源，缺一
+ *   即导致「基属性变化 → 派生重算」无法唤醒依赖派生条件的任务（原缺陷）；
+ * - `meta.*`：Profile 投影由宿主路由（DD-04 引擎不持有 Profile），其变化经
+ *   `meta` 事务路径送达（21/18 号接入后生效）；无候选时返回空数组（该条件
+ *   只能由时间管线步骤 7 等主动扫描评估）。
  */
-function exprRefToStatePrefix(refPath: string): string | undefined {
+function exprRefToStatePrefixes(refPath: string): readonly string[] {
   const [root, ...rest] = refPath.split('.');
   const [first, second, third] = rest;
   switch (root) {
     case 'attr':
-      return first !== undefined ? `player.attrs.${first}` : undefined;
+      if (first === undefined) return [];
+      // 数值属性与派生属性同名时二者都会写：两个前缀都登记
+      return [`player.attrs.${first}`, `player.derived.${first}`];
+    case 'meta':
+      return first !== undefined ? [`meta.${first}`] : [];
     case 'skill':
-      return first !== undefined ? `player.skills.${first}` : undefined;
+      return first !== undefined ? [`player.skills.${first}`] : [];
     case 'flag':
-      return first !== undefined ? `world.flags.${first}` : undefined;
+      return first !== undefined ? [`world.flags.${first}`] : [];
     case 'item':
-      return 'player.bag';
+      return ['player.bag'];
     case 'outfit':
-      return 'player.outfit';
+      return ['player.outfit'];
     case 'body':
-      return first !== undefined ? `player.body.${first}` : undefined;
+      return first !== undefined ? [`player.body.${first}`] : [];
     case 'npc': {
-      if (first === undefined) return undefined;
-      if (second === 'flags' && third !== undefined) return `npcs.${first}.flags.${third}`;
+      if (first === undefined) return [];
+      if (second === 'flags' && third !== undefined) return [`npcs.${first}.flags.${third}`];
       if (second === 'favor' || second === 'stage' || second === 'met') {
-        return `npcs.${first}.${second}`;
+        return [`npcs.${first}.${second}`];
       }
       // 自定义 flag 形态（npc.<id>.<flag>，§2.3）落在 npcs.<id>.flags.<flag>
-      return second !== undefined ? `npcs.${first}.flags.${second}` : `npcs.${first}`;
+      return second !== undefined ? [`npcs.${first}.flags.${second}`] : [`npcs.${first}`];
     }
     case 'faction':
-      return first !== undefined ? `factions.${first}` : undefined;
+      return first !== undefined ? [`factions.${first}`] : [];
     case 'time':
-      return first !== undefined ? `world.time.${first}` : undefined;
+      return first !== undefined ? [`world.time.${first}`] : [];
     case 'loop':
-      return 'loop';
+      return ['loop'];
     case 'quest':
-      if (first === undefined) return undefined;
-      return second !== undefined ? `quests.${first}.${second}` : `quests.${first}`;
+      if (first === undefined) return [];
+      return second !== undefined ? [`quests.${first}.${second}`] : [`quests.${first}`];
     case 'wallet':
-      return first !== undefined ? `player.wallet.${first}` : undefined;
+      return first !== undefined ? [`player.wallet.${first}`] : [];
     default:
-      return undefined;
+      return [];
   }
 }
 
