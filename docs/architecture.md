@@ -150,9 +150,9 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
   - `eventAdmissible(event)`：应用点 1 的事件池 prune 判据（真正接线归 10 号事件系统；本模块接口预留 + 桩测试，接入零改动换实现）；
   - `placeholderFor(tags)`：应用点 2 的占位文本键（游戏配置；未配置返回 null → 调用方跳过）；放行时返回 null；
   - `initialDisabledTags()`：由 `ContentTagsDef.defaultOn` 投影初始禁用集，供首启向导/设置面板初始化（FR-CGRD-04 数据支撑）。
+- **wizard.ts**：`contentWarningKey(manifest)` / `resolveContentWizard(settings, manifest)`——首启内容向导数据投影（FR-CGRD-04，§6.5）：读 `GameDefinition.manifest.contentWarning`（shared `manifestSchema` 可选字段，缺省 → null）并组合 `settings.wizardDone` 返回宿主可用值；引擎不承载向导 UI 流程。
 - **应用点接线（2/3）**：`SceneRunnerOptions.contentFilter`（结构化最小接口 `NarrativeContentFilter`，避免 narrative → content 横向 import，DD-06）——段落渲染前按**场景标签**占位替换/跳过（被跳过的屏蔽内容不入历史缓冲），`choices()` 的标签过滤收敛本单点。**缺省不注入 = 08 号既有行为逐字不变**（选项沿用 `settings.disabledTags` 直查）。
 - **边界**：任务可完成性属静态校验——26 号编辑器 `filter-quest-break` 可达性分析（detail-design §7.7），运行时不管控（§5.8 末段）。
-- **已知规格缺口（SPEC_CONFLICT）**：design §6.5 要求内容警告页文案取 `manifest.contentWarning`，但 shared `manifestSchema`（strictObject，只读）未声明该字段，本模块未提供真实读取路径，待 shared schema 澄清。
 
 ## 4. 应用层（apps/）
 
@@ -163,7 +163,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
 - 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（22 号内容分级入库后）：109 个测试文件 / 1782 个用例全绿。
+- 规模（22 号内容分级入库后）：109 个测试文件 / 1788 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
