@@ -49,7 +49,15 @@ const BARE_THROW_MESSAGE =
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', '.zcode/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '.zcode/**',
+      // Playwright E2E 产物（非源码，不入 lint/格式化）
+      'test-results/**',
+      'playwright-report/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strict,

@@ -25,7 +25,18 @@ export default defineConfig({
     trace: 'retain-on-failure',
     viewport: { width: 1280, height: 800 },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      // 优先使用 Playwright 自带的 chromium；本机若未成功下载（网络受限环境），
+      // 可用 `--project=msedge` 走系统 Edge（Windows 预装，等价 Chromium 内核）。
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'msedge',
+      use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    },
+  ],
   // 自动拉起 demo dev server（复用已运行的实例，本地开发友好）
   webServer: {
     command: 'pnpm dev:player',

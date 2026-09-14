@@ -20,6 +20,7 @@ import {
   createTimeViewProvider,
   DEFAULT_PLAYER_SETTINGS,
   DEFAULT_TIME_CONFIG,
+  ENGINE_VERSION,
   GameRuntime,
   MediaResolver,
   newGameState,
@@ -377,6 +378,8 @@ export function createGameHost(options: GameHostOptions): GameHost {
           minEngineVersion: definition.manifest.minEngineVersion,
         },
         attrs: { ...(options.initialAttrs ?? {}) },
+        // 玩家设置在开局时**保留**（主菜单阶段可改语言/标签；见 start 尾部注释）
+        settings: { ...settingsMirror },
         // 钱包初值（见 GameHostOptions.initialWallet：wallet 是封闭域，读前必须先有键）
         wallet: { ...(options.initialWallet ?? {}) },
         // NPC 播种（M1 收尾）：按包内声明的 NpcDef 为**全部** NPC 建记录（met=false、
@@ -453,7 +456,10 @@ export function createGameHost(options: GameHostOptions): GameHost {
     unsubscribeBridge?.();
     unsubscribeBridge = bridgeRuntimeEvents(runtime, store);
     lastError = null;
-    settingsMirror = { ...state.settings };
+    // 玩家设置**跨开局保留**：主菜单阶段即可改语言/内容标签（FR-CGRD-04 向导、
+    // FR-UI-05 设置面板）。此处把镜像同步进 store（受控回流），新档缺省由
+    // newGameState 的 bootstrap.settings 承担（见上方 start 的 bootstrap 注入）。
+    store.getState().setSettings(settingsMirror);
     session = createRunnerSession(runnerRuntime(), definition.manifest.entryScene);
     syncSession();
   };
@@ -549,14 +555,18 @@ export function createGameHost(options: GameHostOptions): GameHost {
     textOf: (key, vars) => resolver.resolve(key, settingsMirror.lang, vars).text,
     settings: () => settingsMirror,
     langs: () => [...definition.manifest.langs],
+    // versions 在 start() 前也要可读（主菜单的设置抽屉会展示三版本号，FR-UI-05）：
+    // engineVersion 取引擎常量而非 runtime 状态（两者同源：newGameState 写入的就是它）。
     versions: () => ({
-      engineVersion: requireRuntime().state.versions.engineVersion,
+      engineVersion: ENGINE_VERSION,
       gameVersion: definition.manifest.gameVersion,
       schemaVersion: definition.manifest.schemaVersion,
     }),
     updateSettings: (partial) => {
       const current = settingsMirror;
       settingsMirror = { ...current, ...partial };
+      // 发布到 store（受控组件的回流路径；开局前也要发——主菜单即可改设置）
+      store.getState().setSettings(settingsMirror);
       if (partial.disabledTags !== undefined) {
         disabledTags = [...partial.disabledTags];
         if (session !== undefined) {

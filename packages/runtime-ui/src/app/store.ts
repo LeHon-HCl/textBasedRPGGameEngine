@@ -53,6 +53,11 @@ export function createUiStore(): UiStoreApi {
       if (get().session === session) return;
       set({ session });
     },
+    setSettings: (settings) => {
+      // 同上：引用未变即不替换，避免设置面板与宿主之间形成重渲染循环
+      if (get().settings === settings) return;
+      set({ settings });
+    },
     openPanel: (panel) => {
       set((state) => ({ panels: { ...state.panels, open: panel } }));
     },
