@@ -150,3 +150,7 @@ export type {
 // ---- panels.quest（§6.4 任务日志：分组/追踪置顶；FR-QUEST-03；任务 8） ----------
 export { QuestLogPanel } from './panels/index.js';
 export type { QuestLogLabels, QuestLogPanelProps } from './panels/index.js';
+
+// ---- settings（§6.5 设置与内容分级面板；FR-UI-05；任务 9） ----------------------
+export { DEFAULT_SHORTCUT_HINTS, SettingsPanel } from './settings/index.js';
+export type { SettingsPanelLabels, SettingsPanelProps, ShortcutHint } from './settings/index.js';
