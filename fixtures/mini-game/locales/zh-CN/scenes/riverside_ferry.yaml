@@ -1,0 +1,13 @@
+arrive: 沿着湿滑的堤道走下去，河水的气味先于渡口抵达你的鼻尖。
+ferryman: 一个披蓑衣的老人正收拢缆绳，见你走近，抬了抬下巴算作招呼。
+ferryman_seen: 摆渡人认出你，把缆绳往桩上一绕，示意你可以随便站。
+tide: 潮水正在上涨，木栈道在脚下轻轻起伏。
+notify:
+  met: 你与摆渡人打了个照面。
+  ferry_tip: 老人提了一句：涨潮前的河湾最浅，也最藏东西。
+choice:
+  talk: 上前搭话
+  ask_ferry: 问一句渡船的事
+  to_market: 沿堤去渔市
+  to_embankment: 下到河堤边
+  back: 回旧镇门口

@@ -1,0 +1,18 @@
+# 事件场景：渡口寒暄（ev_ferry_greeting 的子会话入口）
+id: ev_ferry_greeting_scene
+area: riverside
+segments:
+  - key: scenes.ev_ferry_greeting_scene.open
+  - key: scenes.ev_ferry_greeting_scene.offer
+choices:
+  - id: accept_ride
+    textKey: scenes.ev_ferry_greeting_scene.choice.accept
+    effects:
+      - set: { key: 'flag.ferry_greeted', value: true }
+      # favor 指令（而非 add npc.<id>.favor）：带 min/max clamp 与阶段事件（FR-NPCR-02）
+      - favor: { npc: ferryman, amount: 10 }
+      - notify: { textKey: 'scenes.ev_ferry_greeting_scene.notify.accepted' }
+  - id: decline_ride
+    textKey: scenes.ev_ferry_greeting_scene.choice.decline
+    effects:
+      - set: { key: 'flag.ferry_greeted', value: true }

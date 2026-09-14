@@ -1,0 +1,25 @@
+# 河畔区域（AreaDef，设计 §2.4 / FR-XPLR-01/02）
+#
+# 旧镇下游的河岸地带：渡口、渔市、货栈、河堤。与 old_town 由渡口相连
+# （跳转入口见 scenes/old_town/town_gate.yaml 的 go_riverside 选项）。
+id: riverside
+nameKey: areas.riverside.name
+locations:
+  ferry:
+    nameKey: areas.riverside.ferry
+    moveCost: 1
+    mapPos: [320, 140]
+  fish_market:
+    nameKey: areas.riverside.fish_market
+    moveCost: 1
+    mapPos: [420, 180]
+  warehouse:
+    nameKey: areas.riverside.warehouse
+    unlockIf: 'npc.ferryman.met || flag.warehouse_open'
+    moveCost: 2
+    mapPos: [500, 120]
+  embankment:
+    nameKey: areas.riverside.embankment
+    unlockIf: 'attr.insight >= 3'
+    moveCost: 1
+    mapPos: [380, 240]

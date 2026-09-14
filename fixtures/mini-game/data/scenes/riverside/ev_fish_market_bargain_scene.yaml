@@ -1,0 +1,20 @@
+# 事件场景：渔市砍价（ev_fish_market_bargain 的子会话入口）
+id: ev_fish_market_bargain_scene
+area: riverside
+segments:
+  - key: scenes.ev_fish_market_bargain_scene.open
+  - key: scenes.ev_fish_market_bargain_scene.haggle
+choices:
+  - id: haggle_hard
+    textKey: scenes.ev_fish_market_bargain_scene.choice.hard
+    effects:
+      - money: { town_silver: 8 }
+      - notify: { textKey: 'scenes.ev_fish_market_bargain_scene.notify.win' }
+  - id: pay_fair
+    textKey: scenes.ev_fish_market_bargain_scene.choice.fair
+    effects:
+      - money: { town_silver: -3 }
+      - add: { key: 'attr.stamina', amount: 5 }
+      - notify: { textKey: 'scenes.ev_fish_market_bargain_scene.notify.fair' }
+  - id: walk_away
+    textKey: scenes.ev_fish_market_bargain_scene.choice.away

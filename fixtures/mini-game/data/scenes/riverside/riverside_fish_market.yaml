@@ -1,0 +1,31 @@
+# 渔市（河畔地点 fish_market）
+#
+# 含一次性选项（领取河鲜）与条件跳转；演示 flag 驱动的文本分支。
+id: riverside_fish_market
+area: riverside
+segments:
+  - key: scenes.riverside_fish_market.desc
+  - key: scenes.riverside_fish_market.busy
+    showIf: "time.slot == 'morning' || time.slot == 'afternoon'"
+  - key: scenes.riverside_fish_market.quiet
+    showIf: "time.slot == 'evening' || time.slot == 'night'"
+choices:
+  - id: buy_fish
+    textKey: scenes.riverside_fish_market.choice.buy
+    showIf: 'wallet.town_silver >= 5'
+    once: true
+    effects:
+      - money: { town_silver: -5 }
+      - add: { key: 'attr.stamina', amount: 5 }
+      - notify: { textKey: 'scenes.riverside_fish_market.notify.bought' }
+  - id: too_poor
+    textKey: scenes.riverside_fish_market.choice.too_poor
+    showIf: 'wallet.town_silver < 5'
+    disabledIf: 'wallet.town_silver < 5'
+    disabledReasonKey: scenes.riverside_fish_market.reason.poor
+  - id: to_warehouse
+    textKey: scenes.riverside_fish_market.choice.to_warehouse
+    goto: riverside_warehouse
+  - id: to_ferry
+    textKey: scenes.riverside_fish_market.choice.back_ferry
+    goto: riverside_ferry

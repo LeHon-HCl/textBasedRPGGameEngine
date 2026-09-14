@@ -13,3 +13,7 @@ choices:
   - id: back_market
     textKey: scenes.town_gate.choice.back_market
     goto: market_street
+  # 跨区域衔接：出镇门即到河畔渡口（M1 收尾·多区域探索）
+  - id: go_riverside
+    textKey: scenes.town_gate.choice.go_riverside
+    goto: riverside_ferry

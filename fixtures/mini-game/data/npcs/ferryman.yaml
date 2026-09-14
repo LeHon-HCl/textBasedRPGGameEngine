@@ -1,0 +1,20 @@
+# 河畔 NPC「摆渡人」（NpcDef，设计 §2.4 / FR-NPCR）：日程 × 好感阈值
+#
+# riverside 区域的向导角色：ferry 与 fish_market 两地按时段轮转；
+# warehouse 的解锁条件引用 npc.ferryman.met（见 areas/riverside.yaml）。
+id: ferryman
+nameKey: npcs.ferryman.name
+schedule:
+  - at: { slots: [morning, afternoon] }
+    location: ferry
+  - at: { slots: [evening] }
+    location: fish_market
+  - at: { slots: [night] }
+    location: ferry
+favor:
+  min: -10
+  max: 50
+  stages:
+    - { id: stranger, at: 0, nameKey: npcs.favor.stranger }
+    - { id: friendly, at: 15, nameKey: npcs.favor.friendly }
+    - { id: trusted, at: 35, nameKey: npcs.favor.trusted }

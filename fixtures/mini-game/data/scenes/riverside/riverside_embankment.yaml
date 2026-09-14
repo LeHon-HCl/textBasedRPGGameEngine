@@ -1,0 +1,26 @@
+# 河堤（河畔地点 embankment；需 insight ≥ 3 解锁）
+#
+# 探索发现型事件的触发地点；含时段条件段落与跨区域回跳。
+id: riverside_embankment
+area: riverside
+segments:
+  - key: scenes.riverside_embankment.desc
+  - key: scenes.riverside_embankment.dusk
+    showIf: "time.slot == 'evening' || time.slot == 'night'"
+  - key: scenes.riverside_embankment.mark
+    showIf: 'attr.insight >= 5'
+choices:
+  - id: examine_mark
+    textKey: scenes.riverside_embankment.choice.examine
+    showIf: 'attr.insight >= 5'
+    once: true
+    effects:
+      - add: { key: 'attr.insight', amount: 1 }
+      - notify: { textKey: 'scenes.riverside_embankment.notify.mark' }
+      - flag: { name: 'riverside_mark_seen', value: true }
+  - id: to_ferry
+    textKey: scenes.riverside_embankment.choice.back
+    goto: riverside_ferry
+  - id: to_town
+    textKey: scenes.riverside_embankment.choice.to_town
+    goto: town_gate
