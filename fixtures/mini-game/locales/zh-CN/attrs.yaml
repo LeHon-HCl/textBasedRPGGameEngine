@@ -1,0 +1,7 @@
+# 属性显示名（StatusPanel 经 TextResolver 物化 attrs.<id>.name；FR-STAT-01 show 标记）
+hp:
+  name: 生命
+stamina:
+  name: 体力
+insight:
+  name: 洞察
