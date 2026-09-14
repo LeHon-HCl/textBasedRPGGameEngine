@@ -98,12 +98,16 @@ function compileSceneExprs(scenes: readonly SceneDef[]): Map<string, CompiledExp
   return cache;
 }
 
-/** makeDef 选项：场景集 + 事件集（事件场景判定面）+ 语言包记录 */
+/** makeDef 选项：场景集 + 事件集（事件场景判定面）+ 语言包记录 + 媒体数据源 */
 export interface DefSpec {
   readonly scenes: readonly SceneDef[];
   readonly events?: readonly EventDef[];
   readonly locales?: Record<string, Record<string, unknown>>;
   readonly mainLang?: Lang;
+  /** NPC 定义投影（立绘差分声明，24 号） */
+  readonly npcs?: SceneRunnerDef['npcs'];
+  /** 区域定义投影（区域级 bg/bgm 绑定，24 号） */
+  readonly areas?: SceneRunnerDef['areas'];
 }
 
 /** 构造最小 SceneRunnerDef 夹具（GameDefinition 结构化满足该接口） */
@@ -124,6 +128,8 @@ export function makeDef(spec: DefSpec): SceneRunnerDef {
     events: spec.events ?? [],
     locales,
     exprCache: compileSceneExprs(spec.scenes),
+    ...(spec.npcs !== undefined ? { npcs: spec.npcs } : {}),
+    ...(spec.areas !== undefined ? { areas: spec.areas } : {}),
   };
 }
 
@@ -158,22 +164,35 @@ export function makeRuntime(spec: RuntimeSpec = {}): GameRuntime {
 /** makeRunner 选项（SceneRunnerOptions 的直接透传 + 缺省 def 注入） */
 export interface RunnerSpec extends Pick<
   SceneRunnerOptions,
-  'params' | 'readonly' | 'onWarn' | 'contentFilter'
+  'params' | 'readonly' | 'onWarn' | 'contentFilter' | 'mediaResolver' | 'evalSpriteCondition'
 > {
   readonly runtime?: SceneRunnerRuntime;
   readonly def?: SceneRunnerDef;
   readonly sceneId?: GameId;
+  /** 便捷：媒体数据源经 def 注入（与 runtime 解耦，24 号测试面） */
+  readonly npcs?: SceneRunnerDef['npcs'];
+  readonly areas?: SceneRunnerDef['areas'];
 }
 
 /** 构造 SceneRunner（缺省真实 runtime + spec.def） */
 export function makeRunner(def: SceneRunnerDef, spec: RunnerSpec = {}): SceneRunner {
+  const merged =
+    spec.npcs === undefined && spec.areas === undefined
+      ? def
+      : {
+          ...def,
+          ...(spec.npcs !== undefined ? { npcs: spec.npcs } : {}),
+          ...(spec.areas !== undefined ? { areas: spec.areas } : {}),
+        };
   return new SceneRunner(spec.runtime ?? makeRuntime(), {
-    def,
+    def: merged,
     sceneId: spec.sceneId ?? 'scene_start',
     params: spec.params,
     readonly: spec.readonly,
     onWarn: spec.onWarn,
     contentFilter: spec.contentFilter,
+    mediaResolver: spec.mediaResolver,
+    evalSpriteCondition: spec.evalSpriteCondition,
   });
 }
 
@@ -217,6 +236,9 @@ export function stubRuntime(spec: StubRuntimeSpec = {}): SceneRunnerRuntime & {
     },
     markSceneSeen(sceneId: string): void {
       runtime.markSceneSeen(sceneId);
+    },
+    markCgSeen(assetId: string): void {
+      runtime.markCgSeen(assetId);
     },
     execCalls: calls,
     evalCalls,

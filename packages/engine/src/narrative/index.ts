@@ -10,6 +10,7 @@ export type {
   NarrativeContentFilter,
   NarrativeEndReason,
   NarrativeHistoryEntry,
+  NarrativeMediaResolver,
   NarrativeWarning,
   RenderSegment,
   RunnerPhase,

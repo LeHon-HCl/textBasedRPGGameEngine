@@ -331,6 +331,19 @@ export class GameRuntime {
   }
 
   /**
+   * CG 解锁登记（FR-MEDIA-04「自动收录 CG 图鉴」；24 号叙事运行时消费）：
+   * seen.cg 追加去重。与 markSceneSeen 同类——不经效果指令的窄写路径（02 号
+   * 指令集无 seen.cg 自动登记面，叙事运行时作为媒体呈现层拥有该域的写入权；
+   * unlock{kind:'cg'} 的手动解锁路径仍走效果指令，两者同域去重）。
+   */
+  markCgSeen(assetId: string): void {
+    if (this.#state.seen.cg.includes(assetId)) return;
+    this.#state = produce(this.#state, (draft) => {
+      draft.seen.cg.push(assetId);
+    });
+  }
+
+  /**
    * 存档序列化（§3.1 serialize，DD-09）：输出 SerializedState 投影（02 号
    * schema 终验，A2 契约）。RNG 状态由调用方随 SaveBlob 组装（`rng.getState()`，
    * SaveBlob.rngState；20 号 SaveService 的装配面）。
