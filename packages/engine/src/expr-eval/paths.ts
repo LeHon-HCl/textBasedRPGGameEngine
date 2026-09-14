@@ -61,7 +61,7 @@ export function pathShapeError(root: string, rest: readonly string[]): string | 
         return rest[1] === 'flags' ? 'npc.<id>.flags 需带 flag 名：npc.<id>.flags.<name>' : null;
       }
       if (rest.length === 3 && rest[1] === 'flags') return null;
-      return 'npc 路径应为 npc.<id>.<favor|stage|met|自定义flag> 或 npc.<id>.flags.<flag名>';
+      return 'npc 路径应为 npc.<id>.<favor|stage|met|at|自定义flag> 或 npc.<id>.flags.<flag名>';
     case 'faction':
       return rest.length === 1 ? null : 'faction 路径应为 faction.<id>';
     case 'time':

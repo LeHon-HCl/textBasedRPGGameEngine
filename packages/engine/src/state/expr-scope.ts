@@ -1,4 +1,4 @@
-import type { Clock, ExprScope, ExprTimeView, Profile } from '@game/shared';
+import type { Clock, ExprScope, ExprTimeView, GameId, Profile } from '@game/shared';
 import type { GameState } from './game-state.js';
 
 /**
@@ -32,6 +32,18 @@ export interface ExprScopeViews {
 }
 
 /**
+ * 引擎扩展求值作用域（shared ExprScope 的结构超集，只增不改）：
+ * world 额外透出可重建的 NPC 日程缓存，供表达式 `npc.<id>.at` 读取
+ * （§4.6；12 任务 5）。shared 侧 ExprScope 保持稳定，缓存域只在本投影补充。
+ */
+export type EngineExprScope = ExprScope & {
+  readonly world: ExprScope['world'] & {
+    /** NPC 当前所在地点（仅在场者有条目；不在场/无日程 → 缺 key，读取为 null） */
+    readonly npcLocationCache: Readonly<Record<GameId, GameId>>;
+  };
+};
+
+/**
  * 默认时间视图（04 任务 A1：时间视图接线）。
  *
  * 投影公式：`weekday = (day-1)%7+1`、`slot = slotIndex` 直传。ExprTimeView 契约
@@ -61,7 +73,7 @@ export const DEFAULT_META_VIEW: MetaView = Object.freeze({
  * 未提交变更对当前指令求值可见）。attr 域逐次合并 attrs 与 derived——派生属性
  * 在 recomputeDerived 的拓扑序中逐条刷新，后续公式立即可读前序结果。
  */
-export function buildExprScope(state: GameState, views: ExprScopeViews = {}): ExprScope {
+export function buildExprScope(state: GameState, views: ExprScopeViews = {}): EngineExprScope {
   const bagCounts: Record<string, number> = {};
   for (const entry of state.player.bag) {
     bagCounts[entry.itemId] = (bagCounts[entry.itemId] ?? 0) + entry.count;
@@ -77,6 +89,8 @@ export function buildExprScope(state: GameState, views: ExprScopeViews = {}): Ex
     world: {
       flags: state.world.flags,
       time: views.time ?? defaultTimeView(state.world.time),
+      // 日程缓存随状态树透出（管线步骤 5 / 派生器维护，只读引用即可）
+      npcLocationCache: state.world.npcLocationCache,
     },
     bagCounts,
     npcs: state.npcs,
