@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/22 已合入（20/24/25A 进行中）。
+> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/22/24 已合入（20/25A 进行中）。
 
 ## 1. 总览
 
@@ -49,7 +49,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **errors.ts**：`EngineError`（`code` / `where` / `messageKey` 三元组）、`ErrCode` 枚举、`serializeError`。全库唯一异常类型。
 - **expr.ts**：表达式语言规格类型（`ExprNode` / `CompiledExpr` / `EvalContext` / `ExprScope` / `ExprFunctionRegistry` 等，DD-01）——engine 的 expr-eval 按此实现。
 - **rng.ts**：`createRng` / `Rng`——注入式随机（DD-09），状态可序列化进存档。
-- **schema/**（22 个域文件）：全部数据域的 Zod schema——manifest、scene、area、attrs、event、quest、npc、faction、item、body、shop、perk、achievement、ending、loop、tags、stats-page、save、profile、effects、common 等。02 号模块产物，兼作 JSON Schema 导出基线（快照测试锁定）。
+- **schema/**（23 个域文件）：全部数据域的 Zod schema——manifest、scene、area、attrs、event、quest、npc、faction、item、body、shop、perk、achievement、ending、loop、tags、stats-page、save、profile、effects、time、common 等。02 号模块产物，兼作 JSON Schema 导出基线（快照测试锁定，NFR-12/15「只增不改」）。
 - **validation/**：跨域校验辅助。
 
 ## 3. engine 包（`packages/engine/src/`）
@@ -96,6 +96,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 ```
 
 - 诊断分两类：error **阻断加载**；warning 进入 `definition.diagnostics` 随包携带。
+- `GameDefinition` 发布全部实体域（`npcs` / `items` / `quests` / `shops` / `achievements` / `perks` / `endings` / `factions` + `scenes` / `areas` / `events`）——宿主由此投影装配运行时目录注入面（`GameRuntimeOptions.itemDefs`、`createNpcScheduleDeriver` 等）。24 号补齐：此前 validate 已校验这些域、crossRef 与 scripts 亦已消费，但 freeze 组装漏发布，宿主不可达。
 - 负例包（fixtures/negatives）逐一对应预期 `ErrCode`，是管线的回归夹具。
 
 ### 3.6 i18n/ —— 文本解析与本地化运行时（设计 §4.1，07 号）
@@ -118,9 +119,10 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
   - `NARRATIVE_HISTORY_CAPACITY = 500`：环形历史缓冲（回想/回看数据源）。
   - readonly 会话：回想重放，无副作用。
   - 内容过滤注入（22 号）：`contentFilter?: NarrativeContentFilter` 可选注入——段落渲染前占位替换/跳过、`choices()` 标签过滤收敛单点；缺省不注入时行为与 08 号一致。
+  - 媒体注入（24 号）：`mediaResolver?`（存在性核对 + 缺失占位）、`evalSpriteCondition?`（立绘差分条件求值）、`def.npcs` / `def.areas`（差分声明与区域绑定数据源）；`cgSeen()` 暴露 seen.cg 只读视图。段落计划改携带源段落引用（`ExpandedSegment`），使段落级媒体在揭示时可查（宏分支只改文本键，媒体声明属于源段落）。
 - **macros.ts**：三种叙事宏 `FirstAgainMacro` / `ConditionalMacro` / `RandomMacro` + 惰性展开（延迟插值）。
 
-### 3.8 time/ —— 时间系统与推进管线（设计 §4.3，09 号）
+### 3.9 time/ —— 时间系统与推进管线（设计 §4.3，09 号）
 
 - **clock.ts**：`advanceClock()` 推进纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月旗标）；`weekdayIndex()` / `dayOfMonth()` 日历基元；`DEFAULT_TIME_CONFIG` 宿主缺省日历（4 时段 × 7 天 × 周日起算，无月历）。week 恒启用；month 仅 `config.months` 启用时写入（循环月序，无年概念）。
 - **calendar.ts**：`projectCalendar()` 日历 UI 投影纯函数（FR-TIME-05）；`createTimeViewProvider()` TimeConfig 校准的求值视图（`time.slot` = 时段 id、`time.weekday` = 星期序），经 `GameRuntimeOptions.timeViewProvider` 装配。
@@ -128,7 +130,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **内部指令 `__time.advance`**（effects/builtins/system.ts）：时钟写入的事务内载体，作者包内不可达（effectDataSchema 拒绝）；需要 `EffectRegistryOptions.timeConfig`。
 - **共享 schema**：`timeConfigSchema`（shared/schema/time.ts，`data/time.yaml` 可选单对象域 → `GameDefinition.time`）；`advance_time` 指令只产 `JumpTarget.advanceTime` 意图，宿主消费后归约到 `TimePipeline.advance()`；移动消耗（`location.moveCost`，FR-XPLR-02）同径归约。
 
-### 3.9 quests/ —— 任务系统（设计 §4.5，11 号）
+### 3.10 quests/ —— 任务系统（设计 §4.5，11 号）
 
 - **transitions.ts**：六态（undiscovered / available / active / ready_to_submit / done / failed）+ 迁移规则表 `QUEST_TRANSITIONS`、`canTransition` / `transitionVias` / `assertTransition`（表驱动；非法迁移 EFFECT_FAILED，detail 可读）。
 - **quest-machine.ts**：`QuestMachine`——与 runtime 解耦的纯状态机（经 `QuestContext` 在调用方事务 draft 上操作，DD-06 / R5）：
@@ -143,7 +145,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **projection.ts**：`projectQuestLog`（FR-QUEST-03：按状态分组 + 追踪置顶；追踪为 UI 状态，引擎只投影）。
 - 事件面：`quest_stage`（阶段推进，on_stage）与 `quest_state_changed`（六态迁移）加入 EngineEvent。QuestDef 无 on_* 效果字段，作者经事件订阅实现「状态变化触发效果」（on_accept / on_done / on_fail 的作者侧等价物）。
 
-### 3.10 content/ —— 内容分级与过滤（设计 §5.8，22 号）
+### 3.11 content/ —— 内容分级与过滤（设计 §5.8，22 号）
 
 - **filter.ts**：`ContentFilter` 单点纯谓词（构造时快照 `settings.disabledTags` + 可选占位键；实例不可变，设置变更靠重建实例即时生效，FR-CGRD-03）：
   - `passes(tags)`：无标签恒放行，任一标签被玩家关闭即屏蔽（多标签取「任一命中」；引擎不解释标签语义，中立性红线，FR-CGRD-01/02）；
@@ -154,7 +156,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **应用点接线（2/3）**：`SceneRunnerOptions.contentFilter`（结构化最小接口 `NarrativeContentFilter`，避免 narrative → content 横向 import，DD-06）——段落渲染前按**场景标签**占位替换/跳过（被跳过的屏蔽内容不入历史缓冲），`choices()` 的标签过滤收敛本单点。**缺省不注入 = 08 号既有行为逐字不变**（选项沿用 `settings.disabledTags` 直查）。
 - **边界**：任务可完成性属静态校验——26 号编辑器 `filter-quest-break` 可达性分析（detail-design §7.7），运行时不管控（§5.8 末段）。
 
-### 3.11 npcs/ —— NPC 与阵营（设计 §4.6，12 号）
+### 3.12 npcs/ —— NPC 与阵营（设计 §4.6，12 号）
 
 - **schedule.ts**：`resolveNpcLocation(def, clock, state, query?)` 日程解析纯函数——按声明顺序取首个 `slots ∧ weekdays ∧ showIf` 全匹配项，无匹配/无日程 → `null`（不在场）；`query.slot/weekday` 缺省走 `defaultTimeView` 数值串口径，`query.evaluate` 供宿主注入运行时注册表同源的 showIf 求值器（缺省内置 20 函数）。`resolveNpcLocations` 批量解析（仅在场者落条目）、`sameNpcLocationCache` 稀疏比较。
 - **step.ts**：`createNpcScheduleProvider(config?)`——时间管线步骤 5 钩子，收集期用推进纯函数预计算推进后时钟并按 TimeConfig 校准 slot/weekday，产出 `__npc.resolve` 内部指令（effects/builtins/npcs.ts）：同一事务内批量解析日程并重建 `world.npcLocationCache`（可重建、不入档）。
@@ -163,20 +165,31 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **projection.ts**：`projectRelationships(state, npcs, options?)` 关系面板 UI 投影（FR-NPCR-05）——已结识筛选（缺省只列 met）、阶段 id → nameKey、好感数值显隐策略（缺省隐藏）、当前地点读日程缓存；纯函数供 25 号消费。
 - **状态/表达式面**：`npcs[id].flags` 记忆命名空间经 `set/add` 的 `npc.<id>.flags.<名>` key 写入（未知 NPC 自动建档）；表达式 `npc.<id>.flags.<名>`（显式）与 `npc.<id>.<名>`（简写）读取；`npc.<id>.at` 保留字段映射日程缓存（不在场 → null）。
 
-### 3.12 body/ —— 身体与变身（设计 §4.8，14 号）
+### 3.13 body/ —— 身体与变身（设计 §4.8，14 号）
 
 - **tick.ts**：`createBodyRevertProvider()` 挂时间管线步骤 3——`__body.revert` 内部指令递减 `player.bodyTemp[*].remainingSlots`，归零还原原值 + emit `body_reverted`（引擎不解释语义，中立性）；`set_body{revertAfter:{slots|days}}` 登记临时项，days 按 TimeConfig 每日时段数换算，同部位重复登记保留首次原值。
 - **pronouns.ts**：`createPronounInjector(bodyDefs)` 按 `BodyDef.pronouns`（`rule: 'by_part'`）的当前部位值产出 `player.they` / `player.them` / `player.their` 插值键（FR-BODY-04）；无映射项/未配置 → 空注入（插值失败归 resolver 告警）；映射数组可短于 3。
 - **状态域**：`player.bodyTemp`（临时变身登记 original + remainingSlots；设计原定 `world.flags.__body_temp`，因 flag 值域仅标量而独立成域）与 `player.bodyProgress`（FR-BODY-05 P2 预留 0..100，表达式经 `body.progress.<part>` 可读，白名单与求值器已同步扩展）。
 - **set_body 指令**（effects/builtins/adversarial.ts）：part/value ∈ BodyDef 校验（违例 EFFECT_FAILED）+ 永久变更；`revertAfter`/`progress` 参数驱动上两域。描写组合（FR-BODY-03）无专门机制——body 值驱动的条件经 03 号求值器直接可用。
 
-### 3.13 events/ —— 事件系统（设计 §4.4，10 号）
+### 3.14 events/ —— 事件系统（设计 §4.4，10 号）
 
 - **evaluator.ts**：四步评估的纯函数核心——`collectCandidates`（作用域候选 + when.slots/weekdays 静态窗口）、`pruneCandidates`（冷却 days/slots、once save/loop、ContentFilter 接入）、`selectCandidates`（condition 按 priority 降序全出且可配 onlyFirst；random 型加权抽取 + mutexGroup 约束，无组者共用默认池每时段至多一个）、`exploreCandidates`（探索子池按权重降序呈现，不消耗随机）。
 - **pool.ts**：`EventPool`——编排四步 + 脏标记增量（`dirtyMap` 经 `state/ref-paths.ts` 归一化为状态路径前缀，未命中事件零求值 NFR-02）+ 冷却登记以 `cooldownUpdates` 返回（由事务 draft 应用）+ debugLog 环形日志（FR-DEBG-05）。错过窗口不排队（FR-XPLR-06 设计裁决）。
 - **instruction.ts**：`__events.eval` 内部指令（引擎内部面，经 `EffectRegistryOptions.eventPool` 装配）。
 - **step.ts**：`createEventStepProvider()` 挂时间管线步骤 6。
 - **state/ref-paths.ts**（10/11 号共用）：`exprRefToStatePrefixes`（表达式 ref 路径 → 状态树路径前缀；`attr.<id>` 同时登记 attrs 与 derived 两个写入点）、`touchedMatchesPrefix`（三形态前缀匹配）、`buildStatePrefixIndex`（反查表归一化）——任务与事件共用同一脏标记口径（曾因各写一份导致派生属性唤醒失效）。
+
+### 3.15 media/ —— 媒体解析引擎侧（设计 §5.10，24 号）
+
+- **resolver.ts**：`MediaResolver`——只做两件事：查 `mediaCatalog` 核对 assetId 存在性、给缺失资源补 `missing: true` 占位标记（`decorate()`；意图形态归调用方，不在解析器里分叉）。缺失告警经 `onWarn` 出口按 assetId 去重（整局只报一次，不逐段落刷屏）；`lookup()` 为免告警查询（预载清单/差分探测）。**引擎零图像/音频依赖**：全部产出为纯数据 `MediaIntent`（模块验收红线）。
+- **Intent 流（叙事层，§5.10「叙事层产出 MediaIntent[]」）**：
+  - 场景级：`SceneRunner` 进入场景时产出 bg/bgm（`#createFrame`）——场景声明优先、**逐项回落区域绑定**（FR-MEDIA-02，`def.areas.get(scene.area).media`）；
+  - 段落级：随段落**揭示**产出（未揭示不产出）——`segment.cg` → cg intent 并登记 `seen.cg`（FR-MEDIA-04 图鉴数据源，只读会话不登记、被内容过滤屏蔽的段落不登记）；`segment.sprite.npc` → 按 `NpcDef.sprites` 差分声明求值选资产（首个条件命中变体 → 回落 `base` → 无产出），条件经 `SceneRunnerOptions.evalSpriteCondition` 求值；
+  - 段落级媒体挂在文本段落自身（`RenderSegment.media`），intent 序固定 cg 在前、sprite 在后。
+- **指令面**：`media` 指令（sfx 一次性播放，FR-MEDIA-05）经 `EffectRegistryOptions.mediaResolver` 核对后发 `MediaEvent`；与 `notify`（`NotifyEvent`，文本提示）两条通道独立——订阅面按事件 type 分发，UI Toast 与播放器互不干涉。
+- **依赖缝（DD-06）**：narrative 与 effects 均不 import media 子系统，各自声明结构化最小视图（`NarrativeMediaResolver` / `EffectRegistryOptions.mediaResolver`），宿主注入 `MediaResolver` 实例即得核对语义；缺省 = 裸 intent（08/05 号既有行为逐字不变）。
+- **schema 面（shared）**：`mediaBindingSchema`（bg/bgm 绑定，场景与区域共用一形态）、`spriteDeclSchema`（字符串旧形态 | `{base, variants[{when, asset}]}`）、`segmentSchema` 增可选 `cg` / `sprite`（立绘切换只声明 npc，资产由 NpcDef 差分声明选出——差分逻辑只有一份）。
 
 ## 4. 应用层（apps/）
 
@@ -186,8 +199,8 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、events、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（10 号事件系统入库后）：122 个测试文件 / 1906 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、events、smoke）、media；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（24 号媒体解析入库后）：127 个测试文件 / 1959 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
