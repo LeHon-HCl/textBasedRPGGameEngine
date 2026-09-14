@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MediaResolver, type MediaCatalogLike } from '../../src/media/index.js';
+import { MediaResolver } from '../../src/media/index.js';
+import type { MediaCatalogLike } from '../../src/media/index.js';
 import type { MediaAsset } from '../../src/loader/index.js';
 
 /**
@@ -28,28 +29,33 @@ function catalogOf(entries: Record<string, MediaAsset>): MediaCatalogLike {
   };
 }
 
-describe('24-1 MediaResolver：资源解析', () => {
-  it('已登记 assetId → resolved=true 且携带 MediaAsset（path/hash/type）', () => {
+describe('24-1 MediaResolver：资源解析与缺失占位', () => {
+  it('已登记 assetId → 意图原样返回（交回引用同一对象，无分配）', () => {
     const resolver = new MediaResolver({ catalog: catalogOf({ bg_town: asset() }) });
-    const result = resolver.resolve('bg_town', 'bg');
-    expect(result.assetId).toBe('bg_town');
-    expect(result.asset).toEqual(asset());
-    expect(result.missing).toBe(false);
-    expect(result.intent).toEqual({ type: 'bg', assetId: 'bg_town' });
+    const intent = { type: 'bg', assetId: 'bg_town' } as const;
+    expect(resolver.decorate(intent)).toBe(intent);
   });
 
-  it('未登记 assetId → missing=true + warning + 占位 intent（FR-MEDIA-06）', () => {
+  it('未登记 assetId → 占位意图（missing 标记）+ warning（FR-MEDIA-06）', () => {
     const warnings: string[] = [];
     const resolver = new MediaResolver({
       catalog: catalogOf({}),
       onWarn: (warning) => warnings.push(warning.code),
     });
-    const result = resolver.resolve('bg_missing', 'bg');
-    expect(result.missing).toBe(true);
-    expect(result.asset).toBeNull();
-    // 占位 intent 保留 assetId 与类型（UI 侧据此决定占位块/隐藏）
-    expect(result.intent).toEqual({ type: 'bg', assetId: 'bg_missing', missing: true });
+    const decorated = resolver.decorate({ type: 'bg', assetId: 'bg_missing' });
+    // 占位保留原形态与 assetId，仅加标记（UI 侧据此决定占位块/隐藏）
+    expect(decorated).toEqual({ type: 'bg', assetId: 'bg_missing', missing: true });
     expect(warnings).toEqual(['media_missing']);
+  });
+
+  it('意图形态不因解析而改变（bgm 的 loop 等字段原样保留）', () => {
+    const resolver = new MediaResolver({ catalog: catalogOf({}) });
+    expect(resolver.decorate({ type: 'bgm', assetId: 'bgm_x', loop: true })).toEqual({
+      type: 'bgm',
+      assetId: 'bgm_x',
+      loop: true,
+      missing: true,
+    });
   });
 
   it('同一缺失 assetId 重复解析只告警一次（不刷屏）', () => {
@@ -60,9 +66,9 @@ describe('24-1 MediaResolver：资源解析', () => {
         count += 1;
       },
     });
-    resolver.resolve('bg_missing', 'bg');
-    resolver.resolve('bg_missing', 'bg');
-    resolver.resolve('bg_missing', 'cg');
+    resolver.decorate({ type: 'bg', assetId: 'bg_missing' });
+    resolver.decorate({ type: 'bg', assetId: 'bg_missing' });
+    resolver.decorate({ type: 'cg', assetId: 'bg_missing' });
     expect(count).toBe(1);
   });
 
@@ -72,28 +78,24 @@ describe('24-1 MediaResolver：资源解析', () => {
       catalog: catalogOf({}),
       onWarn: (warning) => seen.push(warning.where),
     });
-    resolver.resolve('sprite_x', 'sprite');
+    resolver.decorate({ type: 'sprite', assetId: 'sprite_x' });
     expect(seen[0]).toMatchObject({ assetId: 'sprite_x', mediaType: 'sprite' });
   });
 
-  it('无 onWarn 出口时缺失不抛错（占位 intent 照常产出，NFR-06 容错）', () => {
+  it('无 onWarn 出口时缺失不抛错（占位意图照常产出，NFR-06 容错）', () => {
     const resolver = new MediaResolver({ catalog: catalogOf({}) });
-    expect(() => resolver.resolve('bg_x', 'bg')).not.toThrow();
+    expect(() => resolver.decorate({ type: 'bg', assetId: 'bg_x' })).not.toThrow();
   });
 
-  it('intentFor：仅返回 intent（resolved 与 missing 同形，UI 只看 intent）', () => {
+  it('lookup：免告警查询（预载/差分探测路径；存在与缺失同形）', () => {
     const resolver = new MediaResolver({ catalog: catalogOf({ bg_town: asset() }) });
-    expect(resolver.intentFor('bg_town', 'bg')).toEqual({ type: 'bg', assetId: 'bg_town' });
-    expect(resolver.intentFor('nope', 'bg')).toEqual({
-      type: 'bg',
-      assetId: 'nope',
-      missing: true,
-    });
+    expect(resolver.lookup('bg_town')).toEqual({ asset: asset(), missing: false });
+    expect(resolver.lookup('nope')).toEqual({ asset: null, missing: true });
   });
 
-  it('assetOf：解析存在的 assetId 免告警查询（差分/预载路径用）', () => {
-    const resolver = new MediaResolver({ catalog: catalogOf({ bg_town: asset() }) });
-    expect(resolver.assetOf('bg_town')).toEqual(asset());
-    expect(resolver.assetOf('nope')).toBeNull();
+  it('未注入目录 → size 0 且一切皆缺失（空目录语义）', () => {
+    const resolver = new MediaResolver();
+    expect(resolver.size).toBe(0);
+    expect(resolver.lookup('any').missing).toBe(true);
   });
 });

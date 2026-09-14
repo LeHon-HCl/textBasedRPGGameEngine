@@ -11,7 +11,7 @@
 export { MediaResolver } from './resolver.js';
 export type {
   MediaCatalogLike,
-  MediaResolution,
+  MediaLookup,
   MediaResolverOptions,
   MediaWarning,
 } from './types.js';

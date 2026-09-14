@@ -9,7 +9,7 @@ import type {
   Rng,
   TimeConfig,
 } from '@game/shared';
-import type { EffectContext, JumpTarget } from '../runtime/index.js';
+import type { EffectContext, JumpTarget, MediaIntent } from '../runtime/index.js';
 
 /**
  * 效果指令系统类型（设计 §3.3，05 任务 A 组）。
@@ -150,6 +150,16 @@ export interface EffectRegistryOptions {
    * 时钟写入依据。缺省 = 内部指令报 EFFECT_FAILED（时间管线未装配）。
    */
   timeConfig?: TimeConfig;
+  /**
+   * 媒体解析器（§5.10；24 号）：`media` 指令产出 intent 前核对 assetId
+   * 存在性（缺失 → missing 占位标记，宿主经解析器告警出口记录，FR-MEDIA-06）。
+   * 缺省 = 裸 intent（既有行为，向后兼容）。结构化最小视图（DD-06）：effects
+   * 不横向依赖 media 子系统类型细节；`MediaResolver` 直接满足。
+   */
+  mediaResolver?: {
+    /** 核对并入意图：存在 → 原样返回；缺失 → 告警 + 带 missing 标记的副本 */
+    decorate(intent: MediaIntent): MediaIntent;
+  };
 }
 
 // —— 判定规则契约（§5.1 接口；本模块定义，15 号实现 coc/generic 与脚本扩展） ———

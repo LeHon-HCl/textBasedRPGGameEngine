@@ -16,24 +16,17 @@ import { makeDef, makeRunner } from '../narrative/fixtures.js';
  * - CG 揭示即登记 seen.cg（FR-MEDIA-04 图鉴数据源，只读会话除外）。
  */
 
-/** 记录型解析器桩：固定存在集 + 记录调用（媒体子系统的契约面） */
+/** 记录型解析器桩：固定存在集 + 记录核对调用（媒体子系统的契约面） */
 function stubResolver(
   known: readonly string[] = [],
   onResolve?: (assetId: string, kind: string) => void,
 ): NarrativeMediaResolver {
   const set = new Set(known);
   return {
-    intentFor(assetId: string, kind: MediaIntent['type']): MediaIntent {
-      onResolve?.(assetId, kind);
-      const missing = !set.has(assetId);
-      switch (kind) {
-        case 'bgm':
-          return { type: 'bgm', assetId, loop: true, ...(missing ? { missing: true } : {}) };
-        case 'sfx':
-          return { type: 'sfx', assetId, ...(missing ? { missing: true } : {}) };
-        default:
-          return { type: kind, assetId, ...(missing ? { missing: true } : {}) };
-      }
+    decorate(intent: MediaIntent): MediaIntent {
+      onResolve?.(intent.assetId, intent.type);
+      if (set.has(intent.assetId)) return intent;
+      return { ...intent, missing: true } as MediaIntent;
     },
   };
 }
