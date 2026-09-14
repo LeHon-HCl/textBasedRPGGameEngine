@@ -115,6 +115,28 @@ describe('宿主装配：mini-game 端到端（设计 §6.1/§6.2）', () => {
     host.start();
     expect(host.runtime.state.player.wallet).toEqual({});
   });
+
+  it('NPC 播种：全部已声明 NPC 建档，未遇见者 met=false（封闭域下「尚未遇见」可求值）', async () => {
+    const host = await makeHost();
+    host.start();
+    const npcs = host.runtime.state.npcs;
+    // 夹具声明 3 个 NPC（old_guard / hawker / ferryman）——全部播种
+    expect(Object.keys(npcs).sort()).toEqual(['ferryman', 'hawker', 'old_guard']);
+    for (const id of ['ferryman', 'hawker', 'old_guard']) {
+      expect(npcs[id]?.met).toBe(false);
+    }
+    // 端到端：跨区域跳转依赖 `!npc.ferryman.met`（修复前因未建档抛 EVAL_ERROR 被阻断）
+    host.advance();
+    host.advance();
+    host.choose('go_gate');
+    for (let i = 0; i < 4; i += 1) {
+      if (host.store.getState().session.phase !== 'await_advance') break;
+      host.advance();
+    }
+    host.choose('go_riverside');
+    expect(host.lastError()).toBeNull();
+    expect(host.store.getState().session.sceneId).toBe('riverside_ferry');
+  });
 });
 
 describe('选择前 checkpoint（FR-READ-03）', () => {
