@@ -127,6 +127,10 @@ export type {
   SceneRunnerRuntime,
 } from './narrative/index.js';
 
+// ---- content（§5.8 内容分级与过滤：单点谓词 / 占位回退，22 号） --------------
+export { ContentFilter } from './content/index.js';
+export type { ContentFilterOptions, ContentFilterSettings } from './content/index.js';
+
 // ---- time（§4.3 时间系统：Clock 推进纯函数 / 固定次序推进管线，09 号） ------
 export {
   advanceClock,
