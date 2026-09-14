@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // e2e 用例的 `page.evaluate` 回调在**浏览器上下文**执行，需要 DOM 类型
+    // （indexedDB 等）。这只影响本目录——engine 的「无 DOM」由各包自己的
+    // tsconfig（不含 DOM lib）继续守护，不因本文件放宽。
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"]
+}
