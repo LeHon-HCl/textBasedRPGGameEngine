@@ -15,49 +15,54 @@
 | 里程碑 | 目标 | 状态 |
 |---|---|---|
 | **M0 技术验证** | 3 场景分支 demo 浏览器可玩 | ✅ 已完成（2026-09-13 验收通过） |
-| M1 运行时 MVP | 3 区域 / 10+ 事件 / 2 任务线 demo | 🚧 进行中 |
+| **M1 运行时 MVP** | 3 区域 / 10+ 事件 / 2 任务线 demo | 🚧 进行中（10 个模块已合入 9 个，剩 runtime-ui） |
 | M2 判定战斗 + 成就周目 + QoL | — | 未开始 |
 | M2.5 存档迁移机制 | 旧档回归门禁入 CI | 未开始 |
 | M3 可视化编辑器 | 零手写 JSON 复刻 mini-game | 未开始 |
 | M4 打磨与分发 | 导出静态包 | 未开始 |
 
-已实现（有实现代码并覆盖测试）：
+### 已实现（有代码 + 测试覆盖）
 
-- **shared** — ID / 错误体系 / 可复现 RNG、Schema 体系与校验、表达式 AST 与类型定义
-- **engine/expr-eval** — 受限表达式语言求值器（白名单 + 内置函数）
-- **engine/state** — GameState 与状态事务
-- **engine/effects** — 效果指令系统（状态类指令）
-- **engine/loader** — 游戏包加载器（七步管线，含静态表达式报错）
-- **engine/i18n** — 文本解析与本地化运行时（文本键、变体、插值、词典矩阵）
-- **engine/narrative** — 叙事运行时状态机（段落推进、选项分支、场景进入条件、历史缓冲）
-- **engine/runtime** — 运行时装配
+| 层 | 模块 |
+|---|---|
+| shared | ID 体系 / `EngineError` 三元组 / 可复现 RNG；23 个数据域的 Zod Schema（含 JSON Schema 快照守护）；表达式 AST 规格类型 |
+| engine | 表达式求值器（03）、状态树与事务（04）、效果指令系统 25+7 条（05）、七步加载管线（06）、文本解析与本地化（07）、叙事运行时状态机（08）、时间推进管线（09）、事件系统（10）、任务系统（11）、NPC 与阵营（12）、物品装备与多层服装（13）、身体与变身（14）、存档系统（20）、内容分级过滤（22）、媒体解析（24） |
+| apps | `player-demo`（M0 验收页，vanilla TS） |
 
-其余模块（时间、事件、任务、NPC/阵营、物品/装备/服装、身体、判定、战斗、经济、成就、周目、
-存档、迁移、内容过滤、脚本宿主、媒体、runtime-ui、编辑器、导出）已在计划中，尚未实现。
+进度明细见 [`docs/tasks/progress.md`](docs/tasks/progress.md)；
+**已实现架构的权威描述**见 [`docs/architecture.md`](docs/architecture.md)（含数据流图与子系统索引）。
 
-进度明细见 [`docs/tasks/progress.md`](docs/tasks/progress.md)。
+### 尚未实现
+
+runtime-ui 玩家界面（25，进行中）、编辑器内核与应用（26）、静态包导出（27）、
+判定系统（15）、回合制战斗（16）、经济与商店（17）、成就与元数据（18）、周目系统（19）、
+存档迁移（21）、作者脚本宿主（23）。
 
 ## 仓库结构
 
 ```
 apps/
   player-demo/      玩家端 demo（Vite，M0 验收入口）
-  editor-app/       可视化编辑器应用
+  editor-app/       可视化编辑器应用（占位）
 packages/
   shared/           基础类型、Schema、表达式、RNG、错误体系
-  engine/           引擎核心（加载器、状态、效果、叙事、i18n…）
-  runtime-ui/       玩家界面组件
-  editor/           编辑器内核
-  exporter/         静态包导出
+  engine/           引擎核心（加载器、状态、效果、叙事、时间、事件、任务、存档…）
+  runtime-ui/       玩家界面组件（占位，25 号）
+  editor/           编辑器内核（占位）
+  exporter/         静态包导出（占位）
 fixtures/
   mini-game/        demo 游戏包（manifest + data + locales）
-  negatives/        负例夹具（校验/表达式报错的期望输入）
+  negatives/        负例夹具（每包一个预期错误码）
+  helpers/          跨包测试支撑（包源实现、适配器契约套件）
 docs/
-  proposal.md       需求文档（基线）
-  detail-design.md  详细设计
+  architecture.md   已实现架构（人类入口：数据流图 + 子系统索引）
+  proposal.md       需求基线（FR/NFR 编号定义处）
+  detail-design.md  详细设计（§ 与 DD-* 决策）
+  develop.md        开发流程规范（四条约束 + PR 自审清单）
   tasks/            任务拆分与进度
+  archive/          已归档文档（不再生效，仅作溯源）
 scripts/
-  validate-docs.mjs 文档一致性校验
+  validate-docs.mjs 文档一致性校验（编号引用 / 任务登记 / 架构与代码结构一致）
 ```
 
 ## 快速开始
@@ -82,29 +87,44 @@ pnpm dev:editor     # 启动编辑器（开发中）
 | 命令 | 说明 |
 |---|---|
 | `pnpm test` | 全量单元测试（Vitest） |
-| `pnpm test:coverage` | 带覆盖率 |
-| `pnpm lint` | ESLint + Prettier 检查 |
+| `pnpm test:coverage` | 带覆盖率报告（门禁标准：shared ≥ 90% / engine ≥ 80%） |
+| `pnpm lint` | ESLint（含依赖规则 R1–R5）+ Prettier 检查 |
 | `pnpm format` | Prettier 格式化 |
 | `pnpm typecheck` | 全仓类型检查 |
 | `pnpm build` | 递归构建所有包 |
-| `node scripts/validate-docs.mjs` | 文档一致性校验（编号交叉引用、任务登记、占位符） |
+| `node scripts/validate-docs.mjs` | 文档一致性校验 |
+
+> **注意**：不要从 `packages/<pkg>/` 目录内直接跑 vitest——会解析到 `dist`（构建产物，
+> 不入库）而非源码，产生假失败。统一从仓库根跑：
+> `pnpm exec vitest run --root . packages/engine`
 
 ## 质量门禁
 
-CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在 `main` 的 push 与所有 PR 上执行三步门禁：
+CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在 `main` 的 push 与所有 PR 上
+执行**四道门禁**：
 
-1. `pnpm install --frozen-lockfile`
-2. `pnpm -w lint && pnpm -w test`
-3. `node scripts/validate-docs.mjs`
+| # | 命令 | 内容 |
+|---|---|---|
+| 0 | `pnpm install --frozen-lockfile` | 锁文件一致性 |
+| 1 | `pnpm -w lint && pnpm -w test` | eslint + prettier；全量单元测试（130 文件 / 2011 用例） |
+| 2 | `pnpm -w build && pnpm -w typecheck` | 递归构建 + 全仓类型检查 |
+| 3 | `node scripts/validate-docs.mjs` | 文档一致性（含架构文档与代码结构一致性校验） |
 
-本地提交前应跑同样的命令。仓库约定（见 [`AGENTS.md`](AGENTS.md)）：每次改动都要带对应 commit，
-并且必须补/改测试、确保全部测试与校验通过后才交付。
+本地提交前应跑同样的命令。开发流程与 PR 自审清单见 [`docs/develop.md`](docs/develop.md)：
+改动走分支 → 严格 TDD → PR → AI 自审 + CI 绿 → rebase 合入（`main` 禁止直接提交）；
+**里程碑收尾由人工验收把关**。
 
 ## 文档导航
 
-- [`docs/proposal.md`](docs/proposal.md) — 需求文档，含全部关键决策记录（D1–D15），是需求基线
-- [`docs/detail-design.md`](docs/detail-design.md) — 详细设计，模块清单与设计决策（DD-*）
-- [`docs/tasks/progress.md`](docs/tasks/progress.md) — 里程碑与模块进度总表
-- [`AGENTS.md`](AGENTS.md) — 协作与提交约定
+按「先读哪个」排序：
+
+1. [`README.md`](README.md) — 本文件，项目入口与快速开始
+2. [`docs/architecture.md`](docs/architecture.md) — **已实现架构**：一次点击的数据流、
+   加载管线、子系统索引（想改代码先看这里）
+3. [`docs/proposal.md`](docs/proposal.md) — 需求基线，FR/NFR 编号定义处 + 关键决策 D1–D15
+4. [`docs/detail-design.md`](docs/detail-design.md) — 详细设计，§x.y 接口签名 + DD-* 决策
+5. [`docs/develop.md`](docs/develop.md) — 开发流程四条约束 + PR 自审清单
+6. [`docs/tasks/progress.md`](docs/tasks/progress.md) — 里程碑与模块进度总表
+7. [`docs/archive/`](docs/archive/) — 已归档文档（不再生效）
 
 > 需求变更须先更新 `docs/proposal.md` 并单独提交，再落实现代码。
