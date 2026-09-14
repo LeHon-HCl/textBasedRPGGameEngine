@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '@game/shared';
 import type { ContentTagsDef } from '@game/shared';
-import { ContentFilter } from '../../src/content/index.js';
+import { ContentFilter, contentWarningKey, resolveContentWizard } from '../../src/content/index.js';
 import { DEFAULT_PLAYER_SETTINGS, newGameState } from '../../src/state/index.js';
+import { FIXTURE_MANIFEST, loadFixture } from '../loader/fixtures.js';
 
 /**
  * 首启向导数据支撑（22 任务 6，设计 §5.8/§6.5，FR-CGRD-04）。
@@ -11,13 +12,10 @@ import { DEFAULT_PLAYER_SETTINGS, newGameState } from '../../src/state/index.js'
  * - `ContentFilter.initialDisabledTags()`：由 ContentTagsDef.defaultOn 投影出
  *   初始开关态，供向导/设置面板初始化；
  * - `settings.wizardDone` 标志（02 号 schema + 04 号状态树已承载）驱动是否
- *   展示向导，并可随档持久化。
- *
- * 规格冲突（SPEC_CONFLICT，未实现）：design §6.5 要求「内容警告页文案来自
- * manifest（`contentWarning` 文本键）」，但 shared `manifestSchema`（02 号，
- * 本分支只读）为 strictObject 且未声明 `contentWarning` 字段，`Manifest` 类型
- * 亦无该键——引擎无法在不改 shared 的前提下提供真实读取路径。详见任务书
- * 22-content-filter.md 的边界说明与主 Agent 报告。
+ *   展示向导，并可随档持久化；
+ * - `contentWarningKey` / `resolveContentWizard`：从 `GameDefinition.manifest`
+ *   读取 `contentWarning` 文案键（§6.5；缺省无该键 → null），闭合首启向导的
+ *   内容警告页数据链路（schema 勘误后由 shared `manifestSchema` 承载）。
  */
 
 describe('22-6 首启向导：初始禁用标签投影（ContentTagsDef.defaultOn）', () => {
@@ -73,5 +71,45 @@ describe('22-6 首启向导：settings.wizardDone 标志数据支撑', () => {
     expect(state.settings.wizardDone).toBe(true);
     // 其余设置项由缺省值补齐（04 号逐项覆盖语义）
     expect(state.settings.disabledTags).toEqual([]);
+  });
+});
+
+describe('22-6 首启向导：manifest.contentWarning 读取路径', () => {
+  it('有该键 → contentWarningKey 返回文案键', () => {
+    expect(contentWarningKey({ contentWarning: 'content.warning.heads_up' })).toBe(
+      'content.warning.heads_up',
+    );
+  });
+
+  it('缺省无该键 → contentWarningKey 返回 null（不展示警告页）', () => {
+    expect(contentWarningKey({})).toBe(null);
+  });
+
+  it('resolveContentWizard 组合 wizardDone 与警告键（宿主一次取用）', () => {
+    expect(
+      resolveContentWizard({ wizardDone: false }, { contentWarning: 'content.warning.heads_up' }),
+    ).toEqual({ needed: true, warningKey: 'content.warning.heads_up' });
+    expect(resolveContentWizard({ wizardDone: true }, {})).toEqual({
+      needed: false,
+      warningKey: null,
+    });
+  });
+
+  it('真实加载路径：内含 contentWarning 的 manifest 经加载器透传到 GameDefinition', async () => {
+    const withWarning = FIXTURE_MANIFEST.replace(
+      'credits:',
+      'contentWarning: content.warning.heads_up\ncredits:',
+    );
+    const def = await loadFixture((files) => {
+      files['manifest.yaml'] = withWarning;
+    });
+    expect(def.manifest.contentWarning).toBe('content.warning.heads_up');
+    expect(contentWarningKey(def.manifest)).toBe('content.warning.heads_up');
+  });
+
+  it('真实加载路径：未声明 contentWarning 的 manifest → 读取值为 null', async () => {
+    const def = await loadFixture();
+    expect(def.manifest.contentWarning).toBeUndefined();
+    expect(contentWarningKey(def.manifest)).toBe(null);
   });
 });

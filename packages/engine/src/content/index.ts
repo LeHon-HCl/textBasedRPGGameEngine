@@ -6,3 +6,5 @@
  */
 export { ContentFilter } from './filter.js';
 export type { ContentFilterOptions, ContentFilterSettings } from './filter.js';
+export { contentWarningKey, resolveContentWizard } from './wizard.js';
+export type { ContentWizardInfo } from './wizard.js';
