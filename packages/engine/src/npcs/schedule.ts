@@ -94,3 +94,37 @@ export function resolveNpcLocation(
   }
   return null;
 }
+
+/**
+ * 批量解析全部 NPC 的在场地点（§4.3 步骤 5 / §4.6 缓存重建）。
+ *
+ * 返回**仅含在场 NPC** 的 `id → location` 映射（不在场或无日程者不落条目，
+ * 与 GameState.world.npcLocationCache 的「存在即有位置」口径一致）。
+ * 纯函数：不修改 state，调用方负责比较后写回 draft。
+ */
+export function resolveNpcLocations(
+  npcs: ReadonlyMap<string, NpcDef>,
+  clock: Clock,
+  state: GameState,
+  query: NpcScheduleQuery = {},
+): Record<GameId, GameId> {
+  const cache: Record<GameId, GameId> = {};
+  for (const [id, def] of npcs) {
+    const location = resolveNpcLocation(def, clock, state, query);
+    if (location !== null) cache[id] = location;
+  }
+  return cache;
+}
+
+/** 缓存等价比较（稀疏键集：键数与逐键值一致；供重建方避免冗余补丁） */
+export function sameNpcLocationCache(
+  left: Readonly<Record<GameId, GameId>>,
+  right: Readonly<Record<GameId, GameId>>,
+): boolean {
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  for (const key of keys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
+}
