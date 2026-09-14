@@ -133,92 +133,23 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
     schema: effectParamSchemas.quest,
     touch: (): TouchReport => ({ reads: [], writes: ['quests'] }),
     execute: (arg, ectx) => {
-      const quests = ectx.draft.quests;
-      const def = options.quests?.get(arg.id);
-      const current = quests[arg.id];
-      const requireStage = (op: string, stage: string | undefined, questId: string): void => {
-        if (stage !== undefined && def !== undefined && !def.stages.some((s) => s.id === stage)) {
-          throw instructionError(op, `任务 '${questId}' 不存在阶段 '${stage}'`, {
-            quest: questId,
-            stage,
-          });
-        }
-      };
+      // 全部子操作委托 QuestMachine（§4.5）：accept 走校验矩阵，advance 阶段序，
+      // complete 在 ready_to_submit 时结算 rewards，fail 判定失败。拒绝统一为
+      // EFFECT_FAILED{op:'quest', quest, detail}（原因可读）。
+      const ctx = buildQuestContext(ectx);
       switch (arg.action) {
-        case 'accept': {
-          // 真实状态机：状态门 / conflicts / requires / acceptIf 矩阵校验（FR-QUEST-04）
-          questMachine.accept(buildQuestContext(ectx), arg.id);
+        case 'accept':
+          questMachine.accept(ctx, arg.id);
           return;
-        }
-        case 'advance': {
-          if (current === undefined) {
-            throw instructionError('quest', `任务 '${arg.id}' 尚未存在，不可推进`, {
-              quest: arg.id,
-              action: 'advance',
-            });
-          }
-          if (current.state !== 'active') {
-            throw instructionError(
-              'quest',
-              `任务 '${arg.id}' 当前状态 ${current.state}，仅 active 可推进`,
-              { quest: arg.id, action: 'advance' },
-            );
-          }
-          requireStage('quest', arg.stage, arg.id);
-          let target = arg.stage;
-          if (target === undefined) {
-            const stages = def?.stages;
-            if (stages === undefined) {
-              throw instructionError(
-                'quest',
-                `缺省「下一阶段」需要任务目录（QuestDef）；未注入时必须显式给出 stage`,
-                { quest: arg.id, action: 'advance' },
-              );
-            }
-            const index = stages.findIndex((s) => s.id === current.stage);
-            if (index < 0) {
-              target = stages[0]?.id; // 尚无阶段 → 取首阶段
-            } else if (index === stages.length - 1) {
-              throw instructionError(
-                'quest',
-                `任务 '${arg.id}' 已在最终阶段（提交就绪归 11 号 completeWhen 评估）`,
-                { quest: arg.id, action: 'advance' },
-              );
-            } else {
-              target = stages[index + 1]?.id;
-            }
-          }
-          quests[arg.id] = { ...current, ...(target !== undefined ? { stage: target } : {}) };
+        case 'advance':
+          questMachine.advance(ctx, arg.id, arg.stage);
           return;
-        }
-        case 'complete': {
-          if (
-            current === undefined ||
-            (current.state !== 'active' && current.state !== 'ready_to_submit')
-          ) {
-            throw instructionError(
-              'quest',
-              `任务 '${arg.id}' 当前状态 ${current?.state ?? '不存在'}，不可完成`,
-              { quest: arg.id, action: 'complete' },
-            );
-          }
-          quests[arg.id] = { ...current, state: 'done' };
+        case 'complete':
+          questMachine.complete(ctx, arg.id);
           return;
-        }
-        default: {
-          if (
-            current === undefined ||
-            (current.state !== 'active' && current.state !== 'ready_to_submit')
-          ) {
-            throw instructionError(
-              'quest',
-              `任务 '${arg.id}' 当前状态 ${current?.state ?? '不存在'}，不可失败`,
-              { quest: arg.id, action: 'fail' },
-            );
-          }
-          quests[arg.id] = { ...current, state: 'failed' };
+        default:
+          questMachine.fail(ctx, arg.id);
           return;
-        }
       }
     },
   };

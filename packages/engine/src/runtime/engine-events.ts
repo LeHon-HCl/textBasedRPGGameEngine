@@ -143,8 +143,8 @@ export interface QuestStageEvent {
   from: string | undefined;
   /** 新阶段 id */
   to: string;
-  /** 新阶段目标文本键（QuestDef.stages[].objectiveKey） */
-  objectiveKey: TextKey;
+  /** 新阶段目标文本键（QuestDef.stages[].objectiveKey；无目录时显式推进可缺省） */
+  objectiveKey?: TextKey;
 }
 
 /**
