@@ -54,8 +54,13 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
-    // scripts/ 是零依赖 Node 脚本，运行在 Node 环境。
-    files: ['scripts/**/*.js', 'scripts/**/*.mjs'],
+    // scripts/ 是零依赖 Node 脚本，运行在 Node 环境（根 scripts/ 与各包内 scripts/ 同规）。
+    files: [
+      'scripts/**/*.js',
+      'scripts/**/*.mjs',
+      'packages/*/scripts/**/*.js',
+      'packages/*/scripts/**/*.mjs',
+    ],
     languageOptions: { globals: globals.node },
   },
   {
