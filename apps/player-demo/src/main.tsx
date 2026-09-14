@@ -129,9 +129,14 @@ function Toasts({ host }: { host: GameHost }): ReactNode {
 
 /** 设置抽屉（受控表单：回写运行时状态设置 + 重建内容过滤由宿主负责） */
 function SettingsDrawer({ host }: { host: GameHost }): ReactNode {
+  // Hooks 必须**无条件**调用（Rules of Hooks）：提前 return 会让「关闭 → 打开」
+  // 两次渲染的 hook 数量不同，React 抛 "Rendered more hooks than during the
+  // previous render" 并整树白屏（M1 收尾 E2E 实测暴露）。故先取全部 hook，
+  // 再把开关判断放到 hook 之后。
   const open = useUiSelector((state) => state.panels.open);
+  // 设置来自 store（受控回流；开局前也可读写，主菜单即可改语言）
+  const settings = useUiSelector((state) => state.settings);
   if (open !== 'settings') return null;
-  const settings = host.runtime.state.settings;
   const tags = host.wizardTags();
   return (
     <div style={styles.drawer}>
@@ -161,7 +166,9 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
   const phase = useUiSelector(selectPhase);
   const highlights = useUiSelector(selectStatHighlights);
   const mobileTab = useUiSelector(selectMobileTab);
-  const settings = host.runtime.state.settings;
+  // 设置单一来源：store.settings（宿主 updateSettings 写入 store，受控组件回流）。
+  // 不读 host.runtime.state.settings（开局快照，改设置后是旧值）。
+  const settings = useUiSelector((state) => state.settings);
 
   const lastTextSegment = [...session.segments]
     .reverse()

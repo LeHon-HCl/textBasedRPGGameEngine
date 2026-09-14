@@ -1,5 +1,6 @@
 import type { GameId, TextKey } from '@game/shared';
-import type { GameRuntime, Unsubscribe } from '@game/engine';
+import { DEFAULT_PLAYER_SETTINGS } from '@game/engine';
+import type { GameRuntime, PlayerSettings, Unsubscribe } from '@game/engine';
 
 /**
  * UiStore 状态切片类型（设计 §6.2）。
@@ -119,6 +120,15 @@ export interface UiState {
    * 以版本号驱动 selector 失效，避免面板对全量 quests 深比较。
    */
   readonly questRevision: number;
+  /**
+   * 玩家设置（M1 收尾新增）：镜像宿主侧设置，供组件按受控方式读写。
+   *
+   * 为什么要进 store：设置面板是**受控组件**（`value={settings.lang}`），
+   * 面板改动必须让订阅者重渲染才能回流到 UI；宿主内部的 `settingsMirror`
+   * 是普通变量、变更不触发渲染，且开局前 `syncSession()` 会早退——
+   * 结果是在主菜单改语言会被受控 select 立刻弹回旧值（M1 收尾实测）。
+   */
+  readonly settings: PlayerSettings;
 }
 
 /** UiStore 动作面（与状态同文件，保证「状态 + 变更入口」单一来源） */
@@ -126,6 +136,8 @@ export interface UiActions {
   setScreen(screen: Screen): void;
   setRuntime(runtime: GameRuntime | null): void;
   setSession(session: SessionView): void;
+  /** 写入玩家设置（宿主 updateSettings 的 store 侧入口；引用变化即驱动重渲染） */
+  setSettings(settings: PlayerSettings): void;
   openPanel(panel: PanelId | null): void;
   setMobileTab(tab: MobileTab): void;
   pushNotification(item: {
@@ -174,6 +186,8 @@ export function initialUiState(): UiState {
     panels: { open: null, mobileTab: 'status' },
     statHighlights: {},
     questRevision: 0,
+    // 与宿主 settingsMirror 同源缺省（DEFAULT_PLAYER_SETTINGS）：开局前即可读写
+    settings: { ...DEFAULT_PLAYER_SETTINGS },
   };
 }
 

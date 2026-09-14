@@ -38,3 +38,9 @@ Thumbs.db
 
 # Vite 本地文件
 *.local
+
+# Playwright（E2E）产物
+test-results/
+playwright-report/
+blob-report/
+.playwright/
