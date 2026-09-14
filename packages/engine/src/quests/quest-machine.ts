@@ -103,6 +103,130 @@ export class QuestMachine {
   }
 
   /**
+   * 显式推进阶段（作者 `quest.advance`；仅 active 态）。
+   *
+   * - 显式 `stage`：目录存在时校验阶段合法；无目录时直接采用；
+   * - 缺省：取目录当前阶段的下一阶段（无目录报错；已在末阶段报错——自动进入
+   *   ready_to_submit 由 completeWhen 评估负责）；
+   * - 副作用：写 stage + 发 `quest_stage`（目标阶段目标键可由目录推导）。
+   */
+  advance(ctx: QuestContext, questId: GameId, stage?: string): void {
+    const current = ctx.quests[questId];
+    if (current === undefined) {
+      throw this.#reject(`任务 '${questId}' 尚未存在，不可推进`, questId);
+    }
+    if (current.state !== 'active') {
+      throw this.#reject(`任务 '${questId}' 当前状态 ${current.state}，仅 active 可推进`, questId);
+    }
+    const def = this.#defs.get(questId);
+    if (stage !== undefined && def !== undefined && !def.stages.some((s) => s.id === stage)) {
+      throw this.#reject(`任务 '${questId}' 不存在阶段 '${stage}'`, questId);
+    }
+    let target = stage;
+    if (target === undefined) {
+      const stages = def?.stages;
+      if (stages === undefined) {
+        throw this.#reject(
+          `缺省「下一阶段」需要任务目录（QuestDef）；未注入时必须显式给出 stage`,
+          questId,
+        );
+      }
+      const index = stages.findIndex((s) => s.id === current.stage);
+      if (index < 0) {
+        target = stages[0]?.id; // 尚无阶段 → 取首阶段
+      } else if (index === stages.length - 1) {
+        throw this.#reject(
+          `任务 '${questId}' 已在最终阶段（提交就绪归 completeWhen 评估）`,
+          questId,
+        );
+      } else {
+        target = stages[index + 1]?.id;
+      }
+    }
+    if (target === undefined) {
+      throw this.#reject(`任务 '${questId}' 无可推进阶段`, questId);
+    }
+    ctx.quests[questId] = { ...current, stage: target };
+    const objectiveKey = def?.stages.find((s) => s.id === target)?.objectiveKey;
+    ctx.emit({
+      type: 'quest_stage',
+      quest: questId,
+      from: current.stage,
+      to: target,
+      ...(objectiveKey !== undefined ? { objectiveKey } : {}),
+    });
+  }
+
+  /**
+   * 显式完成（作者 `quest.complete`；05 号语义保留 + 11 号 submit 正路）。
+   *
+   * - ready_to_submit → 走 {@link submit}：结算 rewards（child 原子批）后 done；
+   * - active → 直接 done（作者强制完成，不结算 rewards；六态表 `active→done`）；
+   * - 其他态 → 拒绝。
+   */
+  complete(ctx: QuestContext, questId: GameId): void {
+    const current = ctx.quests[questId];
+    if (current === undefined) {
+      throw this.#reject(`任务 '${questId}' 尚未存在，不可完成`, questId);
+    }
+    if (current.state === 'ready_to_submit') {
+      this.submit(ctx, questId);
+      return;
+    }
+    if (current.state === 'active') {
+      ctx.quests[questId] = { ...current, state: 'done' };
+      ctx.emit({ type: 'quest_state_changed', quest: questId, from: 'active', to: 'done' });
+      return;
+    }
+    throw this.#reject(`任务 '${questId}' 当前状态 ${current.state}，不可完成`, questId);
+  }
+
+  /**
+   * 提交任务（ready_to_submit → done + rewards 结算；§4.5，11 任务 4）。
+   *
+   * rewards 经 `ctx.child` 在**同一 draft** 上原子执行：任一奖励效果失败沿调用栈
+   * 上抛 → 整批事务回滚 → 任务保持 ready_to_submit（不会出现「奖励发一半」）。
+   * 奖励成功后才写入 done 并发 `quest_state_changed`。
+   */
+  submit(ctx: QuestContext, questId: GameId): void {
+    const current = ctx.quests[questId];
+    if (current === undefined || current.state !== 'ready_to_submit') {
+      throw this.#reject(
+        `任务 '${questId}' 当前状态 ${current?.state ?? '不存在'}，不可提交（需 ready_to_submit）`,
+        questId,
+      );
+    }
+    const rewards = this.#defs.get(questId)?.rewards;
+    if (rewards !== undefined && rewards.length > 0) {
+      ctx.child(rewards);
+    }
+    ctx.quests[questId] = { ...current, state: 'done' };
+    ctx.emit({
+      type: 'quest_state_changed',
+      quest: questId,
+      from: 'ready_to_submit',
+      to: 'done',
+    });
+  }
+
+  /**
+   * 显式失败（作者 `quest.fail`；active / ready_to_submit → failed）。
+   * `failWhen` 自动判定（含时间截止）见 evaluateTouched / evaluateFailures。
+   */
+  fail(ctx: QuestContext, questId: GameId): void {
+    const current = ctx.quests[questId];
+    const from = current?.state;
+    if (current === undefined || (from !== 'active' && from !== 'ready_to_submit')) {
+      throw this.#reject(
+        `任务 '${questId}' 当前状态 ${current?.state ?? '不存在'}，不可失败`,
+        questId,
+      );
+    }
+    ctx.quests[questId] = { ...current, state: 'failed' };
+    ctx.emit({ type: 'quest_state_changed', quest: questId, from, to: 'failed' });
+  }
+
+  /**
    * 事务触碰后评估受影响任务（§4.5「completeWhen 经 refs 反查表按 TouchReport
    * 触发，不轮询」；11 任务 3）。
    *

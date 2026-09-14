@@ -95,6 +95,7 @@ export function makeHarness(
     conditions,
     events,
     children,
+    ...(init.onChild !== undefined ? { onChild: init.onChild } : {}),
     ctx: {
       quests: state.quests,
       state,
