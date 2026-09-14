@@ -116,13 +116,14 @@ export interface SceneRunnerRuntime {
 /**
  * 叙事媒体解析器最小视图（24 号，DD-06 同型的最小依赖面）。
  *
- * narrative 只消费「assetId + 媒体类型 → 意图」这一个谓词，不 import media
+ * narrative 只消费「核对存在性并补缺失标记」这一个谓词，不 import media
  * 子系统（横向 import 违例）；`MediaResolver` 结构化满足本接口，宿主注入实例
  * 即可获得存在性核对与缺失占位标记（FR-MEDIA-06）。缺省未注入 = 08 号既有
  * 行为（裸 intent，无 missing 标记）。
  */
 export interface NarrativeMediaResolver {
-  intentFor(assetId: string, kind: MediaIntent['type']): MediaIntent;
+  /** 核对并入意图：存在 → 原样返回；缺失 → 告警 + 带 missing 标记的副本 */
+  decorate(intent: MediaIntent): MediaIntent;
 }
 
 /**
@@ -130,7 +131,7 @@ export interface NarrativeMediaResolver {
  * exprCache 承载场景数据内表达式（showIf/disabledIf/entry.require）的加载期
  * 编译产物（§3.4 步骤 5）；locales[mainLang] 承载叙事宏结构（macros.ts）；
  * functionRegistry 供词典承载的宏条件表达式按需编译（缺省内置 20 函数）；
- * npcs 承载立绘差分声明（FR-MEDIA-03，缺省 = 无立绘）；areaMedia 承载区域级
+ * npcs 承载立绘差分声明（FR-MEDIA-03，缺省 = 无立绘）；areas 承载区域级
  * bg/bgm 绑定（FR-MEDIA-02 场景绑定的回落层，缺省 = 无回落）。
  */
 export interface SceneRunnerDef {

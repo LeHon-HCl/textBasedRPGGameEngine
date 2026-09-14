@@ -30,6 +30,26 @@ type UnlockParams = z.output<typeof effectParamSchemas.unlock>;
 type MediaParams = z.output<typeof effectParamSchemas.media>;
 
 /**
+ * 裸 intent 装配（无解析器时的兼容路径，§5.10 判别联合）：
+ * bgm 恒 loop（播放器负责同曲不重头，FR-MEDIA-02）；bg/cg/sprite 透传
+ * transition；sfx 为一次性播放（FR-MEDIA-05）。
+ */
+function buildMediaIntent(arg: MediaParams): MediaIntent {
+  switch (arg.type) {
+    case 'bgm':
+      return { type: 'bgm', assetId: arg.assetId, loop: true };
+    case 'sfx':
+      return { type: 'sfx', assetId: arg.assetId };
+    default:
+      return {
+        type: arg.type,
+        assetId: arg.assetId,
+        ...(arg.transition !== undefined ? { transition: arg.transition } : {}),
+      };
+  }
+}
+
+/**
  * `call` 指令（§3.3 / DD-08 / FR-SCR-04 / FR-SCR-05）：调用作者扩展指令。
  *
  * - 仅做存在性校验后转发：fn 必须 `x.<script>.<name>`（内置指令不经 call），
@@ -202,17 +222,13 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
     schema: effectParamSchemas.media,
     touch: (): TouchReport => ({ reads: [], writes: [] }),
     execute: (arg, ectx) => {
-      const intent: MediaIntent =
-        arg.type === 'bgm'
-          ? { type: 'bgm', assetId: arg.assetId, loop: true }
-          : arg.type === 'sfx'
-            ? { type: 'sfx', assetId: arg.assetId }
-            : {
-                type: arg.type,
-                assetId: arg.assetId,
-                ...(arg.transition !== undefined ? { transition: arg.transition } : {}),
-              };
-      ectx.emit({ type: 'media', intent });
+      // 注入解析器时经存在性核对（缺失 → missing 占位标记，宿主经解析器
+      // 告警出口记录，FR-MEDIA-06）；缺省 = 既有裸 intent 行为（向后兼容）
+      const intent = buildMediaIntent(arg);
+      ectx.emit({
+        type: 'media',
+        intent: options.mediaResolver?.decorate(intent) ?? intent,
+      });
     },
   };
 

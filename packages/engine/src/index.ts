@@ -253,7 +253,7 @@ export type {
 export { MediaResolver } from './media/index.js';
 export type {
   MediaCatalogLike,
-  MediaResolution,
+  MediaLookup,
   MediaResolverOptions,
   MediaWarning,
 } from './media/index.js';

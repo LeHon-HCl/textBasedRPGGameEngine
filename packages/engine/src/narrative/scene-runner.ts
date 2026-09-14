@@ -639,12 +639,14 @@ export class SceneRunner {
     return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0, pushed: 0 };
   }
 
-  /** 单条意图装配（有解析器走核对路径；无则裸 intent，08 号兼容口径） */
+  /**
+   * 单条意图装配：形态在此决定（bgm 恒 loop，播放器负责同曲不重头，
+   * FR-MEDIA-02），注入解析器时经存在性核对补 missing 标记（FR-MEDIA-06）。
+   */
   #intent(assetId: string, kind: MediaIntent['type']): MediaIntent {
-    if (this.#mediaResolver !== undefined) return this.#mediaResolver.intentFor(assetId, kind);
-    return kind === 'bgm'
-      ? { type: 'bgm', assetId, loop: true }
-      : { type: kind, assetId };
+    const intent: MediaIntent =
+      kind === 'bgm' ? { type: 'bgm', assetId, loop: true } : { type: kind, assetId };
+    return this.#mediaResolver?.decorate(intent) ?? intent;
   }
 
   /**
