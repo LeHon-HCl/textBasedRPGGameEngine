@@ -1,0 +1,18 @@
+# 事件场景：采石场回声（ev_quarry_echo 的子会话入口；explore 型）
+id: ev_quarry_echo_scene
+area: hillside
+segments:
+  - key: scenes.ev_quarry_echo_scene.open
+  - key: scenes.ev_quarry_echo_scene.echo
+choices:
+  - id: call_back
+    textKey: scenes.ev_quarry_echo_scene.choice.call
+    effects:
+      - set: { key: 'flag.quarry_echo_seen', value: true }
+      - add: { key: 'attr.insight', amount: 1 }
+      - notify: { textKey: 'scenes.ev_quarry_echo_scene.notify.called' }
+  - id: listen
+    textKey: scenes.ev_quarry_echo_scene.choice.listen
+    effects:
+      - set: { key: 'flag.quarry_echo_seen', value: true }
+      - add: { key: 'attr.stamina', amount: -3 }

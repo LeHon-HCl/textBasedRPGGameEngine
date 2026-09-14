@@ -1,0 +1,18 @@
+# 事件场景：神龛之梦（ev_shrine_dream 的子会话入口；condition 型）
+id: ev_shrine_dream_scene
+area: hillside
+segments:
+  - key: scenes.ev_shrine_dream_scene.open
+  - key: scenes.ev_shrine_dream_scene.vision
+choices:
+  - id: accept_vision
+    textKey: scenes.ev_shrine_dream_scene.choice.accept
+    effects:
+      - set: { key: 'flag.shrine_dream_seen', value: true }
+      - add: { key: 'attr.insight', amount: 3 }
+      - notify: { textKey: 'scenes.ev_shrine_dream_scene.notify.accepted' }
+  - id: resist_vision
+    textKey: scenes.ev_shrine_dream_scene.choice.resist
+    effects:
+      - set: { key: 'flag.shrine_dream_seen', value: true }
+      - add: { key: 'attr.hp', amount: -5 }

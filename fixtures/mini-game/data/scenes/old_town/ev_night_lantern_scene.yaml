@@ -1,0 +1,14 @@
+# 夜路灯光（ev_night_lantern 的子会话入口；random 型）
+id: ev_night_lantern_scene
+area: old_town
+segments:
+  - key: scenes.ev_night_lantern_scene.open
+choices:
+  - id: follow_light
+    textKey: scenes.ev_night_lantern_scene.choice.follow
+    effects:
+      - set: { key: 'flag.lantern_followed', value: true }
+      - add: { key: 'attr.stamina', amount: -3 }
+      - notify: { textKey: 'scenes.ev_night_lantern_scene.notify.followed' }
+  - id: turn_home
+    textKey: scenes.ev_night_lantern_scene.choice.home

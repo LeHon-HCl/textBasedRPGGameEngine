@@ -1,0 +1,26 @@
+# 废弃神龛（hillside 地点 shrine；任务 hillside_survey 第 3 阶段现场）
+id: hillside_shrine
+area: hillside
+segments:
+  - key: scenes.hillside_shrine.desc
+  - key: scenes.hillside_shrine.mark
+    showIf: '!flag.shrine_marked'
+  - key: scenes.hillside_shrine.done
+    showIf: 'flag.shrine_marked'
+choices:
+  - id: mark_shrine
+    textKey: scenes.hillside_shrine.choice.mark
+    showIf: '!flag.shrine_marked'
+    effects:
+      - set: { key: 'flag.shrine_marked', value: true }
+      - add: { key: 'attr.insight', amount: 2 }
+      - notify: { textKey: 'scenes.hillside_shrine.notify.marked' }
+  - id: pray
+    textKey: scenes.hillside_shrine.choice.pray
+    once: true
+    effects:
+      - add: { key: 'attr.hp', amount: 15 }
+      - notify: { textKey: 'scenes.hillside_shrine.notify.prayed' }
+  - id: back_trail
+    textKey: scenes.hillside_shrine.choice.back
+    goto: hillside_trailhead
