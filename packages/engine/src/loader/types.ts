@@ -214,7 +214,10 @@ export interface ScriptModule {
 
 /**
  * 冻结的游戏定义（设计 §3.4）：loadGamePackage 的产物，运行期不可变。
- * - scenes/areas 等实体域以（冻结的）Map 承载，DD-02 目录聚合的键级视图；
+ * - 实体域以（冻结的）Map 承载：scenes 携带源文件路径（DD-02 目录聚合），
+ *   其余域键即定义 id；宿主从这些域投影装配运行时的目录注入面
+ *   （items → 派生重算/equip 校验、npcs → 日程/立绘差分、quests/factions/
+ *   endings 等同理）；
  * - functionRegistry 为脚本注册完成并冻结后的最终表达式函数注册表
  *   （内置 20 函数 + x.* 扩展，§3.2/§5.9）；
  * - effectRegistry 为冻结的效果指令注册表（05 号 EffectRegistry，
@@ -226,6 +229,14 @@ export interface GameDefinition {
   readonly scenes: ReadonlyMap<GameId, CompiledScene>;
   readonly areas: ReadonlyMap<GameId, AreaDef>;
   readonly events: readonly EventDef[];
+  readonly npcs: ReadonlyMap<GameId, NpcDef>;
+  readonly items: ReadonlyMap<GameId, ItemDef>;
+  readonly quests: ReadonlyMap<GameId, QuestDef>;
+  readonly shops: ReadonlyMap<GameId, ShopDef>;
+  readonly achievements: ReadonlyMap<GameId, AchievementDef>;
+  readonly perks: ReadonlyMap<GameId, PerkDef>;
+  readonly endings: ReadonlyMap<GameId, EndingDef>;
+  readonly factions: ReadonlyMap<GameId, FactionDef>;
   readonly poolIndex: PoolIndex;
   /** 全包表达式编译缓存（键 = 表达式原文，§3.4） */
   readonly exprCache: ReadonlyMap<string, CompiledExpr>;
