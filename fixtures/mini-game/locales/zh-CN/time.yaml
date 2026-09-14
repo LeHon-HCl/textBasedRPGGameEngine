@@ -1,0 +1,14 @@
+# 时段与星期名（TimeConfig 的 nameKey，设计 §4.3；日历 UI 显示用）
+slot:
+  morning: 清晨
+  afternoon: 午后
+  evening: 傍晚
+  night: 深夜
+weekday:
+  '1': 周一
+  '2': 周二
+  '3': 周三
+  '4': 周四
+  '5': 周五
+  '6': 周六
+  '7': 周日
