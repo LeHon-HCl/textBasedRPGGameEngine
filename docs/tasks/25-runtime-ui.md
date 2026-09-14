@@ -12,18 +12,18 @@
 ## 任务清单
 
 ### A. 基础（M1）
-- [ ] `UiStore`（Zustand）+ GameRuntime 事件订阅桥 + selector 细粒度订阅模式
-- [ ] AppShell 响应式布局（≥900px 双栏 / 移动折叠 Tab，FR-UI-01/09）
-- [ ] 主菜单（继续/新游戏/读档/成就/设置/关于，FR-UI-06）
-- [ ] 渲染管线：resolve→插值→sanitize（白名单+转义）→ReactNode + 打字机效果（reduced-motion 自动关）
-- [ ] NarrativeView/OptionList（advance/choose 挂接 + 选择前 checkpoint）
-- [ ] 状态面板（属性/技能/状态/钱包/着装概要 + 数值变化高亮动画，FR-UI-03）
-- [ ] 地图导航面板（区域图+移动消耗+解锁提示，FR-UI-02）
-- [ ] 任务日志面板（分组/追踪置顶，FR-QUEST-03 UI 侧）
-- [ ] 设置面板（语言/文本/媒体开关/标签开关/快捷键说明/三版本号，FR-UI-05）
-- [ ] DexieAdapter（复用 20 号契约套件）+ 隐私模式降级横幅（NFR-10）
-- [ ] 通知 Toast 系统（合并策略 500ms，FR-UI-07）
-- [ ] 首启内容向导（警告页+标签开关，FR-CGRD-04）
+- [x] `UiStore`（Zustand）+ GameRuntime 事件订阅桥 + selector 细粒度订阅模式
+- [x] AppShell 响应式布局（≥900px 双栏 / 移动折叠 Tab，FR-UI-01/09）
+- [x] 主菜单（继续/新游戏/读档/成就/设置/关于，FR-UI-06）
+- [x] 渲染管线：resolve→插值→sanitize（白名单+转义）→ReactNode + 打字机效果（reduced-motion 自动关）
+- [x] NarrativeView/OptionList（advance/choose 挂接 + 选择前 checkpoint）
+- [x] 状态面板（属性/技能/状态/钱包/着装概要 + 数值变化高亮动画，FR-UI-03）
+- [x] 地图导航面板（区域图+移动消耗+解锁提示，FR-UI-02）
+- [x] 任务日志面板（分组/追踪置顶，FR-QUEST-03 UI 侧）
+- [x] 设置面板（语言/文本/媒体开关/标签开关/快捷键说明/三版本号，FR-UI-05）
+- [x] DexieAdapter（复用 20 号契约套件）+ 隐私模式降级横幅（NFR-10）
+- [x] 通知 Toast 系统（合并策略 500ms，FR-UI-07）
+- [x] 首启内容向导（警告页+标签开关，FR-CGRD-04）
 
 ### B. QoL 与面板（M2）
 - [ ] 已读跳过 + 自动播放（遇选项/判定/战斗暂停）

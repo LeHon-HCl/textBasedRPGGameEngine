@@ -122,6 +122,11 @@ export interface GameHost {
   location(): { readonly area: GameId; readonly location?: GameId };
   /** 本地化文本（UI 文案物化入口） */
   textOf(key: TextKey, vars?: InterpVars): string;
+  /**
+   * 当前玩家设置（宿主镜像；见 `updateSettings` TSDoc）。
+   * 界面读设置一律经此处（而非 `runtime.state.settings`）——镜像才是权威。
+   */
+  settings(): PlayerSettings;
   /** 已注册语言清单（设置面板的语言选择项） */
   langs(): readonly string[];
   /** 版本三元组（设置面板「关于」区，FR-UI-08 数据源） */
@@ -495,6 +500,7 @@ export function createGameHost(options: GameHostOptions): GameHost {
       }),
     location: () => currentLocation,
     textOf: (key, vars) => resolver.resolve(key, mainLang, vars).text,
+    settings: () => settingsMirror ?? requireRuntime().state.settings,
     langs: () => [...definition.manifest.langs],
     versions: () => ({
       engineVersion: requireRuntime().state.versions.engineVersion,
