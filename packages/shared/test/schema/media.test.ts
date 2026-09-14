@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaDefSchema, npcDefSchema, segmentSchema } from '@game/shared';
+import { areaDefSchema, npcDefSchema, segmentSchema } from '../../src/index.js';
 
 /**
  * 24 模块的 schema 面（FR-MEDIA-02/03/04，设计 §5.10）。
@@ -100,14 +100,22 @@ describe('24-4 段落级 CG 与立绘切换（FR-MEDIA-04）', () => {
     expect(result.success).toBe(true);
   });
 
-  it('segment 可声明 sprite 切换（npc + 可选 variant 表达式）', () => {
+  it('segment 可声明 sprite 切换（仅 npc：资产由 NpcDef 差分声明选出）', () => {
     const result = segmentSchema.safeParse({
       key: 'scenes.arrival.raven_enters',
-      sprite: { npc: 'npc_raven', when: "npc.raven.stage == 'stage_bonded'" },
+      sprite: { npc: 'npc_raven' },
     });
     expect(result.success).toBe(true);
-    // 仅 npc 亦可（无 when = 用 npc 的差分声明自动选）
-    expect(segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_raven' } }).success).toBe(true);
+  });
+
+  it('sprite 不接受在段落侧声明资产/条件（差分逻辑只有 NpcDef 一份）', () => {
+    expect(segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', when: 'flag.y' } }).success).toBe(
+      false,
+    );
+    expect(segmentSchema.safeParse({ key: 'k', sprite: { asset: 'sprite_x' } }).success).toBe(false);
+    expect(segmentSchema.safeParse({ key: 'k', sprite: { npc: 'npc_x', asset: 'sprite_x' } }).success).toBe(
+      false,
+    );
   });
 
   it('cg 与 sprite 均为可选，旧段落定义不变', () => {

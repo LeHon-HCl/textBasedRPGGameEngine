@@ -5,7 +5,7 @@ import { createBuiltinFunctionRegistry } from '../expr-eval/index.js';
 import type { InterpVars } from '../i18n/index.js';
 import type { CompiledScene } from '../loader/index.js';
 import type { MediaIntent } from '../runtime/index.js';
-import type { ChoiceDef } from '@game/shared';
+import type { ChoiceDef, SegmentDef } from '@game/shared';
 import { expandMacro, parseMacro } from './macros.js';
 import type { MacroExpansionContext, NarrativeMacro } from './macros.js';
 import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
@@ -14,6 +14,7 @@ import type {
   NarrativeContentFilter,
   NarrativeEndReason,
   NarrativeHistoryEntry,
+  NarrativeMediaResolver,
   NarrativeWarning,
   RenderSegment,
   RunnerPhase,
@@ -65,6 +66,10 @@ export class SceneRunner {
   readonly #onWarn: ((warning: NarrativeWarning) => void) | undefined;
   /** 内容过滤器（§5.8 应用点 2/3；缺省 = 不过滤段落，选项沿用 08 号直查语义） */
   readonly #contentFilter: NarrativeContentFilter | undefined;
+  /** 媒体解析器（24 号；缺省 = 裸 intent，无存在性核对，08 号既有行为） */
+  readonly #mediaResolver: NarrativeMediaResolver | undefined;
+  /** 立绘差分条件求值（FR-MEDIA-03；缺省 = 含条件差分不命中而回落基图） */
+  readonly #evalSpriteCondition: ((source: string) => boolean) | undefined;
   /** 事件场景 id 集（def.events 声明的 event.scene，§4.2 子会话判定面） */
   readonly #eventSceneIds: ReadonlySet<GameId>;
 
@@ -90,6 +95,8 @@ export class SceneRunner {
     this.#paramsSource = options.params;
     this.#onWarn = options.onWarn;
     this.#contentFilter = options.contentFilter;
+    this.#mediaResolver = options.mediaResolver;
+    this.#evalSpriteCondition = options.evalSpriteCondition;
     this.#eventSceneIds = new Set(options.def.events.map((event) => event.scene));
     const scene = options.def.scenes.get(options.sceneId);
     if (scene === undefined) {
@@ -100,7 +107,7 @@ export class SceneRunner {
       });
     }
     this.#requireEntry(scene);
-    this.#frame = createFrame(options.sceneId, scene);
+    this.#frame = this.#createFrame(options.sceneId, scene);
   }
 
   /** 当前相位（§4.2 RunnerPhase） */
@@ -267,29 +274,30 @@ export class SceneRunner {
 
   /**
    * 段落流展开（宏惰性求值点，FR-NARR-04）：show_if 过滤 + 段落键宏解析 →
-   * 文本键计划（每场景访问一次快照；随机/条件决策不随重复渲染漂移）。
+   * 段落计划（键 + 源段落引用供媒体查取；每场景访问一次快照，随机/条件决策
+   * 不随重复渲染漂移）。
    * 只读会话经 rng.fork() 派生子序列做随机决策（FR-GAL-01 无副作用：不消耗
    * 运行时主随机序列，派生子序列自当前状态确定性产生）。
    */
-  #expandPlan(frame: SessionFrame): readonly TextKey[] {
+  #expandPlan(frame: SessionFrame): readonly ExpandedSegment[] {
     const scene = frame.scene;
     const context: MacroExpansionContext = {
       evalCondition: (expr) => this.#evalMacroCondition(expr, frame.sceneId),
       firstVisit: frame.firstVisit,
       rng: this.#readonlySession ? this.#rt.rng.fork() : this.#rt.rng,
     };
-    const out: TextKey[] = [];
+    const out: ExpandedSegment[] = [];
     for (const segment of scene.def.segments) {
       if (segment.showIf !== undefined && !this.#evalSceneExpr(segment.showIf, scene, 'showIf')) {
         continue;
       }
       const macro = this.#macroFor(segment.key);
       if (macro === null) {
-        out.push(segment.key);
+        out.push({ key: segment.key, source: segment });
         continue;
       }
       const branch = expandMacro(macro, context);
-      if (branch !== null) out.push(branch);
+      if (branch !== null) out.push({ key: branch, source: segment });
     }
     return out;
   }
@@ -363,14 +371,19 @@ export class SceneRunner {
     // spacing 只出现在实际产出的文本段落之间（跳过屏蔽段落时不产生悬空间距）
     let textEmitted = false;
     for (let i = 0; i < revealed.length; i++) {
+      // 被屏蔽段落的内容与媒体一并跳过（不泄漏、不产出 CG；FR-CGRD-03）
       if (skipBlocked) continue;
       if (textEmitted) out.push({ kind: 'spacing' });
       textEmitted = true;
       // 被屏蔽且配置了占位键 → 以占位键替换；否则渲染原文（08 号既有路径）
+      const item = revealed[i];
+      if (item === undefined) continue; // 不可达：i < revealed.length
+      const media = this.#segmentMedia(item.source);
       const segment: RenderSegment = {
         kind: 'text',
-        key: placeholder ?? (revealed[i] as TextKey),
+        key: placeholder ?? item.key,
         vars,
+        ...(media !== undefined ? { media } : {}),
       };
       if (i >= frame.pushed) {
         this.#pushHistory(frame.sceneId, segment);
@@ -555,7 +568,7 @@ export class SceneRunner {
       });
     }
     this.#requireEntry(scene);
-    this.#frame = createFrame(sceneId, scene);
+      this.#frame = this.#createFrame(sceneId, scene);
     this.#phase = 'entering';
   }
 
@@ -604,32 +617,107 @@ export class SceneRunner {
       typeof this.#paramsSource === 'function' ? this.#paramsSource() : (this.#paramsSource ?? {});
     return Object.freeze({ ...params });
   }
+
+  // —— 24 号：媒体意图产出 ————————————————————————————————————————————
+
+  /**
+   * 场景帧建立（含场景级媒体意图，FR-MEDIA-02/06）。
+   *
+   * 绑定解析次序：场景声明优先，逐项回落区域绑定（FR-MEDIA-02「场景/区域可
+   * 绑定」——区域是场景的默认氛围，场景声明即覆盖）。投过 mediaResolver 时
+   * 产出经存在性核对的 intent（缺失带 missing 标记 + 告警，FR-MEDIA-06）；
+   * 未注入 = 08 号既有行为（裸 intent，逐字不变）。
+   */
+  #createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
+    const media: MediaIntent[] = [];
+    const bound = scene.def.media;
+    const area = this.#def.areas?.get(scene.def.area)?.media;
+    const bg = bound?.bg ?? area?.bg;
+    const bgm = bound?.bgm ?? area?.bgm;
+    if (bg !== undefined) media.push(this.#intent(bg, 'bg'));
+    if (bgm !== undefined) media.push(this.#intent(bgm, 'bgm'));
+    return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0, pushed: 0 };
+  }
+
+  /** 单条意图装配（有解析器走核对路径；无则裸 intent，08 号兼容口径） */
+  #intent(assetId: string, kind: MediaIntent['type']): MediaIntent {
+    if (this.#mediaResolver !== undefined) return this.#mediaResolver.intentFor(assetId, kind);
+    return kind === 'bgm'
+      ? { type: 'bgm', assetId, loop: true }
+      : { type: kind, assetId };
+  }
+
+  /**
+   * 段落级媒体意图（FR-MEDIA-03/04）：cg 插图 + sprite 立绘差分。
+   *
+   * - cg：随揭示产出 `cg` intent，并登记 seen.cg（图鉴数据源，FR-MEDIA-04；
+   *   只读会话不登记——回想重放无副作用，FR-GAL-01）；
+   * - sprite：按段落声明 npc 取其差分声明，条件求值选资产（§5.10「段落渲染时
+   *   求值选 variant」）；未注入求值能力时含条件声明不命中而回落基图；
+   * - intent 序固定 cg 在前、sprite 在后（播放器按序消费，背景绘于立绘之下）。
+   */
+  #segmentMedia(segment: SegmentDef): readonly MediaIntent[] | undefined {
+    const out: MediaIntent[] = [];
+    if (segment.cg !== undefined) {
+      out.push(this.#intent(segment.cg, 'cg'));
+      if (!this.#readonlySession) this.#rt.markCgSeen?.(segment.cg);
+    }
+    if (segment.sprite !== undefined) {
+      const sprite = this.#selectSprite(segment.sprite.npc);
+      if (sprite !== undefined) out.push(this.#intent(sprite, 'sprite'));
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
+  /** 立绘差分选择（首个命中变体 → 基图回落；无声明/无命中回落 → undefined） */
+  #selectSprite(npcId: GameId): string | undefined {
+    const decls = this.#def.npcs?.get(npcId)?.sprites;
+    if (decls === undefined) return undefined;
+    for (const decl of decls) {
+      if (typeof decl === 'string') return decl;
+      for (const variant of decl.variants) {
+        if (this.#evalSpriteCondition?.(variant.when) === true) return variant.asset;
+      }
+      if (decl.base !== undefined) return decl.base;
+    }
+    return undefined;
+  }
+
+  /**
+   * CG 已见集（FR-MEDIA-04 图鉴数据源投影：seen.cg 只读视图，宿主/测试消费）。
+   * 与 seen.scenes 同源：由运行时状态承载，会话仅经 markCgSeen 写入。
+   */
+  cgSeen(): readonly string[] {
+    return this.#rt.state.seen.cg;
+  }
 }
 
 // —— 会话帧与模块级辅助（无状态纯函数） ———————————————————————————————————
+
+/**
+ * 展开后的段落条目（宏展开产物 + 源段落引用）。
+ * 保留源段落引用是为了让段落级媒体（FR-MEDIA-04 的 cg/sprite 声明）在揭示时
+ * 可查——宏分支只改文本键，媒体声明属于源段落（`if` 分支不携带自己的媒体）。
+ */
+interface ExpandedSegment {
+  readonly key: TextKey;
+  readonly source: SegmentDef;
+}
 
 /** 场景帧：一次场景访问的展开产物与揭示进度（宏为按访问快照语义，B 组） */
 interface SessionFrame {
   readonly sceneId: GameId;
   readonly scene: CompiledScene;
-  /** 场景级媒体意图（FR-NARR-01：bg/bgm 绑定在进入时产出，DD-05） */
+  /** 场景级媒体意图（FR-MEDIA-02：bg/bgm 绑定在进入时产出，DD-05） */
   readonly media: readonly MediaIntent[];
   /** 本次访问是否首次（seen.scenes 快照；first/again 宏依据，readonly 恒 false） */
   firstVisit: boolean;
-  /** 段落流展开计划（宏解析后的文本键序列；entering 相位为空数组，首渲染时填充） */
-  expanded: readonly TextKey[];
+  /** 段落流展开计划（宏解析后的段落条目；entering 相位为空数组，首渲染时填充） */
+  expanded: readonly ExpandedSegment[];
   /** 已揭示段落数（0..expanded.length；仅文本段落计数） */
   cursor: number;
   /** 已入账历史段落数（游标推进才入账，重复渲染不重复入账） */
   pushed: number;
-}
-
-function createFrame(sceneId: GameId, scene: CompiledScene): SessionFrame {
-  const media: MediaIntent[] = [];
-  const bound = scene.def.media;
-  if (bound?.bg !== undefined) media.push({ type: 'bg', assetId: bound.bg });
-  if (bound?.bgm !== undefined) media.push({ type: 'bgm', assetId: bound.bgm, loop: true });
-  return { sceneId, scene, media, firstVisit: false, expanded: [], cursor: 0, pushed: 0 };
 }
 
 /** 提取流程类跳转（scene/ending/back/loopTransition；battle/advanceTime 留给宿主） */

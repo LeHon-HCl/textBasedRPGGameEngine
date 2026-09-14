@@ -45,10 +45,6 @@
               "npc": {
                 "type": "string",
                 "refKind": "npc"
-              },
-              "when": {
-                "type": "string",
-                "minLength": 1
               }
             },
             "required": ["npc"],

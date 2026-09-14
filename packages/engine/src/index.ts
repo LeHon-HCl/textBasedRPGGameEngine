@@ -249,14 +249,11 @@ export type {
   UntriggeredReason,
 } from './events/index.js';
 
-// ---- media（§5.10 媒体解析引擎侧：意图解析 / 存在性核对 / 立绘差分，24 号） --
+// ---- media（§5.10 媒体解析引擎侧：意图解析 / 存在性核对 / 缺失占位，24 号） --
 export { MediaResolver } from './media/index.js';
 export type {
   MediaCatalogLike,
   MediaResolution,
   MediaResolverOptions,
   MediaWarning,
-  SpriteDecl,
-  SpriteVariant,
-  SpriteVariantQuery,
 } from './media/index.js';

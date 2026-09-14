@@ -14,12 +14,15 @@ import { effectListSchema } from './effects.js';
  * - goto 与 effects[].goto 的悬空引用由加载器 crossRef 检查（§3.4 步骤 4，不在此阻断）。
  */
 
-/** 段落级立绘切换（FR-MEDIA-03/04）：指定 NPC，可选覆盖差分条件 */
+/**
+ * 段落级立绘切换（FR-MEDIA-03/04）：指定出场 NPC，资产由该 NPC 的差分声明
+ * 求值选出（§5.10「立绘差分条件是普通表达式 → 段落渲染时求值选 variant」）。
+ * 不在此声明资产 id——差分逻辑只有 NpcDef.sprites 一份，避免双份声明漂移；
+ * 段落是否需要这张立绘由 `showIf` 承担（语义不重叠）。
+ */
 export const segmentSpriteSchema = z.strictObject({
   /** 立绘归属 NPC（差分声明取自 NpcDef.sprites） */
   npc: refId('npc'),
-  /** 覆盖该 NPC 差分声明的条件表达式（缺省 = 用 NpcDef 声明的差分自动选） */
-  when: exprSchema.optional(),
 });
 
 export type SegmentSprite = z.infer<typeof segmentSpriteSchema>;

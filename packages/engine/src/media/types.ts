@@ -1,4 +1,3 @@
-import type { GameId } from '@game/shared';
 import type { MediaAsset } from '../loader/index.js';
 import type { MediaIntent } from '../runtime/index.js';
 
@@ -49,30 +48,4 @@ export interface MediaResolverOptions {
   readonly catalog?: MediaCatalogLike;
   /** 缺失告警出口（默认丢弃；宿主接 definition.diagnostics 同型通道） */
   readonly onWarn?: (warning: MediaWarning) => void;
-}
-
-/** 立绘差分解析输入（FR-MEDIA-03：条件表达式已由调用方求值为布尔） */
-export interface SpriteVariantQuery {
-  /** NPC id（差分声明的归属；用于定位与去重） */
-  readonly npc: GameId;
-  /** 差分声明（基图 + 有序变体；首个条件为真者胜） */
-  readonly sprites: readonly SpriteDecl[];
-  /** 变体条件求值（条件原文 → 布尔；编译/求值错误由调用方按 DD-01 处理） */
-  readonly evalCondition: (expr: string) => boolean;
-}
-
-/** 单条立绘声明（§2.4 NpcDef.sprites 升级形态；基图 + 条件差分） */
-export interface SpriteDecl {
-  /** 基图资产 id（无变体命中时的回落目标） */
-  readonly base?: string;
-  /** 变体（按声明顺序取首个命中；`when` 为普通表达式，§5.10） */
-  readonly variants?: readonly SpriteVariant[];
-}
-
-/** 立绘差分条目：条件命中 → 该 assetId（含基图回落） */
-export interface SpriteVariant {
-  /** 差分选择条件（好感阶段/身体部位/服装驱动，FR-MEDIA-03） */
-  readonly when: string;
-  /** 命中时使用的资产 id */
-  readonly asset: string;
 }

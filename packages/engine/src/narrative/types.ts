@@ -44,7 +44,12 @@ export type NarrativeEndReason =
   /** jumps.loop_transition（周目切换，19 号消费面） */
   | 'loop';
 
-/** 渲染段落（设计 §4.2 RenderSegment）：宏产物最终都映射到键（D4）或字面模板 */
+/**
+ * 渲染段落（设计 §4.2 RenderSegment）：宏产物最终都映射到键（D4）或字面模板。
+ *
+ * `media` 的两种承载（24 号）：场景级 image 段（kind='image'，bg/bgm 前置段）
+ * 与段落级文本段（kind='text'，随段落揭示的 cg/sprite）。
+ */
 export interface RenderSegment {
   readonly kind: 'text' | 'spacing' | 'image';
   /** 文本键（kind='text'；宏分支产物亦为键引用） */
@@ -53,7 +58,7 @@ export interface RenderSegment {
   readonly literal?: string;
   /** 延迟插值变量（§4.1 InterpVars；vars 在段落渲染时组装，FR-NARR-04） */
   readonly vars?: InterpVars;
-  /** 媒体意图（DD-05：场景级 bg/bgm 绑定产出，engine 不接触播放） */
+  /** 媒体意图（DD-05：场景级绑定与段落级媒体产出，engine 不接触播放） */
   readonly media?: readonly MediaIntent[];
 }
 
@@ -89,8 +94,8 @@ export interface NarrativeWarning {
 }
 
 /**
- * SceneRunner 依赖的运行时最小视图（§4.2 桩化缝）。
- * `GameRuntime` 结构化满足；markSceneSeen 为 §4.2「写 seen.scenes 的时机 =
+ * 场景会话状态机的运行时最小视图（§4.2 桩化缝）。
+ * `GameRuntime` 结构化满足；markSceneSeen/markCgSeen 为 §4.2「写 seen.* 的时机 =
  * 正常会话渲染时」的状态写入口（去重语义由实现方保证）。
  */
 export interface SceneRunnerRuntime {
@@ -101,13 +106,32 @@ export interface SceneRunnerRuntime {
   evalCondition(expr: CompiledExpr): boolean;
   /** 场景访问记录（seen.scenes 追加去重；readonly 会话不调用） */
   markSceneSeen(sceneId: string): void;
+  /**
+   * CG 解锁登记（seen.cg 追加去重；FR-MEDIA-04 图鉴数据源；readonly 会话不调用）。
+   * 可选：仅消费叙事媒体意图的宿主需要实现（08 号既有桩不必补齐）。
+   */
+  markCgSeen?(assetId: string): void;
 }
 
 /**
- * SceneRunner 依赖的游戏定义最小视图：{@link GameDefinition} 结构化满足。
+ * 叙事媒体解析器最小视图（24 号，DD-06 同型的最小依赖面）。
+ *
+ * narrative 只消费「assetId + 媒体类型 → 意图」这一个谓词，不 import media
+ * 子系统（横向 import 违例）；`MediaResolver` 结构化满足本接口，宿主注入实例
+ * 即可获得存在性核对与缺失占位标记（FR-MEDIA-06）。缺省未注入 = 08 号既有
+ * 行为（裸 intent，无 missing 标记）。
+ */
+export interface NarrativeMediaResolver {
+  intentFor(assetId: string, kind: MediaIntent['type']): MediaIntent;
+}
+
+/**
+ * 场景会话依赖的游戏定义最小视图：{@link GameDefinition} 结构化满足。
  * exprCache 承载场景数据内表达式（showIf/disabledIf/entry.require）的加载期
  * 编译产物（§3.4 步骤 5）；locales[mainLang] 承载叙事宏结构（macros.ts）；
- * functionRegistry 供词典承载的宏条件表达式按需编译（缺省内置 20 函数）。
+ * functionRegistry 供词典承载的宏条件表达式按需编译（缺省内置 20 函数）；
+ * npcs 承载立绘差分声明（FR-MEDIA-03，缺省 = 无立绘）；areaMedia 承载区域级
+ * bg/bgm 绑定（FR-MEDIA-02 场景绑定的回落层，缺省 = 无回落）。
  */
 export interface SceneRunnerDef {
   readonly manifest: Pick<Manifest, 'mainLang'>;
@@ -117,6 +141,30 @@ export interface SceneRunnerDef {
   readonly exprCache: ReadonlyMap<string, CompiledExpr>;
   /** 表达式函数注册表（宏条件编译；缺省 = 内置 20 函数，脚本扩展经 def 注入） */
   readonly functionRegistry?: ExprFunctionRegistry;
+  /**
+   * NPC 定义投影（立绘差分声明的数据源，§2.4 NpcDef.sprites；缺省 = 无立绘）。
+   * 只声明本模块消费的两个字段（DD-06 最小依赖面）。
+   */
+  readonly npcs?: ReadonlyMap<
+    GameId,
+    {
+      readonly sprites?: readonly (
+        | string
+        | {
+            readonly base?: string;
+            readonly variants: readonly { readonly when: string; readonly asset: string }[];
+          }
+      )[];
+    }
+  >;
+  /**
+   * 区域定义投影（区域级 bg/bgm 绑定的数据源，FR-MEDIA-02；缺省 = 无回落）。
+   * `GameDefinition.areas` 结构化满足（只声明本模块消费的 media 字段）。
+   */
+  readonly areas?: ReadonlyMap<
+    GameId,
+    { readonly media?: { readonly bg?: string; readonly bgm?: string } }
+  >;
 }
 
 /**
@@ -154,4 +202,14 @@ export interface SceneRunnerOptions {
    * 08 号既有的 `settings.disabledTags` 直查——向后兼容，既有行为不变）。
    */
   readonly contentFilter?: NarrativeContentFilter;
+  /**
+   * 媒体解析器（24 号；缺省 = 裸 intent，无存在性核对与缺失标记）。
+   * 宿主注入 `MediaResolver` 实例即获得 FR-MEDIA-06 的告警与占位语义。
+   */
+  readonly mediaResolver?: NarrativeMediaResolver;
+  /**
+   * 立绘差分条件求值（FR-MEDIA-03；缺省 = 无求值能力，含条件的差分声明不命中
+   * 而回落基图）。条件表达式经 def.exprCache 复用编译产物（§3.4 步骤 5）。
+   */
+  readonly evalSpriteCondition?: (source: string) => boolean;
 }
