@@ -3,7 +3,12 @@ import { z } from 'zod';
 import type { BuiltinDefContext, EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
 import type { EffectInstructionDef, ErasedEffectDef, TouchReport } from '../types.js';
+import type { EffectExecuteContext } from '../types.js';
 import type { MediaIntent } from '../../runtime/index.js';
+import { truthy } from '../../expr-eval/index.js';
+import { QuestMachine } from '../../quests/index.js';
+import type { QuestContext } from '../../quests/index.js';
+import type { GameState } from '../../state/index.js';
 import { advanceClock } from '../../time/clock.js';
 import { evalLenientParam, evalNumberParam, instructionError } from './util.js';
 
@@ -98,6 +103,10 @@ export function createCallDef(ctx: BuiltinDefContext): ErasedEffectDef {
  *   编译失败回退字面量，02 号语义）。
  */
 export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDef[] {
+  // 任务目录驱动的真实状态机（11 号）：接取校验 / 阶段推进 / 奖励结算统一归它；
+  // 指令层只负责上下文装配（§4.5「quest 指令接入 QuestMachine」）。
+  const questMachine = new QuestMachine({ defs: options.quests ?? new Map() });
+
   const advanceTimeDef: EffectInstructionDef<{ cost: string | number }> = {
     id: 'advance_time',
     schema: effectParamSchemas.advance_time,
@@ -137,25 +146,8 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
       };
       switch (arg.action) {
         case 'accept': {
-          if (
-            current !== undefined &&
-            current.state !== 'undiscovered' &&
-            current.state !== 'available'
-          ) {
-            throw instructionError(
-              'quest',
-              `任务 '${arg.id}' 当前状态 ${current.state}，不可接取`,
-              { quest: arg.id, action: 'accept' },
-            );
-          }
-          requireStage('quest', arg.stage, arg.id);
-          const stage = arg.stage ?? def?.stages[0]?.id;
-          quests[arg.id] = {
-            state: 'active',
-            objectives: {},
-            startedDay: ectx.draft.world.time.day,
-            ...(stage !== undefined ? { stage } : {}),
-          };
+          // 真实状态机：状态门 / conflicts / requires / acceptIf 矩阵校验（FR-QUEST-04）
+          questMachine.accept(buildQuestContext(ectx), arg.id);
           return;
         }
         case 'advance': {
@@ -306,6 +298,29 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
     eraseDef(notifyDef),
     eraseDef(timeAdvanceDef(options)),
   ];
+}
+
+/**
+ * 构造 QuestMachine 的事务内上下文（§4.5；11 号）。
+ *
+ * - `quests` 取当前指令 draft 切片（指令生命周期内可写）；
+ * - `evalCondition` 经注册表的 `evalSource` 编译+求值表达式原文（与指令参数
+ *   同一函数注册表），真值化口径与 03 号一致；
+ * - `child` 为嵌套原子批（rewards 等）：子效果失败沿调用栈上抛 → 整批事务回滚；
+ *   子事务来源记为 hook（与 check 分支效果的既有约定一致）。
+ */
+function buildQuestContext(ectx: EffectExecuteContext): QuestContext {
+  return {
+    quests: ectx.draft.quests,
+    state: ectx.draft as unknown as Readonly<GameState>,
+    evalCondition: (source) => truthy(ectx.evalSource(source)),
+    child: (effects) => {
+      ectx.child(effects, { source: 'hook', where: { ...ectx.where }, rng: ectx.rng });
+    },
+    emit: (event) => {
+      ectx.emit(event);
+    },
+  };
 }
 
 /**

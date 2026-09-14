@@ -1,6 +1,7 @@
+import { EngineError } from '@game/shared';
 import type { GameId, QuestDef } from '@game/shared';
-import { canTransition } from './transitions.js';
-import type { QuestStateEnum } from './types.js';
+import { canTransition, transitionVias } from './transitions.js';
+import type { QuestContext, QuestStateEnum } from './types.js';
 
 /**
  * 任务状态机（设计 §4.5；11 号模块）。
@@ -38,5 +39,71 @@ export class QuestMachine {
   /** 六态迁移合法性（规则表查询；供调用方在写入前自检） */
   canTransition(from: QuestStateEnum, to: QuestStateEnum): boolean {
     return canTransition(from, to);
+  }
+
+  /**
+   * 接取任务（available/undiscovered → active，§4.5；FR-QUEST-04）。
+   *
+   * 校验顺序（状态门优先，避免无谓求值）：
+   * 1. 状态门：当前态须能迁移到 active（undiscovered / available），否则拒绝；
+   * 2. conflicts：任一互斥任务处于 active / ready_to_submit → 拒绝（进行中互斥）；
+   * 3. requires：任一前置任务未 done → 拒绝；
+   * 4. acceptIf：表达式为假 → 拒绝。
+   *
+   * 副作用：写入 active + 首阶段 + startedDay + 空 objectives；emit
+   * `quest_state_changed`。拒绝抛 `EFFECT_FAILED{op:'quest', quest, detail}`
+   * （原因可读，UI 错误卡片直接展示）。无目录时仅跳过 2–4 步（05 号兼容）。
+   */
+  accept(ctx: QuestContext, questId: GameId): void {
+    const def = this.#defs.get(questId);
+    const current = ctx.quests[questId];
+    const from: QuestStateEnum = current?.state ?? 'undiscovered';
+    // 表驱动状态门：仅 accept 触发方式允许迁入 active（active→active 虽合法但
+    // 属 stage 触发，不构成「可接取」）
+    if (!transitionVias(from, 'active').includes('accept')) {
+      throw this.#reject(`任务 '${questId}' 当前状态 ${from}，不可接取`, questId);
+    }
+    if (def !== undefined) {
+      for (const conflict of def.conflicts ?? []) {
+        const state = ctx.quests[conflict]?.state;
+        if (state === 'active' || state === 'ready_to_submit') {
+          throw this.#reject(
+            `任务 '${questId}' 与进行中的互斥任务 '${conflict}'（${state}）冲突，不可接取`,
+            questId,
+          );
+        }
+      }
+      for (const required of def.requires ?? []) {
+        if (ctx.quests[required]?.state !== 'done') {
+          throw this.#reject(
+            `任务 '${questId}' 的前置任务 '${required}' 尚未完成，不可接取`,
+            questId,
+          );
+        }
+      }
+      if (def.acceptIf !== undefined && !ctx.evalCondition(def.acceptIf)) {
+        throw this.#reject(
+          `任务 '${questId}' 接取条件不满足（acceptIf: ${def.acceptIf}）`,
+          questId,
+        );
+      }
+    }
+    const stage = def?.stages[0]?.id;
+    ctx.quests[questId] = {
+      state: 'active',
+      objectives: {},
+      startedDay: ctx.state.world.time.day,
+      ...(stage !== undefined ? { stage } : {}),
+    };
+    ctx.emit({ type: 'quest_state_changed', quest: questId, from, to: 'active' });
+  }
+
+  /** 任务级拒绝（EFFECT_FAILED；where.op='quest' + quest 定位 + detail 可读原因） */
+  #reject(detail: string, quest: GameId): EngineError {
+    return new EngineError({
+      code: 'EFFECT_FAILED',
+      where: { op: 'quest', quest, detail },
+      messageKey: 'error.effects.instructionFailed',
+    });
   }
 }
