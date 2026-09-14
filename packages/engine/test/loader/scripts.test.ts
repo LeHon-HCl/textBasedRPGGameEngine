@@ -44,6 +44,7 @@ function festivalModule(): ScriptModule {
 /** runScriptStep 直测用的空域基座（注册/解析器语义不依赖包内容） */
 const EMPTY_DOMAINS: PackageDomains = {
   manifest: undefined,
+  time: undefined,
   attrs: undefined,
   body: undefined,
   contentTags: undefined,

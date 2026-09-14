@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng, EngineError } from '@game/shared';
-import type { QuestDef } from '@game/shared';
+import type { QuestDef, QuestState } from '@game/shared';
 import { newGameState } from '../../src/state/new-game.js';
 import { GameRuntime } from '../../src/runtime/game-runtime.js';
 import { createBuiltinEffectRegistry } from '../../src/effects/index.js';
@@ -34,7 +34,7 @@ const MONEY_ONLY: QuestDef = stageQuest(
   { rewards: [{ money: { silver: 20 } }] as unknown as QuestDef['rewards'] },
 );
 
-function ready(): Record<string, { state: 'ready_to_submit'; stage: string; objectives: object }> {
+function ready(): Record<string, QuestState> {
   return { q_main: { state: 'ready_to_submit', stage: 's1', objectives: {} } };
 }
 

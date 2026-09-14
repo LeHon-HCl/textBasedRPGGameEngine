@@ -237,6 +237,7 @@ function minimalValidated(): ValidatedPackage {
     },
     domains: {
       manifest,
+      time: undefined,
       attrs: undefined,
       body: undefined,
       contentTags: undefined,

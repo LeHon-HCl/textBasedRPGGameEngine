@@ -103,7 +103,8 @@ describe('09-2 advanceClock：跨月边界（不等长月 + 循环）', () => {
   });
 
   it('未启用月历时 month 保持 undefined、不判跨月', () => {
-    const noMonths = { ...makeConfig() } as Partial<TimeConfig>;
+    // 未启用月历：months 在 TimeConfig 中可选，直接剔除即可（无需 Partial 转型）
+    const noMonths: TimeConfig = makeConfig();
     delete noMonths.months;
     const result = advanceClock({ day: 29, slotIndex: 3 }, noMonths, 1);
     expect(result.clock.month).toBeUndefined();
