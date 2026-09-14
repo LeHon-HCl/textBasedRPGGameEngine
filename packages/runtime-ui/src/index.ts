@@ -115,3 +115,23 @@ export type {
   NarrativeViewProps,
   OptionView,
 } from './narrative/index.js';
+
+// ---- panels（§6.4 功能面板：状态面板投影与渲染；FR-UI-03；任务 6） -------------
+export {
+  DEFAULT_HIGHLIGHT_TTL_MS,
+  describeEquipMods,
+  projectStatusPanel,
+  StatusPanel,
+} from './panels/index.js';
+export type {
+  StatusAttrView,
+  StatusEffectView,
+  StatusEquipView,
+  StatusOutfitView,
+  StatusPanelLabels,
+  StatusPanelProps,
+  StatusPanelView,
+  StatusProjectionOptions,
+  StatusSkillView,
+  StatusWalletView,
+} from './panels/index.js';
