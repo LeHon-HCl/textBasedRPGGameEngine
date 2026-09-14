@@ -189,3 +189,7 @@ export {
   ToastStack,
 } from './notifications/index.js';
 export type { MergeToastOptions, ToastInput, ToastStackProps } from './notifications/index.js';
+
+// ---- onboarding（§6.5 首启内容向导：警告页 + 标签开关；FR-CGRD-04；任务 12） ----
+export { ContentWizard } from './onboarding/index.js';
+export type { ContentWizardLabels, ContentWizardProps } from './onboarding/index.js';
