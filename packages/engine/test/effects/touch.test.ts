@@ -100,6 +100,10 @@ const EXEC_MATRIX: readonly MatrixEntry[] = [
   { name: 'set(attr)', instruction: { set: { key: 'attr.hp', value: 5 } } },
   { name: 'set(flag)', instruction: { set: { key: 'flag.door', value: true } } },
   { name: 'set(counter)', instruction: { set: { key: 'counter.chest', value: 2 } } },
+  {
+    name: 'set(npc记忆)',
+    instruction: { set: { key: 'npc.npc_raven.flags.said_hi', value: true } },
+  },
   { name: 'add(counter)', instruction: { add: { key: 'counter.chest', amount: 2 } } },
   { name: 'flag', instruction: { flag: { name: 'lit' } } },
   {
@@ -242,6 +246,9 @@ describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
     expect(setDef?.touch({ key: 'flag.x', value: 1 } as never).writes).toEqual(['world.flags']);
     expect(setDef?.touch({ key: 'counter.x', value: 1 } as never).writes).toEqual([
       'world.counters',
+    ]);
+    expect(setDef?.touch({ key: 'npc.npc_raven.flags.x', value: 1 } as never).writes).toEqual([
+      'npcs',
     ]);
     expect(setDef?.touch({ key: 'bogus', value: 1 } as never).writes).toEqual([]);
   });
