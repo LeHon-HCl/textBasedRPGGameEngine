@@ -17,11 +17,14 @@ choices:
     textKey: scenes.riverside_ferry.choice.talk
     showIf: '!npc.ferryman.met'
     effects:
-      - set: { key: 'npc.ferryman.met', value: true }
+      # `set` 只接受 attr/flag/counter 标量域与 npc.<id>.flags.<名>（引擎 §3.3）。
+      # 故 npc.ferryman.met 的置位用 flag 域表达（NPC 记忆命名空间）：
+      # 场景段落的 showIf 同步改为读同一 flag，避免依赖只读的 met 视图。
+      - flag: { name: 'ferryman_met' }
       - notify: { textKey: 'scenes.riverside_ferry.notify.met' }
   - id: ask_ferry
     textKey: scenes.riverside_ferry.choice.ask_ferry
-    showIf: 'npc.ferryman.met'
+    showIf: 'flag.ferryman_met'
     once: true
     effects:
       - add: { key: 'attr.insight', amount: 1 }
