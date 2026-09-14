@@ -127,7 +127,7 @@ if (existsSync(tasksDirAbs)) {
   }
 }
 
-// ---- 架构文档 × 代码结构一致性（约束 4「维护文档 > 维护代码」的机械兜底） ----
+// ---- 架构文档 × 代码结构一致性（约束 1「维护文档 > 维护代码」的机械兜底） ----
 // 口径：engine 下每个「有实现的子系统目录」（含 .ts 文件）都必须在
 // docs/architecture.md 中被提及——接受两种形态，因为文档可能按人读的表格组织
 // 而非逐目录起小节：
@@ -154,7 +154,7 @@ if (archText !== null && existsSync(ENGINE_SRC)) {
   else pass(`架构文档覆盖全部已实现子系统（${implemented.length} 个）`);
 }
 
-// ---- 归档目录约束（docs/archive/：不再生效的历史文档） ----
+// ---- 归档目录约束（约束 4；docs/archive/：不再生效的历史文档） ----
 const ARCHIVE_DIR = 'docs/archive';
 if (existsSync(ARCHIVE_DIR)) {
   const archived = readdirSync(ARCHIVE_DIR).filter((n) => n.endsWith('.md'));
@@ -164,6 +164,24 @@ if (existsSync(ARCHIVE_DIR)) {
       fail(`${ARCHIVE_DIR}/${f} 缺少归档状态标注（须在文首说明不再生效与取代关系）`);
   }
   if (archived.length > 0) pass(`归档文档均带归档状态标注（${archived.length} 份）`);
+}
+
+// ---- 反思报告约束（约束 3；docs/retros/：异常事件的深度复盘） ----
+// 口径：每份 *-postmortem.md 文首必须含「触发场景 / 审查对象 / 结论摘要 / 状态」四项
+// 元信息——否则复盘会退化成随手笔记，无法判断是否已采纳、是否需要跟进。
+// README.md 是目录说明，不在此约束内。
+const RETROS_DIR = 'docs/retros';
+if (existsSync(RETROS_DIR)) {
+  const reports = readdirSync(RETROS_DIR).filter((n) => n.endsWith('.md') && n !== 'README.md');
+  for (const f of reports) {
+    const text = readFileSync(join(RETROS_DIR, f), 'utf8');
+    const missing = ['触发场景', '审查对象', '结论摘要', '状态'].filter((k) => !text.includes(k));
+    if (missing.length)
+      fail(
+        `${RETROS_DIR}/${f} 缺少元信息字段：${missing.join(', ')}（见 docs/retros/README.md 格式要求）`,
+      );
+  }
+  if (reports.length > 0) pass(`反思报告均带元信息（${reports.length} 份）`);
 }
 
 console.log(failed ? '\n校验失败：请修复上述问题后再提交。' : '\n文档校验全部通过。');

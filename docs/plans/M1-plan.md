@@ -1,7 +1,7 @@
 # M1 开发计划 —— 运行时 MVP
 
 > 目标（proposal §7）：**3 区域 / 10+ 事件 / 2 任务线 demo 可玩**。
-> 本计划按 `docs/develop.md` 约束 1 组织：每模块严格分「开发目标 / 影响面 / commit 拆分 / 验收效果」四节。
+> 本计划按 `docs/develop.md` 约束 5 组织：每模块严格分「开发目标 / 影响面 / commit 拆分 / 验收效果」四节。
 > 全局流程（分支-PR-合入、TDD、注释规范、文档同步）见 `docs/develop.md`，本计划不重复。
 > 拆分依据：`docs/tasks/09~25` 各任务文件（子任务原文）+ `docs/detail-design.md` §4.3–4.8 / §5.6 / §5.8 / §5.10 / §6。
 
@@ -339,4 +339,4 @@ React 通用游玩界面基础：Zustand UiStore + 事件订阅桥、响应式 A
 - **性能基准（10 号）**：若 1000 事件基准不达标，先优化 dirtyMap 剪枝再考虑放宽夹具规模；不允许直接改阈值（NFR-02 是需求）。
 - **runtime-ui 依赖引入（25A）**：react/zustand/dexie/dompurify 等版本选择在开工时的 PR 中定案并锁定 lockfile。
 - **导出面缺口**：各模块消费 engine 时若需新增导出，遵循「最小导出 + index.ts 统一出口 + 同 PR 更新 architecture.md」。
-- **里程碑节奏**：AI 自审 + CI 绿即合（develop.md 约束 3），用户在 M1 收尾统一人工验收；期间任何红线违规（中立性、引擎零 DOM、裸 throw）在自审清单中一票否决。
+- **里程碑节奏**：AI 自审 + CI 绿即合（develop.md 约束 9），用户在 M1 收尾统一人工验收；期间任何红线违规（中立性、引擎零 DOM、裸 throw）在自审清单中一票否决。

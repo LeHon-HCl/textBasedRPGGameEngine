@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 /**
- * M1 玩家流冒烟（develop.md 约束 5 第 6 项「验收 demo」的自动化面）。
+ * M1 玩家流冒烟（develop.md 约束 10 第 6 项「验收 demo」的自动化面）。
  *
  * 口径：真实浏览器 + 真实 IndexedDB + 真实点击，走通 M1 验收要求的核心路径：
  *   首启向导 → 新游戏 → 叙事推进 → 选项分支 → 跨区域移动 → zh/en 切换
