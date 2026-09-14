@@ -11,14 +11,18 @@
 
 ## 任务清单
 
-- [ ] `ContentFilter` 构造（ContentTagsDef + disabledTags）+ `passes/eventAdmissible/placeholderFor` 谓词
-- [ ] 应用点 1：事件池 prune 接入（10 号配合）
-- [ ] 应用点 2：段落渲染前占位替换（游戏提供的占位文本键）
-- [ ] 应用点 3：选项 `choices()` 隐藏（8 号配合）
-- [ ] 设置变更 → 重建实例 → 当前场景重渲染（即时生效测试）
+- [x] `ContentFilter` 构造（ContentTagsDef + disabledTags）+ `passes/eventAdmissible/placeholderFor` 谓词
+- [x] 应用点 1：事件池 prune 接入（10 号配合）——本模块提供 `eventAdmissible` 判据与桩测试；真实 prune 管线接线归 10 号事件系统（设计 §5.8 / §4.4）
+- [x] 应用点 2：段落渲染前占位替换（游戏提供的占位文本键）
+- [x] 应用点 3：选项 `choices()` 隐藏（8 号配合）
+- [x] 设置变更 → 重建实例 → 当前场景重渲染（即时生效测试）
 - [ ] 首启向导数据支撑：settings.wizardDone 标志 + manifest.contentWarning 文案键
-- [ ] 任务降级属于静态校验（26 号 filter-quest-break 规则）边界说明与测试注释
-- [ ] 谓词矩阵测试（标签组合 × 三应用点 × 占位回退）
+  - wizardDone 数据支撑已完成（02 号 schema + 04 号状态树承载；`ContentFilter.initialDisabledTags()` 由 `defaultOn` 投影初始开关态，用例见 `test/content/wizard-data.test.ts`）
+  - **contentWarning 规格冲突（SPEC_CONFLICT，未实现）**：design §6.5 要求文案键取 `manifest.contentWarning`，但 shared `manifestSchema`（02 号，strictObject，本分支只读）未声明该字段、`Manifest` 类型亦无此键，无法在不改 shared 的前提下提供真实读取路径。最低介入点：由 shared 维护方在 `manifestSchema` 增列 `contentWarning: textKeySchema.optional()`（并同步 detail-design §2.4 Manifest 字段表），或从本任务移除该子项。
+- [x] 任务降级属于静态校验（26 号 filter-quest-break 规则）边界说明与测试注释
+- [x] 谓词矩阵测试（标签组合 × 三应用点 × 占位回退）
 
 ## 完成定义
 - [ ] 全部子任务勾选；谓词矩阵全绿；「屏蔽某标签后事件不触发、选项隐藏」集成用例通过
+  - 谓词矩阵（`test/content/predicate-matrix.test.ts`，30 用例）与「屏蔽标签 → 事件桩不触发 + 选项隐藏」集成用例（`event-pool-stub.test.ts` / `option-filter.test.ts`）全绿
+  - 唯一未勾选子项为上方 `manifest.contentWarning`（SPEC_CONFLICT），故本节暂不勾选

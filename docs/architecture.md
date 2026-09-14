@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，对应 feat/11（任务系统，M1 进行中）。
+> 最后核对：2026-09-14，对应 feat/22（内容分级与过滤机制，M1）。
 
 ## 1. 总览
 
@@ -38,6 +38,7 @@ mermaid 等价依赖图：
 apps/* ──> runtime-ui(未来) ──> engine ──> shared
 editor ──> exporter ──> engine/shared
 engine 内部：loader → (state, effects, expr) ；narrative → (state, runtime, i18n)
+content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrative 经结构化最小接口注入，不 import content。
 ```
 
 ## 2. shared 包（`packages/shared/src/`）
@@ -116,6 +117,7 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
   - `SUBSESSION_DEPTH_LIMIT = 3`：事件场景子会话挂起栈（深度超限发 warning）。
   - `NARRATIVE_HISTORY_CAPACITY = 500`：环形历史缓冲（回想/回看数据源）。
   - readonly 会话：回想重放，无副作用。
+  - 内容过滤注入（22 号）：`contentFilter?: NarrativeContentFilter` 可选注入——段落渲染前占位替换/跳过、`choices()` 标签过滤收敛单点；缺省不注入时行为与 08 号一致。
 - **macros.ts**：三种叙事宏 `FirstAgainMacro` / `ConditionalMacro` / `RandomMacro` + 惰性展开（延迟插值）。
 
 ### 3.8 time/ —— 时间系统与推进管线（设计 §4.3，09 号）
@@ -141,6 +143,17 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 - **projection.ts**：`projectQuestLog`（FR-QUEST-03：按状态分组 + 追踪置顶；追踪为 UI 状态，引擎只投影）。
 - 事件面：`quest_stage`（阶段推进，on_stage）与 `quest_state_changed`（六态迁移）加入 EngineEvent。QuestDef 无 on_* 效果字段，作者经事件订阅实现「状态变化触发效果」（on_accept / on_done / on_fail 的作者侧等价物）。
 
+### 3.10 content/ —— 内容分级与过滤（设计 §5.8，22 号）
+
+- **filter.ts**：`ContentFilter` 单点纯谓词（构造时快照 `settings.disabledTags` + 可选占位键；实例不可变，设置变更靠重建实例即时生效，FR-CGRD-03）：
+  - `passes(tags)`：无标签恒放行，任一标签被玩家关闭即屏蔽（多标签取「任一命中」；引擎不解释标签语义，中立性红线，FR-CGRD-01/02）；
+  - `eventAdmissible(event)`：应用点 1 的事件池 prune 判据（真正接线归 10 号事件系统；本模块接口预留 + 桩测试，接入零改动换实现）；
+  - `placeholderFor(tags)`：应用点 2 的占位文本键（游戏配置；未配置返回 null → 调用方跳过）；放行时返回 null；
+  - `initialDisabledTags()`：由 `ContentTagsDef.defaultOn` 投影初始禁用集，供首启向导/设置面板初始化（FR-CGRD-04 数据支撑）。
+- **应用点接线（2/3）**：`SceneRunnerOptions.contentFilter`（结构化最小接口 `NarrativeContentFilter`，避免 narrative → content 横向 import，DD-06）——段落渲染前按**场景标签**占位替换/跳过（被跳过的屏蔽内容不入历史缓冲），`choices()` 的标签过滤收敛本单点。**缺省不注入 = 08 号既有行为逐字不变**（选项沿用 `settings.disabledTags` 直查）。
+- **边界**：任务可完成性属静态校验——26 号编辑器 `filter-quest-break` 可达性分析（detail-design §7.7），运行时不管控（§5.8 末段）。
+- **已知规格缺口（SPEC_CONFLICT）**：design §6.5 要求内容警告页文案取 `manifest.contentWarning`，但 shared `manifestSchema`（strictObject，只读）未声明该字段，本模块未提供真实读取路径，待 shared schema 澄清。
+
 ## 4. 应用层（apps/）
 
 - **player-demo**（`src/main.ts`）：M0 验收用 vanilla TS 页面。数据流：Vite `import.meta.glob(?raw)` 读 fixtures/mini-game → `InMemoryPackageSource` → `loadGamePackage` → `newGameState` + `GameRuntime` → `SceneRunner` + `TextResolver` 端到端渲染。是 runtime-ui（25 号）落地前的接线参考。
@@ -149,13 +162,13 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、runtime、state、time、items、quests、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（11 号任务系统入库后）：101 个测试文件 / 1711 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（22 号内容分级入库后）：109 个测试文件 / 1782 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
 
-- **CI**（`.github/workflows/ci.yml`）：install(--frozen-lockfile) → `pnpm -w lint && pnpm -w test` → `node scripts/validate-docs.mjs`。
+- **CI**（`.github/workflows/ci.yml`）：install(--frozen-lockfile) → `pnpm -w lint && pnpm -w test && pnpm -w build && pnpm -w typecheck` → `node scripts/validate-docs.mjs`。
 - **lint**：eslint flat config（依赖规则 R1–R5）+ prettier check。
 - **validate-docs.mjs**（零依赖）：必需文档非空/一级标题、无 TODO 占位、代码围栏闭合、FR/NFR/OQ 交叉引用一致（proposal 为权威）、DD 决策自洽、FR 模块覆盖率 100%、tasks checkbox 与 progress.md 登记一致。
 - **开发流程**：见 `docs/develop.md`（主线保护 / TDD / PR 自审清单 / 文档同步）。
