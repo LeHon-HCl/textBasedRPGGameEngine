@@ -1,4 +1,5 @@
-import type { Clock, EventDef, GameState, Rng, TimeConfig } from '@game/shared';
+import type { Clock, EventDef, Rng, TimeConfig } from '@game/shared';
+import type { GameState } from '../state/index.js';
 
 /**
  * 事件池评估流程（设计 §4.4 collect → prune → select，10 号模块）。
@@ -81,7 +82,10 @@ export function collectCandidates(
 }
 
 /** 当前时段名（TimeConfig 定义；未注入或越界 → undefined = 窗口不可判，裁剪） */
-function currentSlotName(config: TimeConfig | undefined, clock: Clock | undefined): string | undefined {
+function currentSlotName(
+  config: TimeConfig | undefined,
+  clock: Clock | undefined,
+): string | undefined {
   if (config === undefined || clock === undefined) return undefined;
   return config.slots[clock.slotIndex]?.id;
 }
@@ -136,7 +140,8 @@ export function pruneCandidates(
     }
     if (cooldown.slots !== undefined && typeof cooldown.slots === 'number') {
       const lastSlotIndex = options.lastSlotIndex?.[event.id] ?? 0;
-      const elapsed = (clock.day - record.lastDay) * slotsPerDay + (clock.slotIndex - lastSlotIndex);
+      const elapsed =
+        (clock.day - record.lastDay) * slotsPerDay + (clock.slotIndex - lastSlotIndex);
       if (elapsed < cooldown.slots) return false;
     }
     return true;
@@ -200,10 +205,7 @@ export function selectCandidates(
 }
 
 /** random 型 require 求值（缺省 = 恒真） */
-function evalRandomRequire(
-  event: EventDef,
-  evalCondition: (source: string) => boolean,
-): boolean {
+function evalRandomRequire(event: EventDef, evalCondition: (source: string) => boolean): boolean {
   const trigger = event.trigger;
   if (trigger.type !== 'random') return false;
   if (trigger.require === undefined) return true;
