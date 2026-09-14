@@ -3,7 +3,7 @@ import type { EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
 import type { EffectInstructionDef, ErasedEffectDef, TouchReport } from '../types.js';
 import { applyFavorChange } from '../../npcs/favor.js';
-import { clamp, thresholdFor } from '../../npcs/thresholds.js';
+import { applyReputationChange } from '../../npcs/reputation.js';
 import { evalNumberParam, instructionError } from './util.js';
 
 /**
@@ -64,18 +64,15 @@ export function createRelationDefs(options: EffectRegistryOptions): ErasedEffect
         );
       }
       const bounds = options.reputationBounds;
-      const next =
-        bounds !== undefined ? clamp(current + amount, bounds.min, bounds.max) : current + amount;
       const thresholds = options.factions?.get(arg.faction)?.thresholds;
-      const fromBand = thresholds !== undefined ? thresholdFor(thresholds, current)?.id : undefined;
-      const toBand = thresholds !== undefined ? thresholdFor(thresholds, next)?.id : undefined;
-      ectx.draft.factions[arg.faction] = next;
-      if (thresholds !== undefined && thresholds.length > 0 && toBand !== fromBand) {
+      const change = applyReputationChange(thresholds, bounds, current, amount);
+      ectx.draft.factions[arg.faction] = change.value;
+      if (change.changed) {
         ectx.emit({
           type: 'reputation_band_changed',
           faction: arg.faction,
-          from: fromBand,
-          to: toBand,
+          from: change.from,
+          to: change.to,
         });
       }
     },

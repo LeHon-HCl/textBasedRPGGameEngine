@@ -6,6 +6,8 @@ export { resolveNpcLocation, resolveNpcLocations, sameNpcLocationCache } from '.
 export type { NpcScheduleQuery } from './schedule.js';
 export { applyFavorChange } from './favor.js';
 export type { FavorChange, NpcRelationSlice } from './favor.js';
+export { applyReputationChange } from './reputation.js';
+export type { ReputationChange } from './reputation.js';
 export { clamp, thresholdFor } from './thresholds.js';
 export type { ThresholdEntry } from './thresholds.js';
 export { createNpcScheduleProvider } from './step.js';
