@@ -10,6 +10,12 @@ import { loadFixturePackage } from './fs-source.js';
  * 产物的索引内容逐项断言：DD-02 场景聚合数、PoolIndex（byScope / dirtyMap /
  * mutexGroups / questRefs / achievementRefs）、exprCache、语言包键数（C 组
  * 端到端与 §4.4 / §4.5 消费方的契约锚点）。
+ *
+ * **规模断言的写法**（M1 收尾确立）：夹具是**持续扩充的公共正例**，因此规模类断言
+ * 一律用**下界 + 结构锚点**（`toBeGreaterThanOrEqual` + 关键成员存在性），不锁定
+ * 精确总数——否则每次内容扩充都要回头改测试（负资产，见 develop.md 约束 2 的
+ * 「测试为防缺陷而写」）。精确断言只用于**语义不变量**（如某事件的引用集合、
+ * 互斥组成员），它们不随内容增长而变化。
  */
 
 describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
@@ -28,19 +34,25 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
     expect(definition.mediaCatalog.resolve('anything')).toBeNull();
   });
 
-  it('DD-02 场景聚合：1 区域 5 场景，CompiledScene 携带源文件路径', async () => {
+  it('DD-02 场景聚合：多区域多场景，CompiledScene 携带源文件路径', async () => {
     const definition = await loadFixturePackage('mini-game');
-    expect(definition.areas.size).toBe(1);
+    // M1 收尾后夹具扩为 3 区域（old_town/riverside/hillside）；断言用下界口径，
+    // 内容继续扩充（M2+）时不必回改（口径见文件头「断言口径」）。
+    expect(definition.areas.size).toBeGreaterThanOrEqual(3);
+    expect([...definition.areas.keys()].sort()).toEqual(['hillside', 'old_town', 'riverside']);
     const oldTown = definition.areas.get('old_town');
     expect(oldTown && [...Object.keys(oldTown.locations)].sort()).toEqual(['gate', 'market']);
-    expect(definition.scenes.size).toBe(5);
-    expect([...definition.scenes.keys()].sort()).toEqual([
+    expect(definition.scenes.size).toBeGreaterThanOrEqual(20);
+    // 入口落点与既有场景仍在（聚合结果的结构锚点）
+    for (const id of [
       'arrival',
-      'ev_market_rumor_scene',
-      'ev_wall_whisper_scene',
       'market_street',
       'town_gate',
-    ]);
+      'riverside_ferry',
+      'hillside_trailhead',
+    ]) {
+      expect(definition.scenes.has(id)).toBe(true);
+    }
     const arrival = definition.scenes.get('arrival');
     expect(arrival?.file).toBe('data/scenes/old_town/arrival.yaml');
     expect(arrival?.def.choices.map((choice) => choice.id)).toEqual(['go_market', 'go_gate']);
@@ -50,20 +62,21 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
 
   it('poolIndex：byScope 事件池、dirtyMap 脏标记、mutexGroups 互斥组（§4.4）', async () => {
     const definition = await loadFixturePackage('mini-game');
-    expect(definition.events.map((event) => event.id).sort()).toEqual([
-      'ev_market_rumor',
+    // 事件池规模（下界）与既有锚点事件
+    expect(definition.events.length).toBeGreaterThanOrEqual(10);
+    const eventIds = definition.events.map((event) => event.id);
+    expect(eventIds).toContain('ev_wall_whisper');
+    expect(eventIds).toContain('ev_market_rumor');
+    // byScope：作用域键覆盖三区域（含区域通配 'hillside/*'）
+    const scopeKeys = [...definition.poolIndex.byScope.keys()].sort();
+    expect(scopeKeys).toContain('old_town/gate');
+    expect(scopeKeys).toContain('old_town/market');
+    expect(scopeKeys).toContain('riverside/ferry');
+    expect(scopeKeys).toContain('hillside/*');
+    // 既有锚点的精确成员关系（结构语义，不随内容扩充变化）
+    expect(definition.poolIndex.byScope.get('old_town/gate')?.map((e) => e.id)).toContain(
       'ev_wall_whisper',
-    ]);
-    expect([...definition.poolIndex.byScope.keys()].sort()).toEqual([
-      'old_town/gate',
-      'old_town/market',
-    ]);
-    expect(definition.poolIndex.byScope.get('old_town/gate')?.map((e) => e.id)).toEqual([
-      'ev_wall_whisper',
-    ]);
-    expect(definition.poolIndex.byScope.get('old_town/market')?.map((e) => e.id)).toEqual([
-      'ev_market_rumor',
-    ]);
+    );
     expect(definition.poolIndex.dirtyMap.get('flag.wall_rubbing_taken')).toEqual(
       new Set(['ev_wall_whisper']),
     );
@@ -73,17 +86,18 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
     expect(definition.poolIndex.dirtyMap.get('flag.heard_rumor')).toEqual(
       new Set(['ev_market_rumor']),
     );
-    // 仅 ev_wall_whisper 声明互斥组（ev_market_rumor 无互斥约束）
+    // 互斥组：wall_line 仅含 ev_wall_whisper（其余事件无互斥约束）
     expect(definition.poolIndex.mutexGroups.get('wall_line')).toEqual(['ev_wall_whisper']);
   });
 
   it('refs 反查表：任务与成就条件注册（§4.5 与事件系统同一机制）', async () => {
     const definition = await loadFixturePackage('mini-game');
     const { questRefs, achievementRefs } = definition.poolIndex;
+    // wall_rubbing 的四个条件引用（结构锚点；hillside_survey 另注册自己的引用）
     expect(questRefs.get('flag.heard_rumor')).toEqual(new Set(['wall_rubbing']));
     expect(questRefs.get('flag.wall_rubbing_taken')).toEqual(new Set(['wall_rubbing']));
     expect(questRefs.get('npc.old_guard.talked')).toEqual(new Set(['wall_rubbing']));
-    expect(questRefs.get('time.day')).toEqual(new Set(['wall_rubbing']));
+    expect(questRefs.get('time.day')).toEqual(new Set(['wall_rubbing', 'hillside_survey']));
     expect(achievementRefs.get('flag.heard_rumor')).toEqual(new Set(['first_rumor']));
     expect(achievementRefs.get('attr.insight')).toEqual(new Set(['sharp_eye']));
   });
@@ -106,12 +120,17 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
     const definition = await loadFixturePackage('mini-game');
     const zhCN = definition.locales['zh-CN'];
     expect(zhCN?.lang).toBe('zh-CN');
-    expect(zhCN?.keys.size).toBe(45);
+    // 键数随内容扩充增长：断言下界 + 结构锚点（不锁定精确总数）
+    expect(zhCN?.keys.size).toBeGreaterThanOrEqual(45);
     expect(zhCN?.keys.get('scenes.arrival.open')).toBe(
       '暮雨初歇，你踏上旧镇的石板路，灯笼在雾里晕出一片暖黄。',
     );
     expect(zhCN?.keys.has('scenes.arrival.choice.go_market')).toBe(true);
     expect(zhCN?.keys.has('quests.wall_rubbing.obj_inspect')).toBe(true);
     expect(zhCN?.keys.has('tags.general.name')).toBe(true);
+    // M1 收尾新增区域与任务线的键同样在册
+    expect(zhCN?.keys.has('areas.riverside.name')).toBe(true);
+    expect(zhCN?.keys.has('areas.hillside.name')).toBe(true);
+    expect(zhCN?.keys.has('quests.hillside_survey.obj_quarry')).toBe(true);
   });
 });

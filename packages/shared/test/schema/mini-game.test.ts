@@ -64,20 +64,32 @@ describe('fixtures/mini-game × schema 全域正例（02 任务 C1，FR-L10N-02/
 
   it('data/areas/*.yaml 通过 areaDefSchema', () => {
     const areas = yamlFiles.filter((f) => f.startsWith(`${ROOT}/data/areas/`));
-    expect(areas).toHaveLength(1);
+    // 规模用下界（夹具持续扩充）；区域 id 集合是结构锚点
+    expect(areas.length).toBeGreaterThanOrEqual(3);
+    const ids: string[] = [];
     for (const file of areas) {
       const area = areaDefSchema.parse(parsed.get(file));
-      expect(Object.keys(area.locations)).toEqual(['market', 'gate']);
+      ids.push(area.id);
+      expect(Object.keys(area.locations).length).toBeGreaterThan(0);
     }
+    expect(ids.sort()).toEqual(['hillside', 'old_town', 'riverside']);
+    // old_town 的地点集合保持精确（既有内容不随扩充变化）
+    const oldTown = areaDefSchema.parse(parsed.get(`${ROOT}/data/areas/old_town.yaml`));
+    expect(Object.keys(oldTown.locations)).toEqual(['market', 'gate']);
   });
 
-  it('data/scenes/**/*.yaml 全部通过 sceneDefSchema（5 场景，goto 引用跳转）', () => {
+  it('data/scenes/**/*.yaml 全部通过 sceneDefSchema（多区域，goto 引用跳转）', () => {
     const sceneFiles = yamlFiles.filter((f) => f.includes('/data/scenes/'));
-    expect(sceneFiles).toHaveLength(5);
+    expect(sceneFiles.length).toBeGreaterThanOrEqual(20);
+    const areaDirs = new Set<string>();
     for (const file of sceneFiles) {
       const scene = sceneDefSchema.parse(parsed.get(file));
-      expect(scene.area).toBe('old_town');
+      // DD-02：scene.area 必须与所在目录一致（跨区域内容扩充的守护）
+      const dirArea = file.split('/data/scenes/')[1]?.split('/')[0];
+      expect(scene.area).toBe(dirArea);
+      areaDirs.add(scene.area);
     }
+    expect([...areaDirs].sort()).toEqual(['hillside', 'old_town', 'riverside']);
     const withGoto = sceneFiles.some((file) => {
       const scene = parsed.get(file) as { choices?: Array<{ goto?: unknown }> };
       return (scene.choices ?? []).some((choice) => typeof choice['goto'] === 'string');
@@ -85,22 +97,32 @@ describe('fixtures/mini-game × schema 全域正例（02 任务 C1，FR-L10N-02/
     expect(withGoto).toBe(true);
   });
 
-  it('data/events.yaml 通过 eventDefSchema（condition + random 两型）', () => {
+  it('data/events.yaml 通过 eventDefSchema（condition / random / explore 三型齐备）', () => {
     const events = parseArray(eventDefSchema, `${ROOT}/data/events.yaml`);
-    expect(events.map((e) => e.trigger.type)).toEqual(['condition', 'random']);
+    expect(events.length).toBeGreaterThanOrEqual(10);
+    const types = new Set(events.map((e) => e.trigger.type));
+    expect([...types].sort()).toEqual(['condition', 'explore', 'random']);
   });
 
-  it('data/quests/*.yaml 通过 questDefSchema', () => {
+  it('data/quests/*.yaml 通过 questDefSchema（两条任务线）', () => {
     const questFiles = yamlFiles.filter((f) => f.startsWith(`${ROOT}/data/quests/`));
-    expect(questFiles).toHaveLength(1);
-    const quest = questDefSchema.parse(parsed.get(questFiles[0] as string));
-    expect(quest.stages).toHaveLength(2);
-    expect(quest.rewards).toHaveLength(2);
+    expect(questFiles).toHaveLength(2);
+    const ids: string[] = [];
+    for (const file of questFiles) {
+      const quest = questDefSchema.parse(parsed.get(file));
+      ids.push(quest.id);
+      expect(quest.stages.length).toBeGreaterThanOrEqual(2);
+    }
+    expect(ids.sort()).toEqual(['hillside_survey', 'wall_rubbing']);
+    // wall_rubbing 的既有结构锚点（阶段数/奖励数不随扩充变化）
+    const wall = questDefSchema.parse(parsed.get(`${ROOT}/data/quests/wall_rubbing.yaml`));
+    expect(wall.stages).toHaveLength(2);
+    expect(wall.rewards).toHaveLength(2);
   });
 
   it('data/npcs/*.yaml 通过 npcDefSchema（日程 + 好感阈值 / 最简形态）', () => {
     const npcFiles = yamlFiles.filter((f) => f.startsWith(`${ROOT}/data/npcs/`));
-    expect(npcFiles).toHaveLength(2);
+    expect(npcFiles.length).toBeGreaterThanOrEqual(3);
     for (const file of npcFiles) {
       const npc = npcDefSchema.parse(parsed.get(file));
       expect(npc.nameKey).toBeTruthy();

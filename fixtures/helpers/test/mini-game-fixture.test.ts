@@ -49,13 +49,16 @@ describe('fixtures/mini-game v1（公共正例夹具，设计 §1.3 原则 6）'
     expect(typeof entry === 'string' && sceneIds.has(entry)).toBe(true);
   });
 
-  it('1 个区域下共 5 个场景，目录名与 scene.area 一致（DD-02）', () => {
-    expect(scenes).toHaveLength(5);
+  it('多区域下场景目录名与 scene.area 一致（DD-02）', () => {
+    // 规模用下界（夹具随里程碑扩充；M1 收尾为 3 区域 20 场景）
+    expect(scenes.length).toBeGreaterThanOrEqual(20);
+    const areaDirs = new Set<string>();
     for (const { path, summary } of scenes) {
       const areaDir = path.split('/').at(-2);
-      expect(areaDir).toBe('old_town');
       expect(summary.area).toBe(areaDir);
+      areaDirs.add(areaDir as string);
     }
+    expect([...areaDirs].sort()).toEqual(['hillside', 'old_town', 'riverside']);
   });
 
   it('场景 ID 无重复（DUP_ID 检测面为空）', () => {
