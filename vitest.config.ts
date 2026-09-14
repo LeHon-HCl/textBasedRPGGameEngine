@@ -16,19 +16,12 @@ import { defineConfig } from 'vitest/config';
 /** 解析到源码的工作区包（对应 packages/<name>/src/index.ts） */
 const WORKSPACE_PACKAGES = ['shared', 'engine', 'runtime-ui', 'editor', 'exporter'] as const;
 
-const workspaceAliases = {
-  ...Object.fromEntries(
-    WORKSPACE_PACKAGES.map((name) => [
-      `@game/${name}`,
-      fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url)),
-    ]),
-  ),
-  // 跨包测试支撑包（持久化适配器契约套件等；20 号模块）。不在 packages/ 下，
-  // 故显式登记——engine 与 runtime-ui（Dexie 实现）的测试共用同一套件。
-  '@game/fixtures-helpers': fileURLToPath(
-    new URL('./fixtures/helpers/src/index.ts', import.meta.url),
-  ),
-};
+const workspaceAliases = Object.fromEntries(
+  WORKSPACE_PACKAGES.map((name) => [
+    `@game/${name}`,
+    fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url)),
+  ]),
+);
 
 export default defineConfig({
   resolve: {
