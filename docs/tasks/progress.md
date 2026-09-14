@@ -47,7 +47,7 @@
 - [x] [20 存档系统](20-save.md)
 - [x] [22 内容分级与过滤](22-content-filter.md)（M1 机制：ContentFilter 三谓词 + 应用点 2/3 注入 + 谓词矩阵 + 首启向导 contentWarning 读取路径）
 - [x] [24 媒体解析（引擎侧）](24-media.md)
-- [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（基础 A 组）
+- [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（**A 组 12/12 已完成并合入（PR #16）**；B 组 QoL/调试与 C 组图鉴/统计/媒体播放器/E2E 待做）
 
 ## 里程碑 M2 —— 判定战斗 + 成就周目 + QoL
 
