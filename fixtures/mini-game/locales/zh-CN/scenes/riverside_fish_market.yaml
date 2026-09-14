@@ -1,0 +1,12 @@
+desc: 渔市的棚顶连成一片，竹筐里的河鲜还带着水光。
+busy: 摊主们吆喝得正起劲，喊价声压过了水声。
+quiet: 大半摊子已经收了，只剩几盏灯在风里晃。
+reason:
+  poor: 你摸了摸口袋，银钱不够买下这一尾。
+notify:
+  bought: 你买下一尾河鲜，摊主顺手塞给你一小把盐。
+choice:
+  buy: 买一尾河鲜（5 银）
+  too_poor: 钱不够，看看就好
+  to_warehouse: 往旧货栈去
+  back_ferry: 回渡口

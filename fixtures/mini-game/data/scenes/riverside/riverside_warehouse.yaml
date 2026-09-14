@@ -1,0 +1,30 @@
+# 货栈（河畔地点 warehouse；解锁条件见 area 的 unlockIf）
+#
+# 探索发现型事件的入口地点（explore 触发），演示条件段落与 flag 驱动分支。
+id: riverside_warehouse
+area: riverside
+segments:
+  - key: scenes.riverside_warehouse.desc
+  - key: scenes.riverside_warehouse.locked
+    showIf: '!flag.warehouse_open'
+  - key: scenes.riverside_warehouse.open
+    showIf: 'flag.warehouse_open'
+choices:
+  - id: force_door
+    textKey: scenes.riverside_warehouse.choice.force
+    showIf: '!flag.warehouse_open'
+    effects:
+      - set: { key: 'flag.warehouse_open', value: true }
+      - add: { key: 'attr.stamina', amount: -5 }
+      - notify: { textKey: 'scenes.riverside_warehouse.notify.opened' }
+  - id: search_crates
+    textKey: scenes.riverside_warehouse.choice.search
+    showIf: 'flag.warehouse_open'
+    once: true
+    effects:
+      - add: { key: 'attr.insight', amount: 2 }
+      - give: { item: guard_coat, count: 1 }
+      - notify: { textKey: 'scenes.riverside_warehouse.notify.found' }
+  - id: back_market
+    textKey: scenes.riverside_warehouse.choice.back
+    goto: riverside_fish_market

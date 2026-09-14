@@ -1,0 +1,38 @@
+# 河畔入口场景：渡口（DD-02：一场景一文件）
+#
+# 由 old_town 的 town_gate 选项跳转进入（跨区域衔接）。含条件段落（首次/再次）
+# 与一次性选项示例（08 号叙事宏能力演示）。
+id: riverside_ferry
+area: riverside
+segments:
+  - key: scenes.riverside_ferry.arrive
+  - key: scenes.riverside_ferry.ferryman
+    showIf: '!npc.ferryman.met'
+  - key: scenes.riverside_ferry.ferryman_seen
+    showIf: 'npc.ferryman.met'
+  - key: scenes.riverside_ferry.tide
+    showIf: "time.slot == 'evening' || time.slot == 'night'"
+choices:
+  - id: talk_ferryman
+    textKey: scenes.riverside_ferry.choice.talk
+    showIf: '!npc.ferryman.met'
+    effects:
+      - set: { key: 'npc.ferryman.met', value: true }
+      - notify: { textKey: 'scenes.riverside_ferry.notify.met' }
+  - id: ask_ferry
+    textKey: scenes.riverside_ferry.choice.ask_ferry
+    showIf: 'npc.ferryman.met'
+    once: true
+    effects:
+      - add: { key: 'attr.insight', amount: 1 }
+      - notify: { textKey: 'scenes.riverside_ferry.notify.ferry_tip' }
+  - id: to_fish_market
+    textKey: scenes.riverside_ferry.choice.to_market
+    goto: riverside_fish_market
+  - id: to_embankment
+    textKey: scenes.riverside_ferry.choice.to_embankment
+    showIf: 'attr.insight >= 3'
+    goto: riverside_embankment
+  - id: back_town
+    textKey: scenes.riverside_ferry.choice.back
+    goto: town_gate

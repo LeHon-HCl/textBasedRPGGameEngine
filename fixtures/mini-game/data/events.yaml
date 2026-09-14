@@ -28,3 +28,48 @@
   priority: 0
   tags: [general]
   scene: ev_market_rumor_scene
+# —— 河畔区域事件（M1 收尾扩充：覆盖 condition / random / explore 三型）——
+- id: ev_ferry_greeting
+  where:
+    area: riverside
+    location: ferry
+  when:
+    slots: [morning, afternoon, evening]
+  trigger:
+    type: condition
+    require: 'npc.ferryman.met && !flag.ferry_greeted'
+  priority: 8
+  mutexGroup: ferry_line
+  tags: [general]
+  scene: ev_ferry_greeting_scene
+- id: ev_fish_market_bargain
+  where:
+    area: riverside
+    location: fish_market
+  when:
+    slots: [morning, afternoon]
+  trigger:
+    type: random
+    weight: 4
+    require: 'wallet.town_silver >= 10'
+    cooldown:
+      days: 1
+    once: save
+  priority: 0
+  tags: [general]
+  scene: ev_fish_market_bargain_scene
+- id: ev_embankment_find
+  where:
+    area: riverside
+    location: embankment
+  when:
+    slots: [evening, night]
+  trigger:
+    type: explore
+    weight: 6
+    require: 'attr.insight >= 3 && !flag.embankment_found'
+    once: loop
+  priority: 5
+  tags: [general]
+  scene: ev_embankment_find_scene
+

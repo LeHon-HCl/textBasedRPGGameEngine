@@ -79,6 +79,15 @@ export interface GameHostOptions {
   readonly contentTags?: ContentTagsDef;
   /** 初始属性（attrs.yaml 的 init 投影；缺省空） */
   readonly initialAttrs?: Readonly<Record<string, number>>;
+  /**
+   * 初始钱包（多货币，FR-ECON-01）。
+   *
+   * 为什么需要显式注入：`wallet` 是表达式的**封闭域**（DD-01：缺 key 即
+   * `EVAL_ERROR`，无静默默认值），而游戏包没有「钱包初值」的声明面
+   * （`money` 效果只做增减）。因此形如 `wallet.<currency>` 的读取要求宿主
+   * 在建档时先写入该货币——本选项即该写入口（缺省空 = 无货币可读）。
+   */
+  readonly initialWallet?: Readonly<Record<string, number>>;
   /** 初始已解锁区域（缺省：第一个区域） */
   readonly initialUnlockedAreas?: readonly GameId[];
   /** 随机种子（DD-09；缺省固定种子以便复现） */
@@ -358,6 +367,8 @@ export function createGameHost(options: GameHostOptions): GameHost {
           minEngineVersion: definition.manifest.minEngineVersion,
         },
         attrs: { ...(options.initialAttrs ?? {}) },
+        // 钱包初值（见 GameHostOptions.initialWallet：wallet 是封闭域，读前必须先有键）
+        wallet: { ...(options.initialWallet ?? {}) },
         unlockedAreas: [
           ...(options.initialUnlockedAreas ?? [...definition.areas.keys()].slice(0, 1)),
         ],

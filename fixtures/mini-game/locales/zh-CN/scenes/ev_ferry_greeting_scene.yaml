@@ -1,0 +1,7 @@
+open: 摆渡人把篙往水里一点，船身轻轻荡开。
+offer: 「过河么？涨潮前就这一趟。」他没回头，只问了一句。
+notify:
+  accepted: 你应了声，老人随即报了个价。
+choice:
+  accept: 上船
+  decline: 谢过，先不上

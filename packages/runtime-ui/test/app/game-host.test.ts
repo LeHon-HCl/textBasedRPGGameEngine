@@ -45,7 +45,9 @@ function readSupportDomains(files: Record<string, string>): {
 
 const files = readPackage();
 
-async function makeHost(): Promise<GameHost> {
+async function makeHost(options?: {
+  initialWallet?: Readonly<Record<string, number>>;
+}): Promise<GameHost> {
   const definition = await loadGamePackage(new InMemoryPackageSource(files));
   const { attrDefs, contentTags } = readSupportDomains(files);
   return createGameHost({
@@ -53,6 +55,7 @@ async function makeHost(): Promise<GameHost> {
     attrDefs,
     contentTags,
     initialAttrs: { hp: 100, stamina: 30, insight: 0 },
+    ...(options?.initialWallet !== undefined ? { initialWallet: options.initialWallet } : {}),
     seed: 2026,
   });
 }
@@ -97,6 +100,20 @@ describe('宿主装配：mini-game 端到端（设计 §6.1/§6.2）', () => {
     host.start();
     const open = host.store.getState().session.segments[0]?.key as string;
     expect(host.textOf(open)).toContain('石板路');
+  });
+
+  it('initialWallet 写入钱包：wallet 是封闭域，建当前必须已有货币键（DD-01）', async () => {
+    const host = await makeHost({ initialWallet: { town_silver: 12 } });
+    host.start();
+    expect(host.runtime.state.player.wallet['town_silver']).toBe(12);
+    // 建当后会话正常推进（钱包条件表达式不再因缺键抛 EVAL_ERROR）
+    expect(host.store.getState().session.phase).toBe('await_advance');
+  });
+
+  it('未注入钱包时 wallet 为空（不隐式造币）', async () => {
+    const host = await makeHost();
+    host.start();
+    expect(host.runtime.state.player.wallet).toEqual({});
   });
 });
 

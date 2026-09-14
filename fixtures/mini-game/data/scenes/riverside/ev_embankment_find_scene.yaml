@@ -1,0 +1,18 @@
+# 事件场景：河堤发现（ev_embankment_find 的子会话入口；explore 型）
+id: ev_embankment_find_scene
+area: riverside
+segments:
+  - key: scenes.ev_embankment_find_scene.open
+  - key: scenes.ev_embankment_find_scene.glint
+choices:
+  - id: pick_up
+    textKey: scenes.ev_embankment_find_scene.choice.pick
+    effects:
+      - set: { key: 'flag.embankment_found', value: true }
+      - add: { key: 'attr.insight', amount: 2 }
+      - give: { item: warm_bun, count: 2 }
+      - notify: { textKey: 'scenes.ev_embankment_find_scene.notify.picked' }
+  - id: leave_it
+    textKey: scenes.ev_embankment_find_scene.choice.leave
+    effects:
+      - set: { key: 'flag.embankment_found', value: true }
