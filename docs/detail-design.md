@@ -448,6 +448,18 @@ export interface EffectInstructionDef<T = any> {
   schema: ZodType<T>;                      // 参数 schema（数据加载期与运行期共用）
   /** 存档触碰声明（FR-SCR-05）：迁移与调试依赖此元数据 */
   touch: (arg: T) => TouchReport;          // TouchReport = { reads: string[]; writes: string[] }  // 状态域路径前缀
+  /**
+   * 参数**语义**校验（加载期执行，2026-09-15 增补；对应 develop.md 约束 8）。
+   *
+   * 与 `schema` 的分工：schema 只保证结构（类型/必填），本钩子校验**跨数据语义**——
+   * 如 `set` 的 key 形态是否合法、`favor` 的目标 NPC 是否在包内声明、
+   * `wear` 的物品是否为 garment。返回诊断（空数组 = 通过）。
+   *
+   * 为什么必须在加载期：这些错误此前只在 `execute`（运行期）暴露，
+   * 表现为「包加载零诊断通过、玩家点到该选项才炸」（见 §7.7 `invalid-instruction-arg`）。
+   * 缺省实现返回空数组（结构校验足够时无需覆写）。
+   */
+  validateArg?: (arg: T, ctx: ValidationCtx) => Diagnostic[];
   execute(arg: T, ectx: EffectContext): void;
 }
 
@@ -1190,7 +1202,7 @@ export interface ValidationRule {
 }
 ```
 
-规则清单（首批 12 条，`shared/validation/rules/`）：
+规则清单（首批 14 条，`shared/validation/rules/`）：
 
 | id | 内容 | 级别 |
 |---|---|---|
@@ -1199,6 +1211,8 @@ export interface ValidationRule {
 | dangling-media | 媒体路径不存在 | error |
 | dup-id / dup-choice-id | ID 重复 | error |
 | expr-compile | 表达式编译失败 / pure 函数误用 | error |
+| **invalid-instruction-arg** | **效果指令参数语义非法**：`set`/`add` 的 key 形态、`favor`/`reputation` 目标实体不存在、`give`/`take`/`wear` 物品不存在或类型不匹配、`quest` 的 id/action 非法、`goto`/`ending`/`battle` 参数面目标悬空 | **error** |
+| **unreachable-content** | **内容无可达入口**：区域无入口 / 事件永不触发 / 任务无 `accept` 调用点 / 结局无触发点 / 商店无入口（develop.md 约束 7 的五检） | **error** |
 | lang-missing | 非主语言缺失键统计 | warning |
 | placeholder-mismatch | 译文插值占位符与主语言不一致 | warning |
 | tag-missing | 有 tags 机制但显式敏感内容未标注 | warning |
@@ -1206,7 +1220,23 @@ export interface ValidationRule {
 | id-stability | 与上一发布 manifest 对比：已引用 ID 被删/改名 → 建议写入 redirects | warning |
 | stat-derived-cycle | 派生属性循环依赖 | error |
 
-- 加载器复用：error 级规则 = 管线步骤 3/4（§3.4）；**同一实现、同一 ID**（DD-12）。
+> **后两条 error（2026-09-15 增补，源自内容完整性反思报告）**
+>
+> `invalid-instruction-arg`：把「指令参数语义」从**运行期前移到加载期**。
+> 此前 `set { key: 'npc.ferryman.met' }` 这类非法 key 要等玩家点到该选项才抛
+> `EFFECT_FAILED`，而加载期零诊断通过（详见 `docs/retros/content-integrity-postmortem.md`；
+> 对应 develop.md 约束 8）。
+>
+> `unreachable-content`：补「反向可达性」。此前只查正向引用悬空（引用的目标是否存在），
+> 不查「内容本身是否有入口」——整块区域/任务/结局写了却永远走不到（对应约束 7）。
+>
+> **实现口径**：`invalid-instruction-arg` 的校验器**随指令注册表声明**——每条指令除
+> `schema`/`touch`/`execute` 外新增 `validateArg(arg, defs)` 钩子，保证校验规则与指令定义
+> 单一来源；`unreachable-content` 在 `packages/engine/test/loader/` 以内容图遍历实现
+> （Node 秒级，进 CI 门禁），26 号编辑器校验中心复用同一规则集（DD-12）。
+
+- 加载器复用：error 级规则 = 管线步骤 3/4（§3.4）加效果指令校验（§3.3 `validateArg` 钩子）；
+  **同一实现、同一 ID**（DD-12）。
 - 校验中心 UI：诊断列表（定位跳转 + 快速修复建议）；「仅显示 error」门禁视图（FR-EDTR-15）。
 
 ### 7.8 翻译管理【FR-EDTR-13/14】
