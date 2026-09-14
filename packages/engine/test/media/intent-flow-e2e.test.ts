@@ -87,8 +87,7 @@ const FILES: Record<string, string> = {
     '  choice:',
     '    click: 点一下。',
   ].join('\n'),
-  'locales/zh-CN/areas/old_town.yaml':
-    'old_town:\n  name: 旧镇\n  market: 集市\n',
+  'locales/zh-CN/areas/old_town.yaml': 'old_town:\n  name: 旧镇\n  market: 集市\n',
   'locales/zh-CN/npcs/raven.yaml': 'raven:\n  name: 渡鸦\n',
 };
 
@@ -260,7 +259,10 @@ describe('24-6 完整 intent 流（进入场景 → 段落 → 选项，真实�
     });
     const runtime = new GameRuntime({
       state: newGameState(
-        { versions: { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.1.0' }, attrs: { hp: 100 } },
+        {
+          versions: { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.1.0' },
+          attrs: { hp: 100 },
+        },
         createRng(42),
       ),
       rng: createRng(7),

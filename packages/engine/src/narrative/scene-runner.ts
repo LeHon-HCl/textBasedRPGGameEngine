@@ -568,7 +568,7 @@ export class SceneRunner {
       });
     }
     this.#requireEntry(scene);
-      this.#frame = this.#createFrame(sceneId, scene);
+    this.#frame = this.#createFrame(sceneId, scene);
     this.#phase = 'entering';
   }
 
