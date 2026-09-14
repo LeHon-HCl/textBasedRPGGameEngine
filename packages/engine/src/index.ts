@@ -210,6 +210,7 @@ export {
   clamp,
   createNpcScheduleDeriver,
   createNpcScheduleProvider,
+  projectRelationships,
   resolveNpcLocation,
   resolveNpcLocations,
   sameNpcLocationCache,
@@ -220,6 +221,10 @@ export type {
   NpcRelationSlice,
   NpcScheduleDeriverOptions,
   NpcScheduleQuery,
+  RelationshipEntryView,
+  RelationshipPanelView,
+  RelationshipProjectionOptions,
+  RelationshipStageView,
   ReputationChange,
   ThresholdEntry,
 } from './npcs/index.js';

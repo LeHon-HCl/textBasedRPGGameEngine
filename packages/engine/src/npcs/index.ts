@@ -11,5 +11,12 @@ export type { ReputationChange } from './reputation.js';
 export { clamp, thresholdFor } from './thresholds.js';
 export type { ThresholdEntry } from './thresholds.js';
 export { createNpcScheduleProvider } from './step.js';
+export { projectRelationships } from './projection.js';
+export type {
+  RelationshipEntryView,
+  RelationshipPanelView,
+  RelationshipProjectionOptions,
+  RelationshipStageView,
+} from './projection.js';
 export { createNpcScheduleDeriver } from './deriver.js';
 export type { NpcScheduleDeriverOptions } from './deriver.js';
