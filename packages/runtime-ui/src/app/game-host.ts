@@ -18,6 +18,7 @@ import {
   createQuestDeriver,
   createTextResolver,
   createTimeViewProvider,
+  DEFAULT_PLAYER_SETTINGS,
   DEFAULT_TIME_CONFIG,
   GameRuntime,
   MediaResolver,
@@ -199,7 +200,16 @@ export function createGameHost(options: GameHostOptions): GameHost {
    * 并提供 `updateSettings`，序列化时由宿主合并进 blob.state.settings
    * （零语义改写：镜像初值取自 newGameState 的缺省设置）。
    */
-  let settingsMirror: PlayerSettings | undefined;
+  /**
+   * 玩家设置的宿主侧镜像。
+   *
+   * **初值口径（M1 收尾修正）**：以 `DEFAULT_PLAYER_SETTINGS` 立即初始化，而非留
+   * undefined 等到 `start()`——因为首启内容向导（FR-CGRD-04）在**开始游戏之前**
+   * 就要读设置（语言/标签名经 `textOf` 物化、`setDisabledTags` 写标签开关）。
+   * 留空会让这些读取落到 `requireRuntime()` 并抛「宿主未启动」，导致向导屏白屏。
+   * `start()` 时以 `newGameState` 的缺省设置覆盖（两处同源）。
+   */
+  let settingsMirror: PlayerSettings = { ...DEFAULT_PLAYER_SETTINGS };
   let disabledTags: readonly string[] = [];
   const contentFilter = (): ContentFilter =>
     new ContentFilter({ tags: options.contentTags?.tags ?? [] }, { disabledTags });
@@ -536,9 +546,8 @@ export function createGameHost(options: GameHostOptions): GameHost {
     // 语言口径（M1 收尾修正）：按**当前设置语言**解析，而非固定 mainLang ——
     // 面板/UI 文案须随设置面板的语言切换即时变更（FR-L10N-05 运行时切换）；
     // 固定 mainLang 会让切换语言后所有组件文案仍停留在主语言。
-    textOf: (key, vars) =>
-      resolver.resolve(key, (settingsMirror ?? requireRuntime().state.settings).lang, vars).text,
-    settings: () => settingsMirror ?? requireRuntime().state.settings,
+    textOf: (key, vars) => resolver.resolve(key, settingsMirror.lang, vars).text,
+    settings: () => settingsMirror,
     langs: () => [...definition.manifest.langs],
     versions: () => ({
       engineVersion: requireRuntime().state.versions.engineVersion,
@@ -546,7 +555,7 @@ export function createGameHost(options: GameHostOptions): GameHost {
       schemaVersion: definition.manifest.schemaVersion,
     }),
     updateSettings: (partial) => {
-      const current = settingsMirror ?? requireRuntime().state.settings;
+      const current = settingsMirror;
       settingsMirror = { ...current, ...partial };
       if (partial.disabledTags !== undefined) {
         disabledTags = [...partial.disabledTags];
