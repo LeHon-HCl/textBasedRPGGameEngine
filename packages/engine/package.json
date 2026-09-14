@@ -13,6 +13,9 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json"
   },
+  "devDependencies": {
+    "@game/fixtures-helpers": "workspace:^"
+  },
   "dependencies": {
     "@game/shared": "workspace:^",
     "immer": "^11.1.18",
