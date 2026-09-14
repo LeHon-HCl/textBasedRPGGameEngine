@@ -23,6 +23,16 @@ export const exprSchema = z.string().min(1);
 /** 媒体资产引用（RefKind 'media'，DD-05）：存在性校验归加载器 crossRef（§3.4 步骤 4） */
 export const mediaRefSchema = refId('media');
 
+/**
+ * 背景/BGM 绑定（FR-MEDIA-02，DD-05）：场景与区域共用同一形态。
+ * 区域级为场景级的**回落层**（场景未声明对应项时取区域值，24 号解析器）。
+ * 定义放 common 保证「绑定语义只有一份」——两处独立定义迟早漂移。
+ */
+export const mediaBindingSchema = z.strictObject({
+  bg: mediaRefSchema.optional(),
+  bgm: mediaRefSchema.optional(),
+});
+
 /** 语义化版本号（FR-MIGR-01 三层版本记录）：major.minor.patch，可带 prerelease/build 后缀 */
 export const semverSchema = z
   .string()

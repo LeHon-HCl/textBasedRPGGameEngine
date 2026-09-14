@@ -12,6 +12,7 @@ export {
   exprOrNumberSchema,
   exprSchema,
   gameIdSchema,
+  mediaBindingSchema,
   mediaRefSchema,
   semverSchema,
   textKeySchema,
@@ -42,7 +43,8 @@ export type { AttrDefs, DerivedAttrDef, LevelAttrDef, NumericAttrDef } from './a
 
 // ---- SceneDef / AreaDef（场景与区域） ---------------------------------------
 export { choiceSchema, sceneDefSchema, sceneMediaSchema, segmentSchema } from './scene.js';
-export type { ChoiceDef, SceneDef, SegmentDef } from './scene.js';
+export { segmentSpriteSchema } from './scene.js';
+export type { ChoiceDef, SceneDef, SegmentDef, SegmentSprite } from './scene.js';
 export { areaDefSchema, locationDefSchema } from './area.js';
 export type { AreaDef, LocationDef } from './area.js';
 
@@ -57,8 +59,17 @@ export {
   npcDefSchema,
   scheduleEntrySchema,
   scheduleWindowSchema,
+  spriteDeclSchema,
+  spriteVariantSchema,
 } from './npc.js';
-export type { FavorDef, FavorStage, NpcDef, ScheduleEntry } from './npc.js';
+export type {
+  FavorDef,
+  FavorStage,
+  NpcDef,
+  ScheduleEntry,
+  SpriteDecl,
+  SpriteVariantDef,
+} from './npc.js';
 export { factionDefSchema, factionThresholdSchema } from './faction.js';
 export type { FactionDef, FactionThreshold } from './faction.js';
 

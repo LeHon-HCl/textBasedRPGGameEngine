@@ -34,6 +34,25 @@
           "showIf": {
             "type": "string",
             "minLength": 1
+          },
+          "cg": {
+            "type": "string",
+            "refKind": "media"
+          },
+          "sprite": {
+            "type": "object",
+            "properties": {
+              "npc": {
+                "type": "string",
+                "refKind": "npc"
+              },
+              "when": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["npc"],
+            "additionalProperties": false
           }
         },
         "required": ["key"],
