@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，对应 feat/12（NPC 与阵营系统，M1）。
+> 最后核对：2026-09-14，M1 进行中——09/11/12/13/14/22 已合入（10/20/24/25A 进行中）。
 
 ## 1. 总览
 
@@ -79,7 +79,7 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 
 - **registry.ts**：`EffectRegistry implements EffectExecutor`——指令注册、参数 Zod 校验、重复 ID 冲突检测。
 - **types.ts**：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`（事务触域报告，供增量重算）、`eraseDef`；`CheckRequest / CheckRule / CheckRuleResolver` 为 15 号判定系统预留的规则缝。
-- **builtins/**（8 文件 25 条作者可见指令 + 5 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline` / `__npc.resolve`）：state（set/add/flag/money，set/add 的 key 自 12 号扩展 `npc.<id>.flags.<名>` 记忆命名空间）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation，委托 npcs 纯机制）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、npcs（内部 `__npc.resolve` 日程缓存重建）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
+- **builtins/**（8 文件 25 条作者可见指令 + 6 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline` / `__npc.resolve` / `__body.revert`）：state（set/add/flag/money，set/add 的 key 自 12 号扩展 `npc.<id>.flags.<名>` 记忆命名空间）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation，委托 npcs 纯机制）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、npcs（内部 `__npc.resolve` 日程缓存重建）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
 
 ### 3.5 loader/ —— 游戏包加载器（设计 §3.4，06 号）
 
@@ -163,6 +163,13 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **projection.ts**：`projectRelationships(state, npcs, options?)` 关系面板 UI 投影（FR-NPCR-05）——已结识筛选（缺省只列 met）、阶段 id → nameKey、好感数值显隐策略（缺省隐藏）、当前地点读日程缓存；纯函数供 25 号消费。
 - **状态/表达式面**：`npcs[id].flags` 记忆命名空间经 `set/add` 的 `npc.<id>.flags.<名>` key 写入（未知 NPC 自动建档）；表达式 `npc.<id>.flags.<名>`（显式）与 `npc.<id>.<名>`（简写）读取；`npc.<id>.at` 保留字段映射日程缓存（不在场 → null）。
 
+### 3.12 body/ —— 身体与变身（设计 §4.8，14 号）
+
+- **tick.ts**：`createBodyRevertProvider()` 挂时间管线步骤 3——`__body.revert` 内部指令递减 `player.bodyTemp[*].remainingSlots`，归零还原原值 + emit `body_reverted`（引擎不解释语义，中立性）；`set_body{revertAfter:{slots|days}}` 登记临时项，days 按 TimeConfig 每日时段数换算，同部位重复登记保留首次原值。
+- **pronouns.ts**：`createPronounInjector(bodyDefs)` 按 `BodyDef.pronouns`（`rule: 'by_part'`）的当前部位值产出 `player.they` / `player.them` / `player.their` 插值键（FR-BODY-04）；无映射项/未配置 → 空注入（插值失败归 resolver 告警）；映射数组可短于 3。
+- **状态域**：`player.bodyTemp`（临时变身登记 original + remainingSlots；设计原定 `world.flags.__body_temp`，因 flag 值域仅标量而独立成域）与 `player.bodyProgress`（FR-BODY-05 P2 预留 0..100，表达式经 `body.progress.<part>` 可读，白名单与求值器已同步扩展）。
+- **set_body 指令**（effects/builtins/adversarial.ts）：part/value ∈ BodyDef 校验（违例 EFFECT_FAILED）+ 永久变更；`revertAfter`/`progress` 参数驱动上两域。描写组合（FR-BODY-03）无专门机制——body 值驱动的条件经 03 号求值器直接可用。
+
 ## 4. 应用层（apps/）
 
 - **player-demo**（`src/main.ts`）：M0 验收用 vanilla TS 页面。数据流：Vite `import.meta.glob(?raw)` 读 fixtures/mini-game → `InMemoryPackageSource` → `loadGamePackage` → `newGameState` + `GameRuntime` → `SceneRunner` + `TextResolver` 端到端渲染。是 runtime-ui（25 号）落地前的接线参考。
@@ -171,8 +178,8 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（12 号 NPC 与阵营入库后）：116 个测试文件 / 1855 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（14 号身体与变身入库后）：119 个测试文件 / 1876 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
