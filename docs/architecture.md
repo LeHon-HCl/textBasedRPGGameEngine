@@ -1,29 +1,62 @@
 # 项目架构（as-built）
 
-
-> **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
-> 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/22/24/25A 已合入（20 与 25 的 B/C 组进行中）。
+> **本文档回答三个问题：这个项目长什么样、一次点击到底发生了什么、想改 X 该动哪里。**
+> 完整反映已实现代码的逻辑架构，随代码变更同步更新（维护触发表见 §8）。
 >
+> 上游依据：需求见 [`proposal.md`](proposal.md)（§ 与 FR/NFR 编号定义处）；设计意图见
+> [`detail-design.md`](detail-design.md)（§x.y 与 DD-nn）；进度见 [`tasks/progress.md`](tasks/progress.md)；
+> 开发流程见 [`develop.md`](develop.md)。
+>
+> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/20/22/24/25A 已合入（25 的 B/C 组进行中）。
+
 ## 写作规范（改动本文档前先读）
 
 **这份文档的读者是「要改代码的人」，不是「要审计实现的人」。** 因此：
 
+1. **先图后字**。核心逻辑用 mermaid；一张图能说清的不写段落。
+2. **主线在正文，细节进折叠块**。正文回答「是什么 / 为什么」；文件级细节、字段清单、
+   状态树、指令表放 `<details>`，需要时展开。
+3. **每节服务于一个具体问题**。写之前先问：「读者在什么场景下会读这一段？」回答不了就别写。
+4. **条文带溯源**。提到设计依据就标 §x.y 或 DD-nn，便于回溯与冲突裁决。
+5. **不抄代码**。写职责与约束，接口细节以代码为准（避免双份维护漂移）。
+6. **不加「实现细节百科」**。逐函数的参数说明、逐字段的类型列举属于代码与 TSDoc，
+   写进这里只会制造第二份需要同步的事实。
 
+**变更本文档的流程**：新增/修改子系统、指令、管线步骤、依赖关系时，**同一 PR 内**按 §8
+触发表更新对应小节；新增 engine 子系统目录而未登记会被 `validate-docs.mjs` 拦下
+（不登记即 CI 红）。每次更新在文首「最后核对」行登记日期与里程碑状态。
+
+---
+
+## 目录
+
+- [1. 这是什么](#1-这是什么) — 一分钟建立心智模型
+- [2. 仓库与依赖规则](#2-仓库与依赖规则)
+- [3. 一次点击的数据流](#3-一次点击的数据流) — 读这一节就能懂整个引擎
+- [4. 加载管线](#4-加载管线) — 游戏包怎么变成可运行对象
+- [5. engine 子系统](#5-engine-子系统) — 按模块导航到文件
+- [6. shared / apps / fixtures](#6-shared--apps--fixtures)
+- [7. 测试与质量门禁](#7-测试与质量门禁)
+- [8. 维护规则](#8-维护规则)
+
+---
+
+## 1. 这是什么
+
+三个词概括：**数据驱动**（游戏是 YAML 包，不是代码）、**引擎与渲染解耦**（engine 不碰 DOM/图像/音频）、
+**一切经由事务**（状态只能在一个 `exec` 里整体成功或整体回滚）。
+
+```mermaid
+flowchart LR
+  A["作者写的游戏包<br/>YAML + 受限表达式"] --> B["loader<br/>七步管线"]
+  B --> C["GameDefinition<br/>冻结的只读定义"]
+  D["玩家操作<br/>点击 / 推进 / 选择"] --> E["GameRuntime<br/>事务执行器"]
+  C --> E
+  E --> F["EngineEvent[]<br/>纯数据事件"]
+  E --> G["RenderSegment[]<br/>待渲染段落"]
+  F --> H["宿主 UI<br/>runtime-ui / player-demo"]
+  G --> H
 ```
-┌──────────────────────────── 仓库布局 ────────────────────────────┐
-│ packages/shared      @game/shared     类型/Schema/规则单一来源     │
-│ packages/engine      @game/engine     核心运行时（无 React/DOM）   │
-│ packages/runtime-ui  @game/runtime-ui 玩家界面组件库（React，25A）  │
-│ packages/editor      @game/editor     可视化编辑器（占位，26 号）   │
-│ packages/exporter    @game/exporter   导出分发（占位，27 号）       │
-│ apps/player-demo     player-demo      runtime-ui 宿主页（试玩）     │
-│ apps/editor-app      editor-app       编辑器宿主页（占位）          │
-│ fixtures/mini-game   正例游戏包夹具（约 60 个 YAML）                │
-│ fixtures/negatives/  5 个单缺陷负例包（每包一个预期 ErrCode）        │
-│ fixtures/helpers/    跨包测试夹具包（InMemoryPackageSource 等）      │
-└──────────────────────────────────────────────────────────────────┘
->```
 
 关键约束（后续各节反复出现）：
 
@@ -45,7 +78,7 @@ flowchart TB
     EA["editor-app<br/>占位"]
   end
   subgraph pkgs["packages/"]
-    RUI["runtime-ui<br/>玩家界面（占位，25 号）"]
+    RUI["runtime-ui<br/>玩家界面（React，25A）"]
     EDT["editor<br/>编辑器内核（占位）"]
     EXP["exporter<br/>静态包导出（占位）"]
     ENG["engine<br/>核心运行时"]
@@ -76,17 +109,38 @@ flowchart TB
 | R4 | `shared`/`engine` 源码禁裸 `throw new Error`，必须抛 `EngineError`（code/where/messageKey） | `no-restricted-syntax` |
 | R5 | engine 子系统间禁横向 import（DD-06）：只用事务 / EngineEvent / 时间管线编排 | 目录出口约定 + review |
 
+> **R2 的一个实际后果**：engine 的测试不能 import `fixtures/helpers`。跨包共用的测试代码
+> 因此放在 `fixtures/helpers` 并由该包自己的 test 运行（见 §7）。
 
-> R2 只约束 engine（25A 起 runtime-ui 是浏览器包：允许 React 与 DOM；其测试跑 jsdom，
-> engine/shared 的测试仍在 node 环境——node 环境即「engine 无 DOM」的回归防线）。
+---
 
+## 3. 一次点击的数据流
+
+这一节是理解全项目的关键。以「玩家点击一个选项」为例：
+
+```mermaid
+sequenceDiagram
+  participant U as 宿主 UI
+  participant SR as SceneRunner
+  participant RT as GameRuntime
+  participant FN as 内置指令
+  participant TR as TextResolver
+
+  U->>SR: checkpoint("选择前")<br/>FR-READ-03 回滚点
+  U->>SR: choose("go_market")
+  SR->>RT: exec(effects, {source:'choice', rng})
+  Note over RT: 1. immer draft 开始
+  RT->>FN: set / add / flag / give …
+  FN-->>RT: 写入 draft + emit(EngineEvent)
+  RT->>RT: 后置派生器（任务状态机 / NPC 日程 / 派生属性）
+  Note over RT: 2. 全部成功 → 提交；任一失败 → 整体回滚
+  RT-->>SR: ExecOutcome{jumps, events, patches}
+  RT-->>U: on(type, handler) 送达事件
+  SR->>SR: 消费 jumps → 进入新场景帧
+  SR-->>U: renderList() → RenderSegment[]
+  U->>TR: resolve(key, lang, vars)
+  TR-->>U: 已插值文本 → sanitize → ReactNode
 ```
-mermaid 等价依赖图：
-apps/* ──> runtime-ui ──> engine ──> shared
-editor ──> exporter ──> engine/shared
-engine 内部：loader → (state, effects, expr) ；narrative → (state, runtime, i18n)
-content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrative 经结构化最小接口注入，不 import content。
->```
 
 **三个要点：**
 
@@ -235,99 +289,41 @@ interface GameDefinition {
 <details>
 <summary><b>state/ — 状态树与事务底座</b>（设计 §3.1，04 号）</summary>
 
+- `game-state.ts`：`GameState` 状态树类型（结构见 §3 折叠块）。
+- `new-game.ts`：`newGameState()` + `NewGameBootstrap`（从清单驱动的初始值建新档）。
+- `derived.ts`：`recomputeDerived()` 派生属性重算；`DERIVED_TRIGGER_DOMAINS` 声明哪些域
+  变化触发重算（仅五域：attr/equip/outfit/body/statuses）。装备修正 `equipMods` 按目标属性
+  分组求和并入 `player.derived`，并清理残影防重复累计。
+- `expr-scope.ts`：`buildExprScope()` 把 GameState 投影成表达式求值作用域（含 `MetaView` /
+  `TimeViewProvider` 注入缝）。
+- `ref-paths.ts`：表达式引用路径 → 状态树路径前缀映射（10/11 号共用的脏标记口径）。
+- `serialize.ts`：`serializeState()` / `restoreState()`，经 shared schema 终验。
+</details>
 
-## 4. runtime-ui 包（`packages/runtime-ui/src/`，25A 已落地）
+<details>
+<summary><b>runtime/ — 状态事务核心</b>（设计 §3.1）</summary>
 
-React 通用游玩界面组件库（设计 §6）。**唯一允许 React/DOM 的包**（R2 只约束 engine）；
-所有组件 props 受控、可 Testing Library 测；面板数据源一律为**纯投影函数**
-（GameState/定义 → 视图），组件不做业务计算。
+- `game-runtime.ts`：`GameRuntime`——immer draft 上实现 `TransactionFrame`（jumps/events/patches
+  合并提交）；`checkpoint(label)` 快照栈（超限丢最旧并发 `snapshot_warn`）；`rollback(n)`；
+  `serialize()` / `restore()`；`derivers` 后置派生器（指令执行完、提交前按补丁路径调用，
+  状态变更/事件/子效果并入同一事务）。
+- `exec-context.ts`：`ExecContext` / `ExecOutcome` / `JumpTarget` / `EffectExecutor` /
+  `TransactionDeriver`——效果执行与叙事跳转的统一通道。
+- `engine-events.ts`：`EngineEvent` 判别联合全集（StatChanged / Notify / Unlock / Media /
+  FavorStageChanged / ReputationBandChanged / CheckResult / ItemExpired / BodyReverted /
+  QuestStateChanged / QuestStage / SnapshotWarn）。
+- `perf-guard.ts`：`PERF_GUARD` 性能预算常量。
+</details>
 
-- **app/**：应用外壳与状态订阅（§6.2）
-  - `store.ts`/`types.ts`：`createUiStore`（Zustand vanilla，每实例独立）——切片
-    `screen` / `runtime` / `session` / `notifications` / `panels` / `statHighlights` /
-    `questRevision`；`pushNotification` 是通知队列唯一写入口（写入即应用 500ms 合并）。
-  - `bridgeRuntimeEvents`：引擎事件 → store 的订阅桥（stat_changed → 数值高亮、
-    notify → Toast、quest_state_changed/quest_stage → 任务面板重算信号），返回退订句柄。
-  - `selectors.ts` + `hooks.tsx`：纯 selector 集 + `UiStoreProvider` / `useUiSelector`
-    （`useSyncExternalStore`）——未变更切片的引用保持稳定，实现 selector 级细粒度重渲染。
-  - `AppShell.tsx`：≥900px 双栏 / 窄屏折叠 Tab（FR-UI-01/09，触控目标 ≥44px）。
-  - `TitleScreen.tsx`：主菜单六项（FR-UI-06；无存档时禁用不隐藏）。
-  - `game-host.ts`：**集成层**——`createGameHost` 把 `GameDefinition` 装配为可玩会话
-    （GameRuntime + TimePipeline 步骤钩子 + SceneRunner 注入 + 面板投影），
-    见本节末「宿主装配」。
-- **text/**：文本渲染管线（§6.1）
-  - `sanitize.ts`：白名单标签（`b/i/em/mark/ruby/span[class=tone-*]/br/hr`）+ 自写序列化，
-    基于 `parse5` AST 产出纯数据节点树——**全流程无 innerHTML 路径**（NFR-18）；
-    非白名单标签转义显示；注释节点丢弃。
-  - `pipeline.ts`：`TextResolver.resolve`（插值归引擎）→ sanitize → 节点树 + 纯文本投影；
-    进入 resolver 前对 vars 字符串叶子做实体转义（次序不变式：插值值永不引入标签）。
-  - `RichText.tsx` / `typewriter.tsx`：节点树 → React 元素（`createElement`）；
-    打字机只做**前缀裁剪**（`sliceRichTextNodes`，节点顺序与层级逐字保留），
-    `prefers-reduced-motion` 命中时自动关闭（NFR-26）。
-- **narrative/**：`NarrativeView` / `OptionList`（受控；打字机只作用于最后一段）；
-  `checkpoint.ts` 提供 `createChoiceCheckpoint` / `withChoiceCheckpoint`（FR-READ-03）。
-- **panels/**：`projectStatusPanel` + `StatusPanel`（五块内容 + 增量高亮，高亮走面板内部
-  不占 Toast）、`projectAreaViews` + `MapPanel`（区域图/移动消耗/解锁提示原文）、
-  `QuestLogPanel`（消费引擎 `projectQuestLog`，追踪条目置顶且不在分组内重复）。
-- **notifications/**：`mergeToast` / `expireToasts`（纯函数：同类同键 500ms 窗口折叠、
-  count 递增、超窗新起条）+ `ToastStack`（受控浮层）。
-- **settings/**：`SettingsPanel`（PlayerSettings 表单化：语言/排版/媒体开关/减弱动画/
-  标签开关/快捷键表/三版本号；标签开关只报告新 `disabledTags`）。
-- **onboarding/**：`ContentWizard`（首启内容向导：警告页 + 标签开关；跳过同样提交
-  当前开关态——避免默认关闭的标签被静默打开）。
-- **persistence/**：`DexieAdapter`（IndexedDB 三表 saves/profile/kv；**原子写**在单
-  Dexie 事务内同时落备份位与主档位）、`MemoryAdapter` + `selectAdapter`/`probeIndexedDb`
-  （隐私模式降级，NFR-10）、`PrivacyBanner`（常驻导出提醒，刻意无关闭按钮）。
-  契约（`PersistenceAdapter`/`SaveMeta`/`ProfileStore`）为**本地结构镜像**——20 号落地
-  后改从 `@game/engine` 导入，适配器实现不变（TS 结构类型）。一处 as-built 偏差：
-  §6.7 的「DexieAdapter implements PersistenceAdapter, ProfileStore」因两接口 `load`
-  同名异签名无法在类上共存，改以组合暴露 `adapter.profile`。
-- **测试**：`packages/runtime-ui/test/**` 在 **jsdom** 环境跑（其余包保持 node），
-  setup 注册 jest-dom 断言与 `IS_REACT_ACT_ENVIRONMENT`；覆盖率阈值 80%。
+<details>
+<summary><b>effects/ — 效果指令系统</b>（设计 §3.3，05 号）</summary>
 
-### 宿主装配（`app/game-host.ts`）
+- `registry.ts`：`EffectRegistry`——指令注册、参数 Zod 校验、重复 ID 报 `DUP_ID`；
+  作者扩展指令 id 必须 `x.<script>.<name>` 形态。
+- `types.ts`：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`
+  （事务触域报告，供增量重算与迁移登记）、`eraseDef`。
+- `builtins/`：分 8 个文件组织。**25 条作者可见指令**：
 
-`createGameHost({ definition, attrDefs?, contentTags?, initialAttrs?, seed? })` →
-`{ store, runtime, start/advance/choose/rollback/moveTo, calendar/questLog/statusPanel/areas/
-location, textOf, updateSettings, lastError }`。要点：
-
-- `choose` 内**先 checkpoint 再执行**，失败即 `rollback(1)` 并把错误转为 `lastError`
-  （不抛给 React）；`rollback` 后按 §6.3 重建会话。
-- 位置语义：引擎状态树无「当前地点」字段（`world.unlockedAreas` 仅区域解锁），宿主以
-  `currentLocation` 维护，供地图高亮与移动消耗（`moveTo` 经时间管线推进）。
-- 两处 as-built 补偿（均为 06 号**导出面缺口**，宿主以公开构造器补齐，未改 engine 内部）：
-  ① `GameDefinition` 未发布 `attrs` / `contentTags` → 由宿主以选项显式注入；
-  ② 加载器产出的效果注册表未注入 `timeConfig`（`__time.advance` 会 EFFECT_FAILED）→
-  宿主以 `createBuiltinEffectRegistry({ ..., timeConfig })` 重新装配。
-- 设置写入：指令集无写 `settings` 的指令，宿主以镜像持有并提供 `updateSettings`
-  （`disabledTags` 变更同时重建会话使过滤即时生效）；20 号 SaveService 落地后改经其合并。
-
-## 5. 应用层（apps/）
-
-- **player-demo**（`src/main.tsx`）：**runtime-ui 宿主页**（React）。页面只做三件事：
-  Vite `import.meta.glob(?raw)` 读 fixtures/mini-game → 解析 attrs/content-tags 并
-  `createGameHost` 装配 → 挂 React 根并组装组件树（AppShell + NarrativeView +
-  OptionList + 三面板 + 向导 + Toast + 设置抽屉）。渲染与交互逻辑全部在 runtime-ui 包内。
-  M0 时期的 vanilla TS 接线参考已由本形态取代。
-- **editor-app**：占位页（26 号）。
-
-## 6. 测试体系
-
-- 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts(x)`；workspace 包经 vitest alias
-  解析到**源码**（CI 不构建 dist）。
-- **环境分区**（25A 起）：`projects` 分两个项目——`node`（shared/engine/editor/exporter
-  与 fixtures/helpers）与 `dom`（runtime-ui，jsdom + testing-library setup）。Vitest 5 已移除
-  `environmentMatchGlobs`，按路径分区改用 `projects`。engine 的「无 DOM」由 node 环境回归。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、
-  runtime、state、time、items、quests、npcs、body、events、smoke）、media；shared/test 按
-  schema + 基础；runtime-ui/test 按切片分目录（app / text / narrative / panels / notifications /
-  settings / persistence / onboarding / acceptance）。每目录有 `fixtures.ts` 局部夹具；
-  跨包夹具在 fixtures/helpers 包。
-- 规模（25A 入库后）：152 个测试文件 / 2214 个用例全绿。
-- 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%，runtime-ui ≥ 80%。
-
-## 7. 质量门禁与工具链
->
 | 分组 | 指令 | 文件 |
 |---|---|---|
 | 状态 | `set` `add` `flag` `money` | `state.ts` |
@@ -338,9 +334,14 @@ location, textOf, updateSettings, lastError }`。要点：
 | 判定/战斗/身体 | `check` `battle` `set_body` | `adversarial.ts` |
 | 扩展 | `call`（DD-08） | `util.ts` |
 
+- **7 条内部指令**（`__` 前缀，作者包内不可达）：`__time.advance` `__outfit.save_preset`
+  `__items.tick` `__quest.deadline` `__npc.resolve` `__body.revert` `__events.eval`。
+  经 `EffectRegistryOptions` 在构造期装配——`registry.register()` 会拒绝 `__` 前缀。
+- `EffectRegistryOptions` 是**依赖注入面**：items / npcs / factions / bodyDefs / quests /
+  bagCapacity / checkResolver / timeConfig / eventPool / mediaResolver。缺省语义各指令
+  自行定义（多为「不做对应校验」或「报 EFFECT_FAILED」）。
+</details>
 
-## 8. 维护规则（随代码变更更新本文档）
->
 <details>
 <summary><b>loader/ — 七步管线</b>（设计 §3.4，06 号）</summary>
 
@@ -491,6 +492,72 @@ stateDiagram-v2
 
 ---
 
+### 5.4 runtime-ui 包（`packages/runtime-ui/src/`，25A 已落地）
+
+React 通用游玩界面组件库（设计 §6）。**唯一允许 React/DOM 的包**（R2 只约束 engine）；
+所有组件 props 受控、可 Testing Library 测；面板数据源一律为**纯投影函数**
+（GameState/定义 → 视图），组件不做业务计算。
+
+- **app/**：应用外壳与状态订阅（§6.2）
+  - `store.ts`/`types.ts`：`createUiStore`（Zustand vanilla，每实例独立）——切片
+    `screen` / `runtime` / `session` / `notifications` / `panels` / `statHighlights` /
+    `questRevision`；`pushNotification` 是通知队列唯一写入口（写入即应用 500ms 合并）。
+  - `bridgeRuntimeEvents`：引擎事件 → store 的订阅桥（stat_changed → 数值高亮、
+    notify → Toast、quest_state_changed/quest_stage → 任务面板重算信号），返回退订句柄。
+  - `selectors.ts` + `hooks.tsx`：纯 selector 集 + `UiStoreProvider` / `useUiSelector`
+    （`useSyncExternalStore`）——未变更切片的引用保持稳定，实现 selector 级细粒度重渲染。
+  - `AppShell.tsx`：≥900px 双栏 / 窄屏折叠 Tab（FR-UI-01/09，触控目标 ≥44px）。
+  - `TitleScreen.tsx`：主菜单六项（FR-UI-06；无存档时禁用不隐藏）。
+  - `game-host.ts`：**集成层**——`createGameHost` 把 `GameDefinition` 装配为可玩会话
+    （GameRuntime + TimePipeline 步骤钩子 + SceneRunner 注入 + 面板投影），
+    见本节末「宿主装配」。
+- **text/**：文本渲染管线（§6.1）
+  - `sanitize.ts`：白名单标签（`b/i/em/mark/ruby/span[class=tone-*]/br/hr`）+ 自写序列化，
+    基于 `parse5` AST 产出纯数据节点树——**全流程无 innerHTML 路径**（NFR-18）；
+    非白名单标签转义显示；注释节点丢弃。
+  - `pipeline.ts`：`TextResolver.resolve`（插值归引擎）→ sanitize → 节点树 + 纯文本投影；
+    进入 resolver 前对 vars 字符串叶子做实体转义（次序不变式：插值值永不引入标签）。
+  - `RichText.tsx` / `typewriter.tsx`：节点树 → React 元素（`createElement`）；
+    打字机只做**前缀裁剪**（`sliceRichTextNodes`，节点顺序与层级逐字保留），
+    `prefers-reduced-motion` 命中时自动关闭（NFR-26）。
+- **narrative/**：`NarrativeView` / `OptionList`（受控；打字机只作用于最后一段）；
+  `checkpoint.ts` 提供 `createChoiceCheckpoint` / `withChoiceCheckpoint`（FR-READ-03）。
+- **panels/**：`projectStatusPanel` + `StatusPanel`（五块内容 + 增量高亮，高亮走面板内部
+  不占 Toast）、`projectAreaViews` + `MapPanel`（区域图/移动消耗/解锁提示原文）、
+  `QuestLogPanel`（消费引擎 `projectQuestLog`，追踪条目置顶且不在分组内重复）。
+- **notifications/**：`mergeToast` / `expireToasts`（纯函数：同类同键 500ms 窗口折叠、
+  count 递增、超窗新起条）+ `ToastStack`（受控浮层）。
+- **settings/**：`SettingsPanel`（PlayerSettings 表单化：语言/排版/媒体开关/减弱动画/
+  标签开关/快捷键表/三版本号；标签开关只报告新 `disabledTags`）。
+- **onboarding/**：`ContentWizard`（首启内容向导：警告页 + 标签开关；跳过同样提交
+  当前开关态——避免默认关闭的标签被静默打开）。
+- **persistence/**：`DexieAdapter`（IndexedDB 三表 saves/profile/kv；**原子写**在单
+  Dexie 事务内同时落备份位与主档位）、`MemoryAdapter` + `selectAdapter`/`probeIndexedDb`
+  （隐私模式降级，NFR-10）、`PrivacyBanner`（常驻导出提醒，刻意无关闭按钮）。
+  契约（`PersistenceAdapter`/`SaveMeta`/`ProfileStore`）为**本地结构镜像**——20 号落地
+  后改从 `@game/engine` 导入，适配器实现不变（TS 结构类型）。一处 as-built 偏差：
+  §6.7 的「DexieAdapter implements PersistenceAdapter, ProfileStore」因两接口 `load`
+  同名异签名无法在类上共存，改以组合暴露 `adapter.profile`。
+- **测试**：`packages/runtime-ui/test/**` 在 **jsdom** 环境跑（其余包保持 node），
+  setup 注册 jest-dom 断言与 `IS_REACT_ACT_ENVIRONMENT`；覆盖率阈值 80%。
+
+#### 宿主装配（`app/game-host.ts`）
+
+`createGameHost({ definition, attrDefs?, contentTags?, initialAttrs?, seed? })` →
+`{ store, runtime, start/advance/choose/rollback/moveTo, calendar/questLog/statusPanel/areas/
+location, textOf, updateSettings, lastError }`。要点：
+
+- `choose` 内**先 checkpoint 再执行**，失败即 `rollback(1)` 并把错误转为 `lastError`
+  （不抛给 React）；`rollback` 后按 §6.3 重建会话。
+- 位置语义：引擎状态树无「当前地点」字段（`world.unlockedAreas` 仅区域解锁），宿主以
+  `currentLocation` 维护，供地图高亮与移动消耗（`moveTo` 经时间管线推进）。
+- 两处 as-built 补偿（均为 06 号**导出面缺口**，宿主以公开构造器补齐，未改 engine 内部）：
+  ① `GameDefinition` 未发布 `attrs` / `contentTags` → 由宿主以选项显式注入；
+  ② 加载器产出的效果注册表未注入 `timeConfig`（`__time.advance` 会 EFFECT_FAILED）→
+  宿主以 `createBuiltinEffectRegistry({ ..., timeConfig })` 重新装配。
+- 设置写入：指令集无写 `settings` 的指令，宿主以镜像持有并提供 `updateSettings`
+  （`disabledTags` 变更同时重建会话使过滤即时生效）；20 号 SaveService 落地后改经其合并。
+
 ## 6. shared / apps / fixtures
 
 | 位置 | 内容 | 备注 |
@@ -516,7 +583,7 @@ stateDiagram-v2
   （不是 dist），保证跨包导入与包内导入共用同一模块实例。
 - 组织：engine 按子系统分目录，每目录配 `fixtures.ts` 局部夹具；跨包夹具在
   `fixtures/helpers`（由该包自己的 test 运行，因为 R2 禁止 engine 测试 import 它）。
-- 规模（20 号入库后）：**130 个测试文件 / 2011 个用例**。
+- 规模（25A 入库后）：**154 个测试文件 / 2233 个用例**。
 - 实测覆盖率：语句 **94.26%**、分支 **86.08%**、函数 **96.28%**、行 **95.55%**。
 
 ### 7.2 CI 四道门禁
@@ -556,16 +623,15 @@ pnpm exec vitest run --root . packages/engine     # 限定范围
 
 | 变更 | 必须更新 |
 |---|---|
+| 新增/变更包或目录 | §2 仓库布局与依赖规则 |
+| shared 新增/变更类型域或 Schema | §6 表格 |
+| engine 新增/变更子系统 | §5.1 索引表 + §5.2 详解（**新增目录不写会被 validate-docs 拦下**） |
+| runtime-ui 新增/变更切片、组件契约、宿主装配 | §5.4 runtime-ui 包 |
+| 新增/删除效果指令 | §5.2 的 `effects/` 折叠块指令清单 |
+| 加载管线步骤增删或次序调整 | §4 管线图 |
+| 时间管线步骤变更 | §3 折叠块的时间管线图 |
+| 测试组织/覆盖率门禁变化 | §7 |
+| CI/lint/文档门禁变化 | §7.2 |
 
-| 新增/变更包或目录 | §1 布局与依赖规则 |
-| shared 新增/变更类型域或 Schema | §2 |
-| engine 新增/变更子系统、核心类型、导出面 | §3 对应小节（必要时 §1 依赖图） |
-| runtime-ui 新增/变更切片、组件契约、宿主装配 | §4 runtime-ui 包 |
-| 新增/删除效果指令 | §3.4 指令清单 |
-| 加载管线步骤增删或次序调整 | §3.5 管线图 |
-| 新增应用（apps）或数据流 | §5 应用层 |
-| 测试组织/覆盖率门禁变化 | §6 测试体系 |
-| CI/lint/文档门禁变化 | §7 质量门禁与工具链 |
->
 写作规范与变更流程见文首（**改动本文档前先读**——放在文首而非这里，是为了让打开文件的
 人第一时间看到，而不是读完 500 行才发现）。
