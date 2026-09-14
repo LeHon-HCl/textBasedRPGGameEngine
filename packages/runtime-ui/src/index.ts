@@ -62,9 +62,6 @@ export {
 } from './app/index.js';
 export type { AppShellProps } from './app/index.js';
 
-// ---- persistence（§6.7 Dexie 持久化：契约镜像与适配器；任务 10） ---------------
-export type { SaveMeta, SaveSlotSummary, SaveVersions } from './persistence/index.js';
-
 // ---- app.title（§6.1 主菜单；FR-UI-06；任务 3） -------------------------------
 export { formatSaveSummary, saveDisplayName, TitleScreen, TITLE_ACTIONS } from './app/index.js';
 export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './app/index.js';
@@ -154,3 +151,30 @@ export type { QuestLogLabels, QuestLogPanelProps } from './panels/index.js';
 // ---- settings（§6.5 设置与内容分级面板；FR-UI-05；任务 9） ----------------------
 export { DEFAULT_SHORTCUT_HINTS, SettingsPanel } from './settings/index.js';
 export type { SettingsPanelLabels, SettingsPanelProps, ShortcutHint } from './settings/index.js';
+
+// ---- persistence（§5.6/§6.7 Dexie 适配器 + 隐私模式降级；NFR-10；任务 10） -----
+export {
+  DexieAdapter,
+  DEXIE_ADAPTER_NAME,
+  MemoryAdapter,
+  MEMORY_ADAPTER_NAME,
+  PersistenceError,
+  PrivacyBanner,
+  PrivacyModeError,
+  probeIndexedDb,
+  projectSaveMeta,
+  selectAdapter,
+} from './persistence/index.js';
+export type {
+  AdapterSelection,
+  MutableProfile,
+  PersistenceAdapter,
+  PrivacyBannerLabels,
+  PrivacyBannerProps,
+  ProfileStore,
+  SaveMeta,
+  SaveSlotSummary,
+  SaveVersions,
+  SelectAdapterOptions,
+  StorageProbeResult,
+} from './persistence/index.js';
