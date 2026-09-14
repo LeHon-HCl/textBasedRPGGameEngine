@@ -47,3 +47,6 @@ export {
   useIsNarrow,
 } from './AppShell.js';
 export type { AppShellProps } from './AppShell.js';
+export { formatSaveSummary, saveDisplayName, TitleScreen, TITLE_ACTIONS } from './TitleScreen.js';
+export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './TitleScreen.js';
+export type { SaveSlotSummary, SaveVersions } from '../persistence/types.js';

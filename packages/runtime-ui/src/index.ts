@@ -61,3 +61,10 @@ export {
   useIsNarrow,
 } from './app/index.js';
 export type { AppShellProps } from './app/index.js';
+
+// ---- persistence（§6.7 Dexie 持久化：契约镜像与适配器；任务 10） ---------------
+export type { SaveMeta, SaveSlotSummary, SaveVersions } from './persistence/index.js';
+
+// ---- app.title（§6.1 主菜单；FR-UI-06；任务 3） -------------------------------
+export { formatSaveSummary, saveDisplayName, TitleScreen, TITLE_ACTIONS } from './app/index.js';
+export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './app/index.js';
