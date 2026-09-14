@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EngineError } from '@game/shared';
 import type { ItemDef } from '@game/shared';
 import { BASE_VERSIONS, makeBuiltinRuntime, makeCtx } from '../effects/fixtures.js';
-import type { GameState } from '../effects/fixtures.js';
+import type { GameState } from '../../src/state/index.js';
 
 /**
  * 13 任务 3：wear 冲突规则（§4.7，FR-ITEM-04）。

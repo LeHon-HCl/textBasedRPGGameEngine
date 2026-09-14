@@ -144,6 +144,22 @@ describe('04-A2 restoreState：反向重建', () => {
     expect(restored.settings).toEqual(serialized.settings);
   });
 
+  it('13 号新增域缺失的旧存档 → 恢复补空缺省（outfitPresets/wornMeta = {}）', () => {
+    // 回归：13 号新增两域在 schema 中为可选（只增不改），13 号之前的旧档没有它们；
+    // 修复前 restoreState 直接透传 player，导致下游 outfitPresets 访问即 undefined 崩溃。
+    const blob = buildBlob(newGameState(BOOTSTRAP, createRng(42)), 1);
+    const legacyPlayer = { ...blob.state.player };
+    delete (legacyPlayer as { outfitPresets?: unknown }).outfitPresets;
+    delete (legacyPlayer as { wornMeta?: unknown }).wornMeta;
+    const legacy = {
+      ...blob,
+      state: { ...blob.state, player: legacyPlayer },
+    } as unknown as SaveBlob;
+    const restored = restoreState(legacy);
+    expect(restored.player.outfitPresets).toEqual({});
+    expect(restored.player.wornMeta).toEqual({});
+  });
+
   it('blob.state 未通过 schema 终验时抛 SAVE_CORRUPT（损坏档显性化，FR-SAVE）', () => {
     const blob = buildBlob(newGameState(BOOTSTRAP, createRng(42)), 1);
     const corrupt = {

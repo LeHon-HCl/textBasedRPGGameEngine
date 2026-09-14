@@ -26,10 +26,12 @@ function flagEffect(key: string, value: boolean = true): EffectData {
   return { flag: { name: key, value } } as unknown as EffectData;
 }
 
-function makePipeline(steps: {
-  statusTick?: (ctx: import('../../src/time/pipeline.js').TimeStepContext) => EffectData[];
-  eventEval?: (ctx: import('../../src/time/pipeline.js').TimeStepContext) => EffectData[];
-}) {
+function makePipeline(
+  steps: {
+    statusTick?: (ctx: import('../../src/time/pipeline.js').TimeStepContext) => EffectData[];
+    eventEval?: (ctx: import('../../src/time/pipeline.js').TimeStepContext) => EffectData[];
+  } = {},
+) {
   const { rt } = makeBuiltinRuntime({
     bootstrap: { versions: BASE_VERSIONS, attrs: { hp: 10 } },
     registryOptions: { timeConfig: CONFIG },

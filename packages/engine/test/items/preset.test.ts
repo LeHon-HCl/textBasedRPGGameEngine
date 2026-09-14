@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EngineError } from '@game/shared';
-import type { ItemDef } from '@game/shared';
+import type { EffectData, ItemDef } from '@game/shared';
 import { BASE_VERSIONS, makeBuiltinRuntime, makeCtx } from '../effects/fixtures.js';
-import type { GameState } from '../effects/fixtures.js';
+import type { GameState } from '../../src/state/index.js';
+
+/** 内部指令不在作者数据面（EffectData 联合）内，测试直连需显式转型（13 任务 4） */
+function internalEffect(data: Record<string, unknown>): EffectData {
+  return data as unknown as EffectData;
+}
 
 /**
  * 13 任务 4：换装预设（FR-ITEM-05，§4.7）。
@@ -73,7 +78,7 @@ describe('13-4 换装预设：快照存取与应用', () => {
       [
         { wear: { item: 'item_shirt_a' } },
         { wear: { item: 'item_coat' } },
-        { '__outfit.save_preset': { name: '__outfit_preset_formal' } },
+        internalEffect({ '__outfit.save_preset': { name: '__outfit_preset_formal' } }),
       ],
       makeCtx(),
     );
@@ -99,7 +104,7 @@ describe('13-4 换装预设：快照存取与应用', () => {
       [
         { wear: { item: 'item_shirt_a' } },
         { wear: { item: 'item_coat' } },
-        { '__outfit.save_preset': { name: '__outfit_preset_formal' } },
+        internalEffect({ '__outfit.save_preset': { name: '__outfit_preset_formal' } }),
       ],
       makeCtx(),
     );
@@ -121,7 +126,10 @@ describe('13-4 换装预设：快照存取与应用', () => {
       '不存在',
     );
     rt.exec(
-      [{ wear: { item: 'item_shirt_a' } }, { '__outfit.save_preset': { name: 'p1' } }],
+      [
+        { wear: { item: 'item_shirt_a' } },
+        internalEffect({ '__outfit.save_preset': { name: 'p1' } }),
+      ],
       makeCtx(),
     );
     expect(rt.state.player.outfitPresets['p1']).toEqual({ chest: { '1': 'item_shirt_a' } });

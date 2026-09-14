@@ -128,7 +128,7 @@ describe('11-7 projectQuestLog：分组与条目', () => {
 
 describe('11-7 projectQuestLog：追踪置顶', () => {
   it('tracked 按传入顺序置顶，受 trackingLimit 限制', () => {
-    const quests = {
+    const quests: Record<string, QuestState> = {
       q_active: { state: 'active', stage: 's1', objectives: {} },
       q_ready: { state: 'ready_to_submit', stage: 'r1', objectives: {} },
       q_done: { state: 'done', stage: 'd1', objectives: {} },
