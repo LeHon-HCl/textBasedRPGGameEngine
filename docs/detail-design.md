@@ -266,7 +266,7 @@ export interface ExprFunctionDef {
 
 | Schema | 文件 | 关键字段（摘） |
 |---|---|---|
-| Manifest | `manifest.ts` | `gameId, entryScene, mainLang, langs[], contentTags[], gameVersion, schemaVersion, minEngineVersion, redirects{}, credits` |
+| Manifest | `manifest.ts` | `gameId, entryScene, mainLang, langs[], contentTags[], contentWarning?, gameVersion, schemaVersion, minEngineVersion, redirects{}, credits`（contentWarning 为 2026-09-14 勘误补齐：§6.5 首启向导引用该键而本表原漏列） |
 | AttrDefs | `attrs.ts` | `numeric{min,max,init,show}` / `level{levels[],init}` / `derived{formula}` |
 | SceneDef | `scene.ts` | `id, area, entry.require?, segments[], choices[], media?, tags[]` |
 | AreaDef | `area.ts` | `locations{id→{nameKey, unlockIf?, moveCost, mapPos}}` |
