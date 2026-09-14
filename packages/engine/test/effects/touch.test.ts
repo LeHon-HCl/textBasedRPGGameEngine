@@ -42,6 +42,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'world.flags',
   'world.counters',
   'world.eventCooldowns',
+  'world.npcLocationCache',
   'npcs',
   'factions',
   'quests',
@@ -53,7 +54,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'loop',
 ];
 
-/** touch 全集（25 个指令 × 代表性参数）：id → touch 入参（02 号参数形态） */
+/** touch 全集（30 个内置指令 × 代表性参数）：id → touch 入参（02 号参数形态） */
 const TOUCH_ARGS: Record<string, unknown> = {
   set: { key: 'flag.x', value: 1 },
   add: { key: 'counter.x', amount: 1 },
@@ -82,6 +83,8 @@ const TOUCH_ARGS: Record<string, unknown> = {
   call: { fn: 'x.test.echo', with: {} }, // 未注册目标 → 委托回退空声明
   // 09 号内部指令（时钟写入载体；作者包内不可达，见 system.ts TSDoc）
   '__time.advance': { slots: 1 },
+  // 12 号内部指令（日程缓存重建载体；作者包内不可达）
+  '__npc.resolve': {},
 };
 
 interface MatrixEntry {
@@ -200,9 +203,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 29 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 30 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(29);
+    expect(registry.ids().length).toBe(30);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();
