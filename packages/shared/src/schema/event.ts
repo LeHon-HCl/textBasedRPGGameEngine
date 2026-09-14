@@ -24,6 +24,7 @@ const cooldownSchema = z
     message: 'cooldown 需要 days 或 slots 至少其一',
   });
 
+/** 事件触发配置（设计 §2.4）：condition/random/explore 三型，{@link EventTrigger} 的校验器 */
 export const eventTriggerSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('condition'),
@@ -50,6 +51,7 @@ export const eventTriggerSchema = z.discriminatedUnion('type', [
 
 export type EventTrigger = z.infer<typeof eventTriggerSchema>;
 
+/** 事件定义（设计 §2.4 EventDef / §4.4）：{@link EventDef} 的校验器 */
 export const eventDefSchema = z.strictObject({
   id: gameIdSchema,
   /** 触发地点范围：区域 + 可选地点（§4.4 PoolIndex key = `${area}/${location ?? '*'}`） */

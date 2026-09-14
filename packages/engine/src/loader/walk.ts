@@ -60,6 +60,13 @@ export interface CallSite {
   readonly dataPath: string;
 }
 
+/**
+ * 包内容盘点结果（设计 §3.4 步骤 4-6 的共享数据源；06 号）。
+ *
+ * 单遍遍历「域 schema × 已解析数据」抽出三类位点：`refs`（引用，供 crossRef 悬空
+ * 检查）、`exprs`（表达式，供 compile 编译入缓存）、`calls`（`x.*` 调用，供
+ * scripts 步骤核对）。三类位点共用一次遍历，避免各步骤各扫一遍 YAML 树。
+ */
 export interface PackageInventory {
   readonly refs: readonly RefSite[];
   readonly exprs: readonly ExprSite[];

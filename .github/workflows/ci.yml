@@ -1,8 +1,8 @@
 name: CI
 
-# 四步门禁：安装依赖 → lint + test → 构建 + 类型检查 → 文档一致性。
-# 全部门禁以本 workflow 为准；本地提交前也应跑同样的命令（docs/prompt.md §3）。
-# typecheck 曾在 CI 缺失，导致跨模块类型债（09/11/13）悄悄合入 main —— 本步骤为补齐。
+# 四步门禁：安装依赖 → lint + test（含覆盖率阈值）→ 构建 + 类型检查 → 文档一致性。
+# 全部门禁以本 workflow 为准；本地提交前也应跑同样的命令（docs/develop.md 约束 5）。
+# typecheck 曾在 CI 缺失，导致跨模块类型债（09/11/13）悄悄合入 main —— 已补齐。
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ on:
 
 jobs:
   gate:
-    name: 质量门禁（install / lint+test / build+typecheck / validate-docs）
+    name: 质量门禁（install / lint+test+coverage / build+typecheck / validate-docs）
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -28,8 +28,10 @@ jobs:
       - name: 门禁 0 —— 安装依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 门禁 1 —— lint 与全量测试
-        run: pnpm -w lint && pnpm -w test
+      # test:coverage 而非 test：覆盖率阈值（vitest.config.ts 的 thresholds）只在
+      # 带 --coverage 时检查。此前用 pnpm -w test，阈值形同虚设（2026-09-14 修复）。
+      - name: 门禁 1 —— lint 与全量测试（含覆盖率阈值）
+        run: pnpm -w lint && pnpm -w test:coverage
 
       # 必须先 build：engine 经 workspace 依赖解析 @game/shared 的 dist 类型声明
       - name: 门禁 2 —— 构建与类型检查

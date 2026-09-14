@@ -23,6 +23,7 @@ export const bodyPartDefSchema = z
 
 export type BodyPartDef = z.infer<typeof bodyPartDefSchema>;
 
+/** 代词规则（设计 §2.4 / §4.8）：{@link PronounsDef} 的校验器 */
 export const pronounsDefSchema = z.strictObject({
   /** 代词规则（v1 内置 by_part：按部位当前值映射，§4.8） */
   rule: z.enum(['by_part']),
@@ -34,6 +35,7 @@ export const pronounsDefSchema = z.strictObject({
 
 export type PronounsDef = z.infer<typeof pronounsDefSchema>;
 
+/** 身体定义（设计 §2.4 BodyDef）：部位值域与默认值，{@link BodyDef} 的校验器 */
 export const bodyDefSchema = z.strictObject({
   /** bodyPart → 部位定义（FR-BODY-01） */
   parts: z.record(gameIdSchema, bodyPartDefSchema),

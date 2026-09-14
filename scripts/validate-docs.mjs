@@ -19,7 +19,9 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md', 'docs/prompt.md'];
+// 必需文档：需求与设计基线（prompt.md 已于 2026-09-14 归档至 docs/archive/，
+// 不再作为生效流程文档——见 docs/develop.md 的取代说明）。
+const REQUIRED = ['docs/proposal.md', 'docs/detail-design.md'];
 const DEFINITION_DOC = 'docs/proposal.md'; // FR/NFR/OQ 编号的权威定义处
 const DESIGN_DOC = 'docs/detail-design.md';
 
@@ -123,6 +125,45 @@ if (existsSync(tasksDirAbs)) {
     const moduleFiles = taskFiles.filter((f) => f !== 'progress.md');
     pass(`任务文件校验通过（${moduleFiles.length} 个模块 + progress.md）`);
   }
+}
+
+// ---- 架构文档 × 代码结构一致性（约束 4「维护文档 > 维护代码」的机械兜底） ----
+// 口径：engine 下每个「有实现的子系统目录」（含 .ts 文件）都必须在
+// docs/architecture.md 中被提及——接受两种形态，因为文档可能按人读的表格组织
+// 而非逐目录起小节：
+//   (a) 小节标题 `### N.N <name>/`
+//   (b) 索引表里的目录链接 `[`<name>/`](...)`
+//   (c) 折叠块标题 `<summary><b><name>/ — ...`
+// 新增子系统忘了写文档会在这里红——这是「文档是人工验收的桥梁」唯一可机械化的部分。
+const ARCH_DOC = 'docs/architecture.md';
+const ENGINE_SRC = 'packages/engine/src';
+const archText = readDoc(ARCH_DOC);
+if (archText === null) fail(`缺少 ${ARCH_DOC}`);
+if (archText !== null && existsSync(ENGINE_SRC)) {
+  const implemented = readdirSync(ENGINE_SRC, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .filter((e) => readdirSync(join(ENGINE_SRC, e.name)).some((f) => f.endsWith('.ts')))
+    .map((e) => e.name);
+  const documented = (name) =>
+    new RegExp(`^#{2,4}\\s+\\S+\\s+${name}/`, 'm').test(archText) || // 小节标题
+    new RegExp(`\\[\`${name}/\`\\]\\(`, 'm').test(archText) || // 索引表链接
+    new RegExp(`<summary>\\s*<b>${name}/`, 'm').test(archText); // 折叠块标题
+  const undocumented = implemented.filter((name) => !documented(name));
+  if (undocumented.length)
+    fail(`${ARCH_DOC} 未登记已实现的子系统：${undocumented.join(', ')}（新增子系统须补索引与详解）`);
+  else pass(`架构文档覆盖全部已实现子系统（${implemented.length} 个）`);
+}
+
+// ---- 归档目录约束（docs/archive/：不再生效的历史文档） ----
+const ARCHIVE_DIR = 'docs/archive';
+if (existsSync(ARCHIVE_DIR)) {
+  const archived = readdirSync(ARCHIVE_DIR).filter((n) => n.endsWith('.md'));
+  for (const f of archived) {
+    const text = readFileSync(join(ARCHIVE_DIR, f), 'utf8');
+    if (!/已归档|归档状态/.test(text))
+      fail(`${ARCHIVE_DIR}/${f} 缺少归档状态标注（须在文首说明不再生效与取代关系）`);
+  }
+  if (archived.length > 0) pass(`归档文档均带归档状态标注（${archived.length} 份）`);
 }
 
 console.log(failed ? '\n校验失败：请修复上述问题后再提交。' : '\n文档校验全部通过。');

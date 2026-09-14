@@ -26,6 +26,17 @@ export interface QuestMachineOptions {
   readonly questRefs?: ReadonlyMap<string, ReadonlySet<GameId>>;
 }
 
+/**
+ * 任务状态机（设计 §4.5；11 号）。
+ *
+ * 六态（`inactive / active / done / failed` + 接取校验期与截止判定）与合法迁移表
+ * 由 `transitions.ts` 单一来源定义；本类提供接取校验、阶段推进、完成奖励
+ * （submit 在**同一事务**内结算，原子）、失败判定四个动作面。
+ *
+ * 经 `effects/builtins/system.ts` 的 `quest` 指令调用（accept/advance/complete/fail），
+ * 另以 `createQuestDeriver` 挂到 `GameRuntime.derivers`——事务后按触碰路径推进
+ * 引用该路径的任务（与事件系统共用脏标记口径，不轮询）。
+ */
 export class QuestMachine {
   readonly #defs: ReadonlyMap<GameId, QuestDef>;
   /** 任务 id → 其条件表达式依赖的 GameState 路径前缀（由 questRefs 归一化而来） */

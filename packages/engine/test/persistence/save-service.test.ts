@@ -5,8 +5,8 @@ import { SceneRunner } from '../../src/narrative/index.js';
 import { GameRuntime } from '../../src/runtime/index.js';
 import { createBuiltinEffectRegistry } from '../../src/effects/index.js';
 import { newGameState } from '../../src/state/index.js';
-import { MemoryAdapter } from '../../src/save/index.js';
-import { SaveService, AUTOSAVE_SLOTS, QUICKSAVE_SLOT } from '../../src/save/index.js';
+import { MemoryAdapter } from '../../src/persistence/index.js';
+import { SaveService, AUTOSAVE_SLOTS, QUICKSAVE_SLOT } from '../../src/persistence/index.js';
 import { makeCtx } from '../effects/fixtures.js';
 import { makeDef } from '../narrative/fixtures.js';
 

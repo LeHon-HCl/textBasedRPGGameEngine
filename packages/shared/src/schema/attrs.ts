@@ -42,6 +42,7 @@ const derivedAttrDefSchema = z.strictObject({
   formula: exprSchema,
 });
 
+/** 属性定义全集（设计 §2.4 AttrDefs，三形态）：{@link AttrDefs} 的校验器 */
 export const attrDefsSchema = z.strictObject({
   numeric: z.record(gameIdSchema, numericAttrDefSchema),
   level: z.record(gameIdSchema, levelAttrDefSchema),

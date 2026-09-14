@@ -249,14 +249,14 @@ export type {
   UntriggeredReason,
 } from './events/index.js';
 
-// ---- save（§5.6 存档服务：适配器契约 / 内存实现 / 槽位元信息，20 号） --------
+// ---- persistence（§5.6 存档服务：适配器契约 / 内存实现 / 槽位元信息，20 号） -
 export {
   AUTOSAVE_SLOTS,
   MemoryAdapter,
   projectSaveMeta,
   QUICKSAVE_SLOT,
   SaveService,
-} from './save/index.js';
+} from './persistence/index.js';
 export type {
   AutosavePoint,
   LoadResult,
@@ -266,7 +266,7 @@ export type {
   SaveMeta,
   SaveServiceOptions,
   SaveServiceVersions,
-} from './save/index.js';
+} from './persistence/index.js';
 export type { SaveBlob } from '@game/shared';
 
 // ---- media（§5.10 媒体解析引擎侧：意图解析 / 存在性核对 / 缺失占位，24 号） --

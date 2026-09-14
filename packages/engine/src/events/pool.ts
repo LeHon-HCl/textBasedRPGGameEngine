@@ -129,6 +129,22 @@ function poolError(detail: string): EngineError {
   });
 }
 
+/**
+ * 事件池（设计 §4.4；10 号）。
+ *
+ * 编排四步评估：collect（作用域 + 静态窗口）→ prune（冷却 + 内容过滤）→
+ * select（优先级 / 权重 + 互斥组）→ dispatch（产出跳转与冷却登记）。
+ *
+ * **脏标记增量**（NFR-02）：`PoolIndex.dirtyMap` 的表达式引用路径经
+ * `state/ref-paths.ts` 归一化为状态路径前缀；事务触碰路径未命中前缀的事件
+ * **零求值**——1000 事件规模下每步只重算约 3%（性能基准见 test/events/）。
+ *
+ * **不写状态**：`evaluate` 返回 `{jumps, cooldownUpdates, debug?}` 纯数据，
+ * 冷却登记由调用方在事务 draft 上应用（运行期状态是冻结的，池不能就地改）。
+ *
+ * 经 `EffectRegistryOptions.eventPool` 注入后在 `__events.eval` 内部指令中调用；
+ * 也可由宿主直接驱动（探索发现型子池经 {@link exploreCandidates}）。
+ */
 export class EventPool {
   readonly #events: readonly EventDef[];
   /** 事件 id → 状态路径前缀集（dirtyMap 经 ref-paths 归一化；脏标记匹配用） */

@@ -24,6 +24,7 @@ export const shopEntrySchema = z.strictObject({
 
 export type ShopEntry = z.infer<typeof shopEntrySchema>;
 
+/** 商店定义（设计 §2.4 ShopDef / §5.3）：条目与定价表达式，{@link ShopDef} 的校验器 */
 export const shopDefSchema = z.strictObject({
   id: gameIdSchema,
   nameKey: textKeySchema,

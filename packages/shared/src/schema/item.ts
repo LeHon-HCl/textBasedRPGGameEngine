@@ -16,6 +16,7 @@ export const itemTypeSchema = z.enum(['normal', 'consumable', 'equip', 'garment'
 
 export type ItemType = z.infer<typeof itemTypeSchema>;
 
+/** 服装部件声明（设计 §2.4 / §4.7）：部位 + 层 + 覆盖，{@link GarmentDef} 的校验器 */
 export const garmentDefSchema = z.strictObject({
   /** 服装部位（body.yaml parts 的键） */
   part: gameIdSchema,
@@ -42,6 +43,7 @@ export const garmentDefSchema = z.strictObject({
 
 export type GarmentDef = z.infer<typeof garmentDefSchema>;
 
+/** 物品定义（设计 §2.4 ItemDef）：equip/garment/normal 三型，{@link ItemDef} 的校验器 */
 export const itemDefSchema = z
   .strictObject({
     id: gameIdSchema,

@@ -21,6 +21,7 @@ export const questStageSchema = z.strictObject({
 
 export type QuestStage = z.infer<typeof questStageSchema>;
 
+/** 任务定义（设计 §2.4 QuestDef / §4.5）：阶段目标与失败条件，{@link QuestDef} 的校验器 */
 export const questDefSchema = z.strictObject({
   id: gameIdSchema,
   /** 发布者 NPC（任务日志 giver 指引用） */

@@ -80,6 +80,23 @@ export interface SaveServiceOptions {
 /** SaveBlob 文档格式版本（blob 结构级；与 schemaVersion 分离演进） */
 const FORMAT_VERSION = 1;
 
+/**
+ * 存档服务（设计 §5.6；20 号）。
+ *
+ * 把运行时状态组装成可持久化的 `SaveBlob`（序列化 + 三层版本 + RNG 状态 +
+ * 元信息），并负责读档的**版本闸门**与迁移入口。持久化本身经注入的
+ * {@link PersistenceAdapter} 完成（DD-04：engine 零平台依赖）。
+ *
+ * 失败语义：
+ * - 写失败（quota 等存储异常）→ 显式抛 `SAVE_CORRUPT`（带槽位与 cause，不静默）；
+ * - 版本高于引擎能力 → `load` 返回 `{ok:false, reason:'VERSION_UNSUPPORTED'}`
+ *   **且不触碰运行时数据**（FR-MIGR-02）；
+ * - 版本低于当前 → 走注入的 `migrate` 入口（21 号接入点）；未注入则返回
+ *   `MIGRATION_FAILED`（不静默接受形状不明的旧档）。
+ *
+ * 槽位命名：手动槽位由宿主命名；自动槽位固定 {@link AUTOSAVE_SLOTS}（环形轮换），
+ * 快存槽位固定 {@link QUICKSAVE_SLOT}。
+ */
 export class SaveService {
   readonly #adapter: PersistenceAdapter;
   readonly #versions: SaveServiceVersions | undefined;

@@ -40,6 +40,7 @@ export type MonthDef = z.infer<typeof monthDefSchema>;
 const uniqueSlotIds = (slots: readonly TimeSlotDef[]): boolean =>
   new Set(slots.map((slot) => slot.id)).size === slots.length;
 
+/** 时段制日历配置（设计 §2.4 / §4.3）：{@link TimeConfig} 的校验器 */
 export const timeConfigSchema = z
   .strictObject({
     slots: z.array(timeSlotDefSchema).min(1),

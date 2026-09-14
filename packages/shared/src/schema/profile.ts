@@ -21,6 +21,7 @@ export const profileAchievementEntrySchema = z.strictObject({
 
 export type ProfileAchievementEntry = z.infer<typeof profileAchievementEntrySchema>;
 
+/** 跨存档收集档（设计 §2.4 Profile / §5.4）：{@link Profile} 的校验器 */
 export const profileSchema = z.strictObject({
   /** Profile 自身迁移粒度（FR-MIGR-06：与存档迁移同机制、独立执行） */
   schemaVersion: z.number().int().min(1),

@@ -17,6 +17,7 @@ export const factionThresholdSchema = z.strictObject({
 
 export type FactionThreshold = z.infer<typeof factionThresholdSchema>;
 
+/** 阵营定义（设计 §2.4 FactionDef / §4.6）：声望阈值波段，{@link FactionDef} 的校验器 */
 export const factionDefSchema = z.strictObject({
   id: gameIdSchema,
   nameKey: textKeySchema,
