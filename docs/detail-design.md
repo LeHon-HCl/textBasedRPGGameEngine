@@ -452,7 +452,7 @@ export interface EffectContext {
 
 | id | 语义 | 备注 |
 |---|---|---|
-| `set` / `add` | 变量/属性/flag 计数 | 支持表达式值 |
+| `set` / `add` | 变量/属性/flag 计数；`key` 支持 `npc.<id>.flags.<名>` 写入 NPC 记忆（FR-NPCR-03） | 支持表达式值（2026-09-14 回写：原表未列记忆写面，12 号实现后补记） |
 | `give` / `take` | 物品增减 | 容量校验失败抛错 |
 | `equip` / `unequip` / `wear` / `remove` | 装备与多层服装 | §4.7 规则校验 |
 | `set_body` | 身体部位（可带 `revertAfter` 时长） | §4.8 |
@@ -695,6 +695,8 @@ export function resolveNpcLocation(def: NpcDef, clock: Clock, state: GameState):
 
 - 好感变更唯一入口为 `favor` 指令（§3.3）：clamp 到 `favor.min/max` → 更新 `stage`（阈值表二分）→ 阶段变化 emit `FavorStageChanged`（作者钩子/事件条件可订阅；FR-NPCR-02）。
 - NPC 记忆：`npcs[id].flags` 独立命名空间；表达式 `npc.<id>.flag_xxx` 白名单映射（§2.3）。
+  写入面：`set`/`add` 指令的 `key` 支持 `npc.<id>.flags.<名>`（值域同 FlagValue，touch 声明 `npcs`；
+  未知 NPC 自动建档）——2026-09-14 回写（§3.3 原表未列记忆写面，12 号实现后补记）。
 - 同地点交互校验：选项 `show_if` 中作者用 `fn.here(npcId)`?——不新增函数：作者以 `npc.raven.at == 'location.dock'` 表达；`npcLocationCache` 由管线步骤 5 维护，表达式 root `npc.<id>.at` 映射缓存（性能：O(1) 查询）。
 - 阵营（FR-NPCR-04）：`reputation` 指令 + `faction.<id>` 变量域；阈值表驱动 `ReputationBandChanged` 事件（商店定价 §5.3 引用声望即普通表达式）。
 
