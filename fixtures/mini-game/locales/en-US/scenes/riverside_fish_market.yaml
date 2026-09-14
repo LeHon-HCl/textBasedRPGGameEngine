@@ -1,0 +1,12 @@
+desc: The awnings of the fish market run together; river catch still gleams wet in the baskets.
+busy: The stallholders are in full cry, their haggling drowning out the water.
+quiet: Most stalls have packed up, leaving a few lamps swinging in the wind.
+reason:
+  poor: You check your purse — not enough silver for this one.
+notify:
+  bought: You buy a river fish, and the stallholder throws in a pinch of salt.
+choice:
+  buy: Buy a river fish (5 silver)
+  too_poor: Not enough coin — just look
+  to_warehouse: Head to the old warehouse
+  back_ferry: Back to the ferry

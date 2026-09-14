@@ -1,0 +1,6 @@
+open: The book-stall vendor waves you closer.
+close: |-
+  "The emblem on the wall... look at it at night, and it moves."
+choice:
+  listen: Lean in and listen
+  leave: Pretend you heard nothing and walk on

@@ -1,0 +1,7 @@
+open: You close your eyes before the pedestal, and for a moment it is as if you see firelight from long ago.
+vision: Someone in that light is cutting a mark, chisel stroke by stroke — the same shape your own blade left.
+notify:
+  accepted: You follow the vision down; when you wake, your palms are slick with sweat.
+choice:
+  accept: Keep watching
+  resist: Break free

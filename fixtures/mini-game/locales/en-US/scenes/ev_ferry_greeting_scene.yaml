@@ -1,0 +1,8 @@
+open: The ferryman sets his pole in the water and the boat swings gently free.
+offer: |-
+  "Crossing? This is the last one before the flood tide." He does not turn around to ask.
+notify:
+  accepted: You answer, and the old man names his price.
+choice:
+  accept: Step aboard
+  decline: Thank him, not yet

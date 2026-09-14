@@ -1,0 +1,7 @@
+open: In the silt left by the ebb, a sliver of light winks with the ripples.
+glint: You push the wet sand aside, and the shape resolves — half a bronze clasp, inlaid with the old emblem.
+notify:
+  picked: You tuck the clasp away, your fingertips still cold from it.
+choice:
+  pick: Pick it up
+  leave: Better not to touch it

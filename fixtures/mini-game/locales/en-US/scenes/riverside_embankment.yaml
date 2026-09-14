@@ -1,0 +1,9 @@
+desc: The embankment stones are green with water; below them the river churns in eddies.
+dusk: Dusk presses down on the water, and distant lights shatter across it.
+mark: Something seems carved into the crevice, mostly buried under waterweed.
+notify:
+  mark: You make out half an old emblem — the very same as the one on the town wall.
+choice:
+  examine: Brush the weed aside
+  back: Back to the ferry
+  to_town: Up the bank to Old Town
