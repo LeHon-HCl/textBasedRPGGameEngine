@@ -18,7 +18,7 @@ import { splitRoot, unknownRootDetail } from './paths.js';
  * 路径解析按 §2.3 白名单（编译期已校验 root 与形态）：缺席语义遵循
  * 「封闭域严格、渐进域宽松」——封闭域（attr/skill/body/faction/wallet/
  * npc 实体/quest 实体/meta.points/time/loop）缺 key 即 `EVAL_ERROR`；
- * 渐进域（flag/item 计数/npc 自定义 flag/outfit 穿戴位/meta.perk）缺席
+ * 渐进域（flag/item 计数/npc 自定义 flag/npc 日程 .at/outfit 穿戴位/meta.perk）缺席
  * 返回定义的缺席值（undefined / 0 / null / false）。
  */
 
@@ -241,11 +241,18 @@ function resolvePath(segments: string[], ctx: EvalContext, source: string): unkn
       if (second === 'favor') return npc.favor;
       if (second === 'met') return npc.met;
       if (second === 'stage') return npc.stage; // schema 可选：未达阶段 → undefined
+      if (second === 'at') {
+        // 日程缓存映射（§4.6 同地点交互条件；引擎扩展视图 world.npcLocationCache）：
+        // 不在场 / 未投影缓存 → null（渐进域，顶层条件真值化为假）
+        const cache = (state.world as { npcLocationCache?: Readonly<Record<string, string>> })
+          .npcLocationCache;
+        return cache?.[first as string] ?? null;
+      }
       if (second === 'flags') {
         const name = segments[3] as string; // segments = [npc, id, 'flags', name]
         return npc.flags[name]; // 渐进域：自定义 flag 未设置 → undefined
       }
-      return npc.flags[second as string]; // 自定义 flag 简写（favor/stage/met 优先）
+      return npc.flags[second as string]; // 自定义 flag 简写（favor/stage/met/at 优先）
     }
     case 'faction': {
       const value = state.factions[first as string];

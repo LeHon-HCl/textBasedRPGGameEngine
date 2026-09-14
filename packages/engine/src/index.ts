@@ -26,7 +26,7 @@ export type { NewGameBootstrap, NewGameNpcInit, NewGameVersions } from './state/
 export { DERIVED_TRIGGER_DOMAINS, recomputeDerived } from './state/index.js';
 export type { DerivedEvalOptions, DerivedTriggerDomain } from './state/index.js';
 export { DEFAULT_META_VIEW, buildExprScope, defaultTimeView } from './state/index.js';
-export type { ExprScopeViews, MetaView, TimeViewProvider } from './state/index.js';
+export type { EngineExprScope, ExprScopeViews, MetaView, TimeViewProvider } from './state/index.js';
 export { restoreState, serializeState } from './state/index.js';
 
 // ---- runtime（§3.1 状态事务核心：GameRuntime / 事务上下文与产出 / 引擎事件） ----
