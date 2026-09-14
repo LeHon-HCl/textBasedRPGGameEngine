@@ -117,6 +117,7 @@ export {
 } from './narrative/index.js';
 export type {
   ChoiceView,
+  NarrativeContentFilter,
   NarrativeEndReason,
   NarrativeHistoryEntry,
   NarrativeWarning,

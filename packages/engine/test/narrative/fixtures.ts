@@ -156,7 +156,10 @@ export function makeRuntime(spec: RuntimeSpec = {}): GameRuntime {
 }
 
 /** makeRunner 选项（SceneRunnerOptions 的直接透传 + 缺省 def 注入） */
-export interface RunnerSpec extends Pick<SceneRunnerOptions, 'params' | 'readonly' | 'onWarn'> {
+export interface RunnerSpec extends Pick<
+  SceneRunnerOptions,
+  'params' | 'readonly' | 'onWarn' | 'contentFilter'
+> {
   readonly runtime?: SceneRunnerRuntime;
   readonly def?: SceneRunnerDef;
   readonly sceneId?: GameId;
@@ -170,6 +173,7 @@ export function makeRunner(def: SceneRunnerDef, spec: RunnerSpec = {}): SceneRun
     params: spec.params,
     readonly: spec.readonly,
     onWarn: spec.onWarn,
+    contentFilter: spec.contentFilter,
   });
 }
 
