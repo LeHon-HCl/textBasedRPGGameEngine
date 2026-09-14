@@ -17,3 +17,7 @@ export type {
 } from './types.js';
 export { DEFAULT_HIGHLIGHT_TTL_MS, StatusPanel } from './StatusPanel.js';
 export type { StatusPanelLabels, StatusPanelProps } from './StatusPanel.js';
+export { projectAreaViews } from './map-projection.js';
+export type { MapAreaView, MapLocationView, MapProjectionOptions } from './map-projection.js';
+export { MapPanel } from './MapPanel.js';
+export type { MapPanelLabels, MapPanelProps, MapPosition } from './MapPanel.js';
