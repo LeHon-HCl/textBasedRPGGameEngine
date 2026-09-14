@@ -19,6 +19,7 @@ export const endingGalleryInfoSchema = z.strictObject({
 
 export type EndingGalleryInfo = z.infer<typeof endingGalleryInfoSchema>;
 
+/** 结局定义（设计 §2.4 EndingDef）：{@link EndingDef} 的校验器 */
 export const endingDefSchema = z.strictObject({
   id: gameIdSchema,
   /** 结局名（图鉴/转场展示） */

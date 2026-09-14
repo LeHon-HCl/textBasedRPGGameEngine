@@ -44,6 +44,13 @@ export interface ScriptStepInput {
   readonly options: LoadGameOptions;
 }
 
+/**
+ * scripts 步骤产物（设计 §3.4 步骤 6；06 号）。
+ *
+ * 宿主注入的作者脚本模块在此完成注册与 `x.*` 调用存在性/纯度核对（FR-SCR-04），
+ * 随后注册表冻结交由 freeze 步骤组装进 `GameDefinition`。安全不变式：
+ * 运行期不解释源码——脚本只在加载期执行注册（NFR-19/20，FR-SCR-06）。
+ */
 export interface ScriptStepResult {
   /** 冻结后的效果注册表（GameRuntime 的 effectExecutor 注入面） */
   readonly effectRegistry: EffectRegistry;

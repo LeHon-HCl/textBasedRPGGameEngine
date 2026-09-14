@@ -124,6 +124,7 @@ const worldStateSchema = z.strictObject({
   ),
 });
 
+/** NPC 运行时状态（设计 §2.4 / §3.1）：好感、阶段、是否已遇、记忆 flag */
 export const npcStateSchema = z.strictObject({
   favor: z.number(),
   /** 当前好感阶段（favor.stages[].id） */
@@ -135,6 +136,7 @@ export const npcStateSchema = z.strictObject({
 
 export type NpcState = z.infer<typeof npcStateSchema>;
 
+/** 任务运行时状态（设计 §2.4 / §3.1）：六态 + 阶段 + 目标进度 */
 export const questStateSchema = z.strictObject({
   state: z.enum(['undiscovered', 'available', 'active', 'ready_to_submit', 'done', 'failed']),
   /** 当前阶段 id（QuestDef.stages[].id） */

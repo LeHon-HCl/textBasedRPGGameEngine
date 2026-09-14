@@ -67,6 +67,17 @@ export function projectSaveMeta(slot: string, blob: SaveBlob): SaveMeta {
   };
 }
 
+/**
+ * 内存持久化适配器（设计 §5.6 / DD-04；20 号）。
+ *
+ * 两个用途：测试基座（`fixtures/helpers` 的契约套件与 SaveService 单测的无 IO
+ * 底座）、浏览器隐私模式降级（NFR-10：IndexedDB 探测失败时由 runtime-ui 顶替
+ * DexieAdapter，配合「请导出存档」横幅）。
+ *
+ * 原子写语义与真实实现一致（契约面，FR-SAVE-05）：写前把旧档副本移入备份位，
+ * 再替换正式档；写失败（经 `beforeWrite` 注入）时旧档与备份位均保持原样、
+ * 失败显式上抛。存取均深拷贝——调用方与存储互不影响。
+ */
 export class MemoryAdapter implements PersistenceAdapter {
   readonly #slots = new Map<string, SlotEntry>();
   readonly #beforeWrite: ((slot: string, blob: SaveBlob) => void) | undefined;

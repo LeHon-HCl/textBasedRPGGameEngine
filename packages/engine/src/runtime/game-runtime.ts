@@ -107,6 +107,22 @@ const PLAYER_DOMAIN_TOKENS: Record<string, DerivedTriggerDomain> = {
 
 const EXEC_SOURCES: readonly string[] = ['choice', 'event', 'hook', 'battle', 'script', 'debug'];
 
+/**
+ * 状态事务核心（设计 §3.1；04 号）。
+ *
+ * 在 immer draft 上实现 `TransactionFrame`：一次 `exec(effects, ctx)` 是一个
+ * **原子事务**（= 一个 undo 点）——全部指令成功则提交，任一失败整体回滚，
+ * jump/event/patch 一并作废。事务内可选调用后置派生器（{@link TransactionDeriver}），
+ * 按本次补丁路径触发任务状态机、NPC 日程缓存、派生属性重算等。
+ *
+ * 关键面：
+ * - `checkpoint(label)` / `rollback(n)`：快照栈（栈深可配，超限丢最旧并发
+ *   `snapshot_warn`）；选择前打点即得「回退」功能（FR-READ-03）；
+ * - `on(type, handler)`：`EngineEvent` 订阅总线——**唯一的副作用外泄通道**，
+ *   事务失败时半途事件不外泄；rollback 不撤销已送达事件；
+ * - `serialize()` / `restore(blob)`：存档装配面（20 号 SaveService 消费）；
+ * - `state` 对外只读（深冻结），一切变更必须经 `exec`。
+ */
 export class GameRuntime {
   #state: GameState;
   readonly #rng: Rng;

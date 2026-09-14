@@ -69,6 +69,7 @@ export type ChoiceDef = z.infer<typeof choiceSchema>;
  */
 export const sceneMediaSchema = mediaBindingSchema;
 
+/** 场景定义（设计 §2.4 SceneDef）：段落/选项/媒体绑定，{@link SceneDef} 的校验器 */
 export const sceneDefSchema = z.strictObject({
   id: gameIdSchema,
   /** 所属区域（与目录 <areaId>/ 不一致时加载器 warning，§3.4） */

@@ -33,11 +33,29 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['packages/*/src/**', 'fixtures/helpers/src/**'],
-      exclude: ['**/.gitkeep'],
+      // 统计范围 = 有实现的包 src。三个未开工的占位包（runtime-ui/editor/exporter）
+      // 不计入——否则其 0% 会稀释聚合，把 engine 阈值变成自动通过（20 号模块的
+      // 门禁失效根因之一，2026-09-14 修复）。
+      include: ['packages/shared/src/**', 'packages/engine/src/**', 'fixtures/helpers/src/**'],
+      exclude: [
+        '**/.gitkeep',
+        // 纯转出/纯类型文件：无运行时代码可覆盖，计入只会拉低聚合且无意义。
+        // 判定口径：index.ts 为纯 re-export；余下为仅含 type/interface 声明的文件。
+        'packages/*/src/index.ts',
+        'packages/*/src/**/index.ts',
+        'packages/engine/src/runtime/engine-events.ts',
+        'packages/engine/src/runtime/exec-context.ts',
+        'packages/engine/src/state/game-state.ts',
+        'packages/engine/src/**/types.ts',
+        'packages/shared/src/expr.ts',
+      ],
       thresholds: {
+        // shared：类型/schema 为主，测试密度高，维持高线。
         'packages/shared/src/**': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        // engine：整体语句 94%、分支 86%（2026-09-14 实测），阈值留出余量但不虚设。
         'packages/engine/src/**': { statements: 80, branches: 80, functions: 80, lines: 80 },
+        // 跨包测试支撑：契约套件与包源夹具，覆盖率要求同 shared。
+        'fixtures/helpers/src/**': { statements: 80, branches: 70, functions: 80, lines: 80 },
       },
     },
   },

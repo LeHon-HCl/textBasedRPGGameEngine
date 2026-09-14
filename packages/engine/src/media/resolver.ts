@@ -19,6 +19,17 @@ function assetIdOf(intent: MediaIntent): string {
   return intent.assetId;
 }
 
+/**
+ * 媒体意图解析器（设计 §5.10 / DD-05；24 号）。
+ *
+ * 只做两件事：查 `mediaCatalog` 核对 assetId 存在性、给缺失资源补
+ * `missing: true` 占位标记（{@link decorate}）。**不构造意图形态**——形态归
+ * 调用方（叙事层按段落声明、效果层按指令参数各自装配），避免语义在此分叉。
+ *
+ * 缺失告警经构造选项 `onWarn` 出口按 assetId 去重（整局只报一次）；
+ * {@link lookup} 为免告警查询（预载清单 / 差分探测等批量路径）。
+ * 引擎零图像/音频依赖：产出全为纯数据 `MediaIntent`。
+ */
 export class MediaResolver {
   readonly #catalog: MediaCatalogLike | undefined;
   readonly #onWarn: ((warning: MediaWarning) => void) | undefined;

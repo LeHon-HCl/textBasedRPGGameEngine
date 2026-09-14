@@ -29,6 +29,7 @@ export const loopCategorySchema = z.enum([
 
 export type LoopCategory = z.infer<typeof loopCategorySchema>;
 
+/** 单类别的周目继承策略（设计 §2.4 / §5.5）：{@link LoopPolicy} 的校验器 */
 export const loopPolicySchema = z.union([
   z.literal('inherit'),
   z.literal('reset'),
@@ -42,6 +43,7 @@ export const loopPolicySchema = z.union([
 
 export type LoopPolicy = z.infer<typeof loopPolicySchema>;
 
+/** 周目配置（设计 §2.4 LoopConfig / §5.5）：{@link LoopConfig} 的校验器 */
 export const loopConfigSchema = z.strictObject({
   /** 周目转场后的开局场景 */
   openingScene: refId('scene'),

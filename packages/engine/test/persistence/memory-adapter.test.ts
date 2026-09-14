@@ -4,7 +4,7 @@ import type { SaveBlob } from '@game/shared';
 import { GameRuntime } from '../../src/runtime/index.js';
 import { createBuiltinEffectRegistry } from '../../src/effects/index.js';
 import { newGameState } from '../../src/state/index.js';
-import { MemoryAdapter, projectSaveMeta } from '../../src/save/index.js';
+import { MemoryAdapter, projectSaveMeta } from '../../src/persistence/index.js';
 
 /**
  * MemoryAdapter 的引擎侧行为（非契约部分，20 号任务 2/8）。

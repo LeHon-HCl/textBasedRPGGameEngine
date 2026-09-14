@@ -18,6 +18,7 @@ export const contentTagDefSchema = z.strictObject({
 
 export type ContentTagDef = z.infer<typeof contentTagDefSchema>;
 
+/** 内容分级标签定义（设计 §2.4 / §5.8）：{@link ContentTagsDef} 的校验器 */
 export const contentTagsDefSchema = z.strictObject({
   tags: z.array(contentTagDefSchema),
 });

@@ -31,6 +31,18 @@ import type {
 /** 作者扩展指令 id 形态（DD-08）：x.<script>.<name>，段为 GameId 形态 */
 const X_NAMESPACE_PATTERN = /^x\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
+/**
+ * 效果指令注册表（设计 §3.3；05 号）。
+ *
+ * 实现 04 号 `EffectExecutor` 最小接口：`resolve` 把单键 `EffectData` 解析为可执行
+ * 句柄（id 查找 → 参数 schema 校验 → 组装 `EffectExecution`）；`execute` 由运行时
+ * 在事务内调用。注册面约束：
+ * - 重复 id → `DUP_ID`；作者扩展 id 必须 `x.<script>.<name>`（DD-08），违例
+ *   `SCRIPT_CONTRACT`——内置指令经构造器装配，不受该约束；
+ * - `__` 前缀为引擎内部命名空间，拒绝经 `register()` 注册（内部指令走
+ *   {@link EffectRegistryOptions} 在构造期装配）；
+ * - 冻结后（`freeze()`）不再接受注册，加载管线的 scripts 步骤依赖该语义。
+ */
 export class EffectRegistry implements EffectExecutor {
   readonly #defs = new Map<string, ErasedEffectDef>();
   readonly #options: EffectRegistryOptions;

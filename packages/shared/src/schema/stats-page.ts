@@ -18,6 +18,7 @@ const entryCommon = {
   style: statsEntryStyleSchema.optional(),
 };
 
+/** 统计条目（设计 §2.4 StatsPageDef / §6.4）：表达式或文本键 + 样式 */
 export const statsEntrySchema = z.union([
   z.strictObject({ expr: exprSchema, ...entryCommon }),
   z.strictObject({ key: textKeySchema, ...entryCommon }),
@@ -25,6 +26,7 @@ export const statsEntrySchema = z.union([
 
 export type StatsEntry = z.infer<typeof statsEntrySchema>;
 
+/** 统计分组（设计 §2.4）：条目集合 + 分组标题键 */
 export const statsGroupSchema = z.strictObject({
   id: gameIdSchema,
   nameKey: textKeySchema,
@@ -33,6 +35,7 @@ export const statsGroupSchema = z.strictObject({
 
 export type StatsGroup = z.infer<typeof statsGroupSchema>;
 
+/** 统计页定义（设计 §2.4 StatsPageDef / §6.4）：{@link StatsPageDef} 的校验器 */
 export const statsPageDefSchema = z.strictObject({
   groups: z.array(statsGroupSchema).min(1),
 });

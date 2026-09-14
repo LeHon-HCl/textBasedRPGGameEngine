@@ -17,6 +17,7 @@ export const scheduleWindowSchema = z.strictObject({
   weekdays: z.array(z.string().min(1)).optional(),
 });
 
+/** 日程条目（设计 §2.4 / §4.6）：时段窗口 + 地点 + 出场条件，{@link ScheduleEntry} 的校验器 */
 export const scheduleEntrySchema = z.strictObject({
   at: scheduleWindowSchema,
   location: refId('location'),
@@ -35,6 +36,7 @@ export const favorStageSchema = z.strictObject({
 
 export type FavorStage = z.infer<typeof favorStageSchema>;
 
+/** 好感区间与阶段阈值（设计 §2.4 / §4.6）：{@link FavorDef} 的校验器 */
 export const favorDefSchema = z
   .strictObject({
     min: z.number(),
@@ -74,6 +76,7 @@ export const spriteDeclSchema = z.union([
 
 export type SpriteDecl = z.infer<typeof spriteDeclSchema>;
 
+/** NPC 定义（设计 §2.4 NpcDef）：立绘/日程/好感三面，{@link NpcDef} 的校验器 */
 export const npcDefSchema = z.strictObject({
   id: gameIdSchema,
   nameKey: textKeySchema,

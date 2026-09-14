@@ -29,6 +29,14 @@ function sourceError(detail: string, where: Record<string, string>): EngineError
   });
 }
 
+/**
+ * `PackageSource` 的内存实现（设计 §3.4；06 号）。
+ *
+ * 以 `Record<path, content>` 构造，无需文件系统——宿主装配（浏览器静态包读为
+ * 字符串表、测试夹具、编辑器内存 DocModel）与加载管线测试共用。三宿主中
+ * 「目录」与「内存」两形态的契约一致性由 `fixtures/helpers` 的同名实现与
+ * test/source.test.ts 共同守护。
+ */
 export class InMemoryPackageSource implements PackageSource {
   readonly #files: ReadonlyMap<string, Uint8Array | string>;
   readonly #dirs: ReadonlySet<string>;

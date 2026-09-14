@@ -23,6 +23,7 @@ export const locationDefSchema = z.strictObject({
 
 export type LocationDef = z.infer<typeof locationDefSchema>;
 
+/** 区域定义（设计 §2.4 AreaDef）：{@link AreaDef} 的校验器 */
 export const areaDefSchema = z.strictObject({
   id: gameIdSchema,
   nameKey: textKeySchema,
