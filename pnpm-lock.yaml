@@ -49,9 +49,28 @@ importers:
       '@game/engine':
         specifier: workspace:^
         version: link:../../packages/engine
+      '@game/runtime-ui':
+        specifier: workspace:^
+        version: link:../../packages/runtime-ui
       '@game/shared':
         specifier: workspace:^
         version: link:../../packages/shared
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.31
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.7
+        version: 18.3.7(@types/react@18.3.31)
 
   fixtures/helpers:
     devDependencies:
@@ -129,6 +148,9 @@ importers:
       jsdom:
         specifier: ^25.0.1
         version: 25.0.1
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
 
   packages/shared:
     dependencies:
