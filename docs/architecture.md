@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/22/24 已合入（20/25A 进行中）。
+> 最后核对：2026-09-14，M1 进行中——09/10/11/12/13/14/20/22/24 已合入（25A 进行中）。
 
 ## 1. 总览
 
@@ -180,7 +180,28 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 - **step.ts**：`createEventStepProvider()` 挂时间管线步骤 6。
 - **state/ref-paths.ts**（10/11 号共用）：`exprRefToStatePrefixes`（表达式 ref 路径 → 状态树路径前缀；`attr.<id>` 同时登记 attrs 与 derived 两个写入点）、`touchedMatchesPrefix`（三形态前缀匹配）、`buildStatePrefixIndex`（反查表归一化）——任务与事件共用同一脏标记口径（曾因各写一份导致派生属性唤醒失效）。
 
-### 3.15 media/ —— 媒体解析引擎侧（设计 §5.10，24 号）
+### 3.15 save/ —— 存档服务（设计 §5.6，20 号）
+
+- **types.ts**：`PersistenceAdapter` 契约（listSaves/load/write/remove/rename/loadBackup）
+  与 `SaveMeta` 元信息（槽位/名称/周目/位置/天/时长/三版本/活动任务摘要）。
+  **依赖倒置（DD-04）**：engine 只定义接口；MemoryAdapter（本包）与 DexieAdapter
+  （runtime-ui §6.7）各自实现，后者必须通过同一份契约套件。
+- **memory-adapter.ts**：`MemoryAdapter`——写前旧档入备份位（FR-SAVE-05 原子写
+  语义）、写失败注入缝（`beforeWrite` 钩子模拟 quota 异常）、存取深拷贝隔离；
+  供测试基座与浏览器隐私模式降级（NFR-10）两用。`projectSaveMeta()` 为 blob →
+  元信息投影（活动任务只含 `active`，按 id 排序）。
+- **service.ts**：`SaveService`——`save` 组装 SaveBlob（序列化 + 三层版本 +
+  rngState + meta）；`load` 版本闸门（高版本 → `VERSION_UNSUPPORTED` **不触碰
+  运行时**，FR-MIGR-02；低版本 → 注入的 `migrate` 入口，21 号接入点；相等 →
+  Zod 终验 → `runtime.restore`）；`autosave` 三点触发 + `auto_1..3` 环形轮换
+  （先补空缺再覆盖最旧）；`quicksave/quickload` 独立 `quick` 槽；`exportSlot/
+  importSlot` JSON 往返（导入同走迁移路径、不写槽位）；`restoreBackup` 备份救援；
+  `rename/remove` 服务层纯操作。写失败统一包装 `SAVE_CORRUPT`（保留 cause）。
+- **契约套件位置**：`fixtures/helpers/src/persistence-contract.ts`
+  （`describePersistenceAdapterContract`）——跨包共用；运行点在同包 test 下，
+  因为 §1.2 R2「engine 只依赖 shared」对 test 同样适用（lint 强制）。
+
+### 3.16 media/ —— 媒体解析引擎侧（设计 §5.10，24 号）
 
 - **resolver.ts**：`MediaResolver`——只做两件事：查 `mediaCatalog` 核对 assetId 存在性、给缺失资源补 `missing: true` 占位标记（`decorate()`；意图形态归调用方，不在解析器里分叉）。缺失告警经 `onWarn` 出口按 assetId 去重（整局只报一次，不逐段落刷屏）；`lookup()` 为免告警查询（预载清单/差分探测）。**引擎零图像/音频依赖**：全部产出为纯数据 `MediaIntent`（模块验收红线）。
 - **Intent 流（叙事层，§5.10「叙事层产出 MediaIntent[]」）**：
@@ -199,8 +220,8 @@ content 为纯谓词子系统（仅依赖 shared，无横向 import）；narrati
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、events、smoke）、media；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（24 号媒体解析入库后）：127 个测试文件 / 1959 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、content、runtime、state、time、items、quests、npcs、body、events、smoke）、media、save；shared/test 按 schema + 基础；fixtures/helpers/test 承载跨包契约（持久化适配器）。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（20 号存档入库后）：130 个测试文件 / 2011 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
