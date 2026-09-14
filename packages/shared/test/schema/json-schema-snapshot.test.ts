@@ -36,7 +36,9 @@ import {
  * - 只增不改：新增字段只允许以可选形态追加（required 数组变化同样红）；
  * - 废弃字段保留一个版本周期并在校验器中警告（NFR-15），期间基线保持不变；
  * - 破坏性变更必须升级 schemaVersion（DD-07）并附带迁移方案（FR-MIGR-01），
- *   基线更新须随这类变更一起评审提交；
+ *   基线更新须随这类变更一起评审提交；再生成工具：
+ *   `pnpm --filter @game/shared build && pnpm --filter @game/shared schema:baselines`
+ *   （自动按 Prettier 归一化，避免纯格式噪音 diff）；
  * - 基线为已提交文件且按语义比较（格式化工具重排不改判），refKind 引用标注
  *   （§2.1）一并受守护——21 号迁移改写依赖该元数据不被遗失。
  */
