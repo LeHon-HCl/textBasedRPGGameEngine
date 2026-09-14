@@ -202,3 +202,7 @@ export type {
   QuestTransitionRule,
   QuestTransitionVia,
 } from './quests/index.js';
+
+// ---- npcs（§4.6 NPC 与阵营：日程解析 / 缓存维护 / 好感声望机制，12 号） ------
+export { resolveNpcLocation } from './npcs/index.js';
+export type { NpcScheduleQuery } from './npcs/index.js';
