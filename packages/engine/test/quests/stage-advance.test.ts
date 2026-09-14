@@ -177,3 +177,84 @@ describe('11-3 refs 状态前缀映射：npc / time / quest 域', () => {
     expect(h.state.quests['q_time']?.state).toBe('ready_to_submit');
   });
 });
+
+// ---- 修复：派生属性 / meta 条件路径归一（fix/11-quest-refs-derived） --------
+//
+// 缺陷（2026-09-14 实证）：`attr.<id>` 的表达式的数据源有两处——数值属性写
+// `player.attrs.<id>`，派生属性（FR-STAT-05）写 `player.derived.<id>`。原实现
+// 只映射到前者，导致「条件依赖派生属性」的任务在基属性变化（派生值重算）后
+// 永不唤醒：条件由假变真也不推进。meta.*（Profile 投影）同理被归一为 undefined，
+// 其变化（如 meta.points）也无法唤醒条件。
+
+describe('11-3 refs 状态前缀映射：派生属性与 meta（缺陷修复）', () => {
+  it('派生属性条件（attr.<derived>）：触碰 player.derived.* 应唤醒任务', () => {
+    const def: QuestDef = stageQuest('q_derived', [
+      { id: 'd1', objectiveKey: 'quest.derived.d1', completeWhen: 'attr.strength >= 10' },
+    ]);
+    const machine = new QuestMachine({
+      defs: makeDefs([def]),
+      questRefs: new Map([['attr.strength', new Set(['q_derived'])]]),
+    });
+    const h = makeHarness({
+      quests: { q_derived: mainQuestState('d1') },
+      conditions: { 'attr.strength >= 10': true },
+    });
+    // 基属性变化 → 派生重算 → 补丁含 player.derived.strength
+    machine.evaluateTouched(h.ctx, ['player.attrs.base', 'player.derived.strength']);
+    expect(h.state.quests['q_derived']?.state).toBe('ready_to_submit');
+  });
+
+  it('数值属性条件（attr.<numeric>）仍走 player.attrs.*（不回归）', () => {
+    const def: QuestDef = stageQuest('q_numeric', [
+      { id: 'n1', objectiveKey: 'quest.numeric.n1', completeWhen: 'attr.hp >= 5' },
+    ]);
+    const machine = new QuestMachine({
+      defs: makeDefs([def]),
+      questRefs: new Map([['attr.hp', new Set(['q_numeric'])]]),
+    });
+    const h = makeHarness({
+      quests: { q_numeric: mainQuestState('n1') },
+      conditions: { 'attr.hp >= 5': true },
+    });
+    machine.evaluateTouched(h.ctx, ['player.attrs.hp']);
+    expect(h.state.quests['q_numeric']?.state).toBe('ready_to_submit');
+  });
+
+  it('meta.* 条件：meta.points 变化应唤醒任务（Profile 投影路径）', () => {
+    const def: QuestDef = stageQuest('q_meta', [
+      { id: 'm1', objectiveKey: 'quest.meta.m1', completeWhen: 'meta.points >= 3' },
+    ]);
+    const machine = new QuestMachine({
+      defs: makeDefs([def]),
+      questRefs: new Map([['meta.points', new Set(['q_meta'])]]),
+    });
+    const h = makeHarness({
+      quests: { q_meta: mainQuestState('m1') },
+      conditions: { 'meta.points >= 3': true },
+    });
+    machine.evaluateTouched(h.ctx, ['meta.points']);
+    expect(h.state.quests['q_meta']?.state).toBe('ready_to_submit');
+  });
+
+  it('数值属性与派生属性同名不冲突：两者触碰均可唤醒', () => {
+    const def: QuestDef = stageQuest('q_both', [
+      { id: 'b1', objectiveKey: 'quest.both.b1', completeWhen: 'attr.strength >= 10' },
+    ]);
+    const machine = new QuestMachine({
+      defs: makeDefs([def]),
+      questRefs: new Map([['attr.strength', new Set(['q_both'])]]),
+    });
+    const viaAttrs = makeHarness({
+      quests: { q_both: mainQuestState('b1') },
+      conditions: { 'attr.strength >= 10': true },
+    });
+    machine.evaluateTouched(viaAttrs.ctx, ['player.attrs.strength']);
+    expect(viaAttrs.state.quests['q_both']?.state).toBe('ready_to_submit');
+    const viaDerived = makeHarness({
+      quests: { q_both: mainQuestState('b1') },
+      conditions: { 'attr.strength >= 10': true },
+    });
+    machine.evaluateTouched(viaDerived.ctx, ['player.derived.strength']);
+    expect(viaDerived.state.quests['q_both']?.state).toBe('ready_to_submit');
+  });
+});
