@@ -533,7 +533,11 @@ export function createGameHost(options: GameHostOptions): GameHost {
         includeLockedAreas: true,
       }),
     location: () => currentLocation,
-    textOf: (key, vars) => resolver.resolve(key, mainLang, vars).text,
+    // 语言口径（M1 收尾修正）：按**当前设置语言**解析，而非固定 mainLang ——
+    // 面板/UI 文案须随设置面板的语言切换即时变更（FR-L10N-05 运行时切换）；
+    // 固定 mainLang 会让切换语言后所有组件文案仍停留在主语言。
+    textOf: (key, vars) =>
+      resolver.resolve(key, (settingsMirror ?? requireRuntime().state.settings).lang, vars).text,
     settings: () => settingsMirror ?? requireRuntime().state.settings,
     langs: () => [...definition.manifest.langs],
     versions: () => ({
