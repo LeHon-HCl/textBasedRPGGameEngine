@@ -44,7 +44,7 @@
 - [x] [12 NPC 与阵营系统](12-npcs-factions.md)
 - [x] [13 物品、装备与多层服装](13-items-outfit.md)
 - [x] [14 身体与变身](14-body.md)
-- [ ] [20 存档系统](20-save.md)
+- [x] [20 存档系统](20-save.md)
 - [x] [22 内容分级与过滤](22-content-filter.md)（M1 机制：ContentFilter 三谓词 + 应用点 2/3 注入 + 谓词矩阵 + 首启向导 contentWarning 读取路径）
 - [x] [24 媒体解析（引擎侧）](24-media.md)
 - [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（基础 A 组）
