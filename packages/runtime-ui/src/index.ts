@@ -68,3 +68,29 @@ export type { SaveMeta, SaveSlotSummary, SaveVersions } from './persistence/inde
 // ---- app.title（§6.1 主菜单；FR-UI-06；任务 3） -------------------------------
 export { formatSaveSummary, saveDisplayName, TitleScreen, TITLE_ACTIONS } from './app/index.js';
 export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './app/index.js';
+
+// ---- text（§6.1 文本渲染管线：sanitize → ReactNode → 打字机；任务 4） ----------
+export {
+  countRichTextChars,
+  createRenderPipeline,
+  parseRichText,
+  RichText,
+  richTextToPlainText,
+  sanitizeRichText,
+  sliceRichTextNodes,
+  TYPEWRITER_BASE_INTERVAL_MS,
+  typewriterIntervalMs,
+  TypewriterText,
+  usePrefersReducedMotion,
+  useTypewriter,
+} from './text/index.js';
+export type {
+  RenderInput,
+  RenderMedia,
+  RenderPipeline,
+  RenderPipelineOptions,
+  RenderResult,
+  RichTextNode,
+  RichTextProps,
+  TypewriterTextProps,
+} from './text/index.js';
