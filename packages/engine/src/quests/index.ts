@@ -14,6 +14,7 @@ export { QuestMachine } from './quest-machine.js';
 export type { QuestMachineOptions } from './quest-machine.js';
 export { createQuestConditionEvaluator, createQuestDeriver } from './deriver.js';
 export type { QuestConditionEvaluator, QuestDeriverOptions } from './deriver.js';
+export { createQuestDeadlineProvider } from './deadline.js';
 export type {
   ObjectiveProgress,
   QuestContext,
