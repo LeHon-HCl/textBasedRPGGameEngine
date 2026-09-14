@@ -2,7 +2,7 @@
 
 > **本文档是「已实现架构」的权威描述**：完整反映当前代码的逻辑架构，随代码变更同步更新（维护规则见文末）。
 > 设计意图与决策依据见 `docs/detail-design.md`（引用格式 §x.y / DD-nn）；需求见 `docs/proposal.md`；进度见 `docs/tasks/progress.md`。
-> 最后核对：2026-09-14，对应 feat/09（时间系统，M1 进行中）。
+> 最后核对：2026-09-14，对应 feat/11（任务系统，M1 进行中）。
 
 ## 1. 总览
 
@@ -53,7 +53,7 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 
 ## 3. engine 包（`packages/engine/src/`）
 
-核心运行时；只依赖 shared + immer / jsep / yaml / zod。六个子系统经 `src/index.ts` 统一 re-export。
+核心运行时；只依赖 shared + immer / jsep / yaml / zod。各子系统经 `src/index.ts` 统一 re-export。
 
 ### 3.1 state/ —— 状态树与事务底座（设计 §3.1，04 号）
 
@@ -69,8 +69,8 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 
 ### 3.3 runtime/ —— 状态事务核心（设计 §3.1）
 
-- **game-runtime.ts**：`GameRuntime` 类——immer draft 之上实现 `TransactionFrame`（jumps / events / patches 合并提交），支持子事务与 `checkpoint(label)` 快照栈（超限丢最旧并发出 snapshot_warn 事件）。
-- **exec-context.ts**：**核心抽象** `ExecContext` / `ExecOutcome`（含 `JumpTarget`）——效果执行与叙事跳转的统一通道；`EffectExecutor` 接口与 `EffectContext` 亦定义于此。
+- **game-runtime.ts**：`GameRuntime` 类——immer draft 之上实现 `TransactionFrame`（jumps / events / patches 合并提交），支持子事务与 `checkpoint(label)` 快照栈（超限丢最旧并发出 snapshot_warn 事件）。事务后置派生器 `TransactionDeriver`（`derivers` 选项，§4.5 任务状态机首用）：指令全部执行后、提交前按本次补丁路径（`touched`）调用，状态变更 / 事件 / 子效果并入同一事务（原子性不变，11 号）。
+- **exec-context.ts**：**核心抽象** `ExecContext` / `ExecOutcome`（含 `JumpTarget`）——效果执行与叙事跳转的统一通道；`EffectExecutor` 接口、`EffectContext` 与 `TransactionDeriver` / `TransactionDeriveContext` 亦定义于此。
 - **engine-events.ts**：`EngineEvent` 事件集（StatChanged / Unlock / Notify / Media / FavorStageChanged / ReputationBandChanged / CheckResult / SnapshotWarn…），订阅式外泄 UI。
 - **perf-guard.ts**：`PERF_GUARD` 性能预算常量（NFR-02）。
 
@@ -78,7 +78,7 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 
 - **registry.ts**：`EffectRegistry implements EffectExecutor`——指令注册、参数 Zod 校验、重复 ID 冲突检测。
 - **types.ts**：`EffectInstructionDef`（schema / touch / execute 三件套）、`TouchReport`（事务触域报告，供增量重算）、`eraseDef`；`CheckRequest / CheckRule / CheckRuleResolver` 为 15 号判定系统预留的规则缝。
-- **builtins/**（7 文件 25 条作者可见指令 + 3 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick`）：state（set/add/flag/money）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、util（call）。`createBuiltinEffectRegistry()` 装配全量。
+- **builtins/**（7 文件 25 条作者可见指令 + 4 条内部指令 `__time.advance` / `__outfit.save_preset` / `__items.tick` / `__quest.deadline`）：state（set/add/flag/money）、items（give/take/equip/unequip/wear/remove）、relations（favor/reputation）、flow（goto/back/ending/loop_transition）、system（advance_time/quest/unlock/notify/media）、adversarial（check/battle/set_body）、util（call）。`createBuiltinEffectRegistry()` 装配全量。quest 指令自 11 号起全量委托 `QuestMachine`（accept 校验 / advance / complete→submit 奖励 / fail）。
 
 ### 3.5 loader/ —— 游戏包加载器（设计 §3.4，06 号）
 
@@ -122,9 +122,24 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 
 - **clock.ts**：`advanceClock()` 推进纯函数（slot → day → week → month 递进，返回跨天/跨周/跨月旗标）；`weekdayIndex()` / `dayOfMonth()` 日历基元；`DEFAULT_TIME_CONFIG` 宿主缺省日历（4 时段 × 7 天 × 周日起算，无月历）。week 恒启用；month 仅 `config.months` 启用时写入（循环月序，无年概念）。
 - **calendar.ts**：`projectCalendar()` 日历 UI 投影纯函数（FR-TIME-05）；`createTimeViewProvider()` TimeConfig 校准的求值视图（`time.slot` = 时段 id、`time.weekday` = 星期序），经 `GameRuntimeOptions.timeViewProvider` 装配。
-- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
+- **pipeline.ts**：`TimePipeline.advance(slots)` **固定次序推进管线**（DD-10）：`0 before_rollover → 1 时钟推进 → 2 状态 tick → 3 临时身体回退 → 4 day_rollover → 5 NPC 日程 → 6 事件评估 → 7 任务截止`。一次推进 = 一次 `runtime.exec` 事务 = 一个 undo 点（中途抛错整批回滚）。步骤 2/3/5/6/7 以槽位钩子注入（13/14/12/10/11 号挂载点；步骤 7 由 11 号 `createQuestDeadlineProvider` 提供 `__quest.deadline` 内部指令，在推进后时钟上做 failWhen 全量判定）；作者钩子只有 `beforeRollover` / `dayRollover` 两个前后缀槽位（跨天门控），不可插入中间。
 - **内部指令 `__time.advance`**（effects/builtins/system.ts）：时钟写入的事务内载体，作者包内不可达（effectDataSchema 拒绝）；需要 `EffectRegistryOptions.timeConfig`。
 - **共享 schema**：`timeConfigSchema`（shared/schema/time.ts，`data/time.yaml` 可选单对象域 → `GameDefinition.time`）；`advance_time` 指令只产 `JumpTarget.advanceTime` 意图，宿主消费后归约到 `TimePipeline.advance()`；移动消耗（`location.moveCost`，FR-XPLR-02）同径归约。
+
+### 3.9 quests/ —— 任务系统（设计 §4.5，11 号）
+
+- **transitions.ts**：六态（undiscovered / available / active / ready_to_submit / done / failed）+ 迁移规则表 `QUEST_TRANSITIONS`、`canTransition` / `transitionVias` / `assertTransition`（表驱动；非法迁移 EFFECT_FAILED，detail 可读）。
+- **quest-machine.ts**：`QuestMachine`——与 runtime 解耦的纯状态机（经 `QuestContext` 在调用方事务 draft 上操作，DD-06 / R5）：
+  - `accept`：状态门 + conflicts（对方 active/ready 互斥）+ requires（须 done）+ acceptIf 校验矩阵（拒绝原因可读，FR-QUEST-04）；
+  - `advance` / `complete` / `fail`：显式迁移入口（`complete` 在 ready_to_submit 走 `submit` 结算，active 走强制完成兼容 05 号）；
+  - `submit`：ready_to_submit → done，rewards 经 `ctx.child` 在同一 draft 原子执行（失败整批回滚，任务保持 ready_to_submit）；
+  - `evaluateTouched`：`questRefs` 反查表（compile 产物）将条件表达式归一化为状态路径前缀，按事务补丁路径（TouchReport）判定受影响任务——命中即评估、未命中零求值（不轮询，NFR-02）；阶段可级联推进，末阶段达成 → ready_to_submit；
+  - `evaluateFailures`：时间管线步骤 7 的全量 failWhen 扫描（`__quest.deadline` 载体，含时间截止）；
+  - `progress`：FR-QUEST-05 目标进度投影（阶段 → objectiveKey/complete/value）。
+- **deriver.ts**：`createQuestDeriver` 将 `evaluateTouched` 注册为 `GameRuntime.derivers`；`createQuestConditionEvaluator` 为缺省条件求值器（compileExpr 缓存 + buildExprScope + evalExpr）。
+- **deadline.ts**：`createQuestDeadlineProvider`——时间管线步骤 7 钩子，产出 `__quest.deadline` 内部指令。
+- **projection.ts**：`projectQuestLog`（FR-QUEST-03：按状态分组 + 追踪置顶；追踪为 UI 状态，引擎只投影）。
+- 事件面：`quest_stage`（阶段推进，on_stage）与 `quest_state_changed`（六态迁移）加入 EngineEvent。QuestDef 无 on_* 效果字段，作者经事件订阅实现「状态变化触发效果」（on_accept / on_done / on_fail 的作者侧等价物）。
 
 ## 4. 应用层（apps/）
 
@@ -134,8 +149,8 @@ engine 内部：loader → (state, effects, expr) ；narrative → (state, runti
 ## 5. 测试体系
 
 - 位置约定（vitest）：`packages/<pkg>/test/**/*.test.ts`，node 环境；workspace 包经 vitest alias 解析到**源码**（CI 不构建 dist）。
-- 组织：engine/test 按子系统分目录（expr-eval 12、effects 12、loader、i18n 7、narrative 12、runtime 8、state 3、smoke）；shared/test 按 schema 10 + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
-- 规模（M0 完成态）：77 个测试文件 / 1544 个用例全绿。
+- 组织：engine/test 按子系统分目录（expr-eval、effects、loader、i18n、narrative、runtime、state、time、items、quests、smoke）；shared/test 按 schema + 基础。每目录有 `fixtures.ts` 局部夹具；跨包夹具在 fixtures/helpers 包。
+- 规模（11 号任务系统入库后）：101 个测试文件 / 1711 个用例全绿。
 - 覆盖率门禁（v8）：shared ≥ 90%，engine ≥ 80%。
 
 ## 6. 质量门禁与工具链
