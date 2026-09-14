@@ -1,0 +1,10 @@
+desc: Only half the shrine's pedestal remains; the altar is worn flat by mountain wind, and the carvings barely legible.
+mark: There is a blank space on the pedestal's flank, just wide enough for a mark.
+done: Your mark remains on the pedestal; when the wind passes, it seems to answer.
+notify:
+  marked: You cut your mark into the blank space, your hand steady as it falls.
+  prayed: You stand before the pedestal a while, and some of the tightness in your chest eases.
+choice:
+  mark: Leave a mark on the pedestal
+  pray: Stand in silence
+  back: Back to the trailhead

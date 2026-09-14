@@ -1,0 +1,6 @@
+open: A lantern sways at the mouth of the alley, drifting deeper — though nobody seems to carry it.
+notify:
+  followed: You follow two steps; the light dies all at once, leaving only wind in the alley.
+choice:
+  follow: Follow it and see
+  home: Turn back

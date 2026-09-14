@@ -1,0 +1,7 @@
+open: You call out behind the shed; only layered echoes answer you.
+echo: Something else rides within the echo, as if someone deeper in had answered half a sentence.
+notify:
+  called: You shout across the empty yard; the echo strikes the stone and rolls back.
+choice:
+  call: Call out again
+  listen: Hold your breath and listen

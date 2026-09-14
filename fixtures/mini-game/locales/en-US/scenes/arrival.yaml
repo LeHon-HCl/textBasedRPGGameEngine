@@ -1,0 +1,5 @@
+open: The drizzle has just let up. You step onto the flagstones of Old Town, where lanterns blur into warm halos in the mist.
+rain: The eaves still drip, and a tavern sign creaks somewhere down the street.
+choice:
+  go_market: Head to the market
+  go_gate: Walk to the town gate

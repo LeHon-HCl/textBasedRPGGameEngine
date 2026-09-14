@@ -1,0 +1,5 @@
+enter: The market is quieter than you expected; stallholders haggle in lowered voices.
+stall: A half-page of hand-copied town chronicle lies on the book stall, its corners softened by damp.
+choice:
+  listen_rumor: Lean in to catch the vendor's murmur
+  back_arrival: Back to the flagstone crossing

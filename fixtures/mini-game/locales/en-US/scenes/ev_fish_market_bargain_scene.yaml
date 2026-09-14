@@ -1,0 +1,9 @@
+open: The fishwife lays her balance across your path. "Name a price, no dawdling."
+haggle: She studies you for two breaths, then grins. "Fine — you've got an eye."
+notify:
+  win: You talk her down and walk off with two small carp for free.
+  fair: You pay her asking price, and she slips you a handful of dried fish.
+choice:
+  hard: Haggle hard
+  fair: Pay the asking price
+  away: Walk away

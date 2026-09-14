@@ -1,0 +1,10 @@
+desc: The broken walls of the quarry enclose half a circle, their faces crowded with chisel marks.
+tracks: A fresh drag-line runs across the ground, straight to a half-collapsed shed.
+surveyed: You have traced the direction of the chisel marks; you have a fair idea now.
+notify:
+  surveyed: You commit the run of the chisel marks to memory — it matches the old tales in town.
+  rested: You rest a while in a wind-sheltered hollow, and your strength returns.
+choice:
+  survey: Examine the chisel marks
+  rest: Rest in the hollow
+  back: Back to the trailhead

@@ -25,7 +25,8 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
     expect(definition.manifest.gameId).toBe('mini_game');
     expect(definition.manifest.mainLang).toBe('zh-CN');
     expect(definition.manifest.schemaVersion).toBe(1);
-    expect(Object.keys(definition.locales)).toEqual(['zh-CN']);
+    // M1 收尾起夹具声明双语（zh-CN 主 + en-US 译）：两包均加载，顺序随 manifest.langs
+    expect(Object.keys(definition.locales).sort()).toEqual(['en-US', 'zh-CN']);
     expect(definition.functionRegistry.size).toBe(20);
     expect(definition.effectRegistry.frozen).toBe(true);
     expect(definition.effectRegistry.ids()).toContain('goto');

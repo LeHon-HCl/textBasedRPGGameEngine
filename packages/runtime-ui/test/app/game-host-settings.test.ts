@@ -75,7 +75,8 @@ describe('宿主：设置写入面（FR-UI-05 / FR-CGRD-03）', () => {
   it('langs / versions 投影（设置面板数据面）', async () => {
     const { host } = await makeHost();
     host.start();
-    expect(host.langs()).toEqual(['zh-CN']);
+    // M1 收尾起夹具声明双语；langs 投影随 manifest.langs（顺序一致）
+    expect(host.langs()).toEqual(['zh-CN', 'en-US']);
     const versions = host.versions();
     expect(versions.gameVersion).toBe('1.0.0');
     expect(versions.schemaVersion).toBe(1);

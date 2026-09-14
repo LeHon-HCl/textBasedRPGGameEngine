@@ -42,7 +42,7 @@ describe('fixtures/mini-game v1（公共正例夹具，设计 §1.3 原则 6）'
     expect(manifest).toMatchObject({
       gameId: 'mini_game',
       mainLang: 'zh-CN',
-      langs: ['zh-CN'],
+      langs: expect.arrayContaining(['zh-CN']),
       schemaVersion: 1,
     });
     const entry = isRecord(manifest) ? manifest['entryScene'] : undefined;

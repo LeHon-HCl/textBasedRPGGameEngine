@@ -1,0 +1,7 @@
+open: Two stallholders trade whispers until the moment you come near.
+riverside_hint: One of them mentions that "things have been restless down by the river bend" — the other falls silent at once.
+notify:
+  heard: You file away the words "river bend".
+choice:
+  listen: Pretend to browse and listen on
+  skip: Not interested

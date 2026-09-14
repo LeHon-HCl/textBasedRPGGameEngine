@@ -1,0 +1,10 @@
+desc: The slope steepens underfoot; looking back, you can see Old Town's roofs pressed under a lid of mist.
+wind: The morning wind flattens the grass, uncovering a narrow trodden path hidden within.
+quarry_hint: You recall the half-emblem on the embankment — the marks up here may share its source.
+notify:
+  opened: You clear the fallen stones, and a narrow way up reveals itself.
+choice:
+  to_quarry: Go to the quarry
+  to_shrine: Toward the ruined shrine
+  open_quarry: Clear the stones on the path
+  back: Down the hill to the market

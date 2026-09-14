@@ -1,0 +1,13 @@
+arrive: You follow the wet embankment down; the smell of the river reaches you before the ferry does.
+ferryman: An old man in a straw cape is coiling his rope. He lifts his chin at your approach by way of greeting.
+ferryman_seen: The ferryman recognizes you, loops the rope over a post, and waves you over to stand where you like.
+tide: The tide is rising; the boardwalk shifts gently underfoot.
+notify:
+  met: You have made yourself known to the ferryman.
+  ferry_tip: The old man mentions that the bend runs shallow before the flood tide — and hides things.
+choice:
+  talk: Go up and greet him
+  ask_ferry: Ask about the ferry
+  to_market: Follow the bank to the fish market
+  to_embankment: Climb down to the embankment
+  back: Back to the Old Town gate

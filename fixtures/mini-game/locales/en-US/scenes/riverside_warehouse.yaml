@@ -1,0 +1,10 @@
+desc: The warehouse door is half-rotten, leaking the smell of old mildew and river mud.
+locked: The door is barred from within, but the bar has long since gone soft.
+open: The hinges groan open a crack, revealing dusty crates stacked inside.
+notify:
+  opened: You throw your weight against it, and the bar snaps.
+  found: An old coat lies at the bottom of a crate, still surprisingly sound.
+choice:
+  force: Throw yourself at the door
+  search: Search the crates
+  back: Back to the fish market

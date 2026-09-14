@@ -6,6 +6,7 @@ entryScene: arrival
 mainLang: zh-CN
 langs:
   - zh-CN
+  - en-US
 contentTags:
   - general
 gameVersion: 1.0.0

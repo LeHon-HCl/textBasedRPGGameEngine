@@ -1,0 +1,6 @@
+open: A wood-gatherer comes down the trail toward you; he only nods as he passes.
+notify:
+  shared: You offer your waterskin; he blinks, then takes two swallows.
+choice:
+  share: Offer the waterskin
+  pass: Step aside and let him by
