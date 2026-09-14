@@ -97,6 +97,18 @@ describe('B4：除零在任何嵌套位置都抛出（无静默默认值）', ()
 });
 
 describe('B4：嵌套隐式转换禁止（真值化不蔓延到算术语境）', () => {
+  it('未建档 NPC 仍是封闭域 → EVAL_ERROR（M1 收尾确认：由宿主播种解决，不放宽引擎）', () => {
+    // M1 收尾实测曾暴露：跨区域条件 `!npc.ferryman.met` 在新档抛 EVAL_ERROR。
+    // 处置**不在引擎放宽语义**（03/12 号刻意钉死「NPC 是封闭域」——ID 拼错应当报错），
+    // 而在**宿主播种**：createGameHost 建档时按 NpcDef 为全部已声明 NPC 建记录，
+    // 使「尚未遇见」与「ID 拼错」两种情况在语义上可分。此用例钉死该边界。
+    expect(evalExpectError('npc.ferryman.met').messageKey).toBe('error.eval.missingKey');
+    expect(evalExpectError('npc.ferryman.favor').messageKey).toBe('error.eval.missingKey');
+    // 已建档 NPC 正常求值（对照）
+    expect(evalExpr(compileExpr('npc.raven.met', REGISTRY), makeContext())).toBe(true);
+    expect(evalExpr(compileExpr('npc.raven.favor', REGISTRY), makeContext())).toBe(7);
+  });
+
   it('渐进域缺席值进入算术 → EVAL_ERROR（而非 0/1 化）', () => {
     expect(evalExpectError('flag("never_set") + 1').messageKey).toBe('error.eval.typeMismatch');
     expect(evalExpectError('flag("never_set") * 2').messageKey).toBe('error.eval.typeMismatch');

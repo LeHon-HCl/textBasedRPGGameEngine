@@ -242,6 +242,10 @@ function resolvePath(segments: string[], ctx: EvalContext, source: string): unkn
     }
     case 'npc': {
       const npc = state.npcs[first as string];
+      // 封闭域（03/12 号刻意语义）：NPC 在游戏包内静态声明（data/npcs/*.yaml），
+      // 未建档即 id 拼写错误或宿主未播种 —— 一律 EVAL_ERROR（DD-01 无静默值）。
+      // M1 收尾的宿主修复：createGameHost 在建档时按 NpcDef 播种全部 NPC 记录，
+      // 使「尚未遇见的 NPC」条件（如 !npc.ferryman.met）在封闭域语义下同样可用。
       if (npc === undefined) throw missingKey(path, first as string, source);
       if (second === 'favor') return npc.favor;
       if (second === 'met') return npc.met;

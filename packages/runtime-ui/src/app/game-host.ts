@@ -369,6 +369,23 @@ export function createGameHost(options: GameHostOptions): GameHost {
         attrs: { ...(options.initialAttrs ?? {}) },
         // 钱包初值（见 GameHostOptions.initialWallet：wallet 是封闭域，读前必须先有键）
         wallet: { ...(options.initialWallet ?? {}) },
+        // NPC 播种（M1 收尾）：按包内声明的 NpcDef 为**全部** NPC 建记录（met=false、
+        // favor 取 favor.min 或 0）。理由：`npc.<id>.*` 是**封闭域**（未建档即
+        // EVAL_ERROR，用于保护 ID 拼写错误——03/12 号刻意语义），因此「尚未遇见」
+        // 的条件（如 `!npc.ferryman.met`）必须靠**建档**表达，而不是靠引擎放宽语义。
+        // 不播种的后果：新档读取任何未遇见 NPC 的条件都会抛错（M1 收尾实测阻断跨区域跳转）。
+        npcs: Object.fromEntries(
+          [...definition.npcs.values()].map((npc) => [
+            npc.id,
+            {
+              favor: npc.favor?.min ?? 0,
+              ...(npc.favor?.stages?.[0]?.id !== undefined
+                ? { stage: npc.favor.stages[0].id }
+                : {}),
+              met: false,
+            },
+          ]),
+        ),
         // 缺省解锁区域 = **入口场景所在区域**（语义口径，不是 areas.keys() 的首项：
         // 后者依赖字典序，多区域夹具下会解锁到字母序最前的区域而非玩家真正起步的区域。
         // 见 docs/architecture.md §5.4 宿主装配。）
