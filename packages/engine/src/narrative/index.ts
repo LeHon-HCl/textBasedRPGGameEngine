@@ -7,6 +7,7 @@
 export { NARRATIVE_HISTORY_CAPACITY, SceneRunner, SUBSESSION_DEPTH_LIMIT } from './scene-runner.js';
 export type {
   ChoiceView,
+  NarrativeContentFilter,
   NarrativeEndReason,
   NarrativeHistoryEntry,
   NarrativeWarning,

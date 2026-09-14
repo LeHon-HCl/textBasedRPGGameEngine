@@ -119,6 +119,20 @@ export interface SceneRunnerDef {
   readonly functionRegistry?: ExprFunctionRegistry;
 }
 
+/**
+ * 内容过滤注入面（设计 §5.8 ContentFilter 的结构化最小视图，22 号）。
+ *
+ * narrative 只依赖这一最小接口做过滤判定，不横向 import content 子系统
+ * （DD-06）；`ContentFilter` 结构化满足本接口，宿主直接注入实例即可。
+ * 只声明应用点 2（占位替换）与应用点 3（选项隐藏）所需的两谓词。
+ */
+export interface NarrativeContentFilter {
+  /** 标签集合是否放行（无标签恒 true） */
+  passes(tags?: readonly string[]): boolean;
+  /** 被屏蔽内容的占位文本键；null = 保留原文或跳过（调用方先经 passes 判定） */
+  placeholderFor(tags?: readonly string[]): TextKey | null;
+}
+
 /** SceneRunner 构造选项（设计 §4.2 opts：sceneId/params/readonly + 注入缝） */
 export interface SceneRunnerOptions {
   /** 游戏定义最小视图（GameDefinition 直接可用） */
@@ -135,4 +149,9 @@ export interface SceneRunnerOptions {
   readonly readonly?: boolean;
   /** warning 出口（§4.2 子会话超限等 diagnostic 风格告警；缺省丢弃） */
   readonly onWarn?: (warning: NarrativeWarning) => void;
+  /**
+   * 内容过滤器（§5.8 应用点 2/3；缺省 undefined = 不做段落占位替换，选项沿用
+   * 08 号既有的 `settings.disabledTags` 直查——向后兼容，既有行为不变）。
+   */
+  readonly contentFilter?: NarrativeContentFilter;
 }

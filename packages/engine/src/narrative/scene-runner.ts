@@ -11,6 +11,7 @@ import type { MacroExpansionContext, NarrativeMacro } from './macros.js';
 import type { ExecContext, ExecOutcome, JumpTarget } from '../runtime/index.js';
 import type {
   ChoiceView,
+  NarrativeContentFilter,
   NarrativeEndReason,
   NarrativeHistoryEntry,
   NarrativeWarning,
@@ -62,6 +63,8 @@ export class SceneRunner {
   readonly #readonlySession: boolean;
   readonly #paramsSource: SceneRunnerOptions['params'];
   readonly #onWarn: ((warning: NarrativeWarning) => void) | undefined;
+  /** 内容过滤器（§5.8 应用点 2/3；缺省 = 不过滤段落，选项沿用 08 号直查语义） */
+  readonly #contentFilter: NarrativeContentFilter | undefined;
   /** 事件场景 id 集（def.events 声明的 event.scene，§4.2 子会话判定面） */
   readonly #eventSceneIds: ReadonlySet<GameId>;
 
@@ -86,6 +89,7 @@ export class SceneRunner {
     this.#readonlySession = options.readonly ?? false;
     this.#paramsSource = options.params;
     this.#onWarn = options.onWarn;
+    this.#contentFilter = options.contentFilter;
     this.#eventSceneIds = new Set(options.def.events.map((event) => event.scene));
     const scene = options.def.scenes.get(options.sceneId);
     if (scene === undefined) {
@@ -334,19 +338,40 @@ export class SceneRunner {
    * 已揭示前缀的渲染列表（§4.2 RenderSegment 段落流；vars 每次渲染组装）。
    * 新揭示的文本段落（FR-READ-04 数据源）随构建推入历史缓冲（环形 500 段，
    * 含场景 id 与时钟上下文）——重复渲染不重复入账，游标推进才入账。
+   *
+   * 内容过滤（§5.8 应用点 2，FR-CGRD-03）：注入 contentFilter 且当前场景标签
+   * 被屏蔽时，整场文本段落按占位策略处理——配置了占位键则以该键替换，否则
+   * 跳过（媒体段落不受影响）。被跳过的屏蔽内容**不入历史**（历史回看不得
+   * 泄漏被屏蔽内容）。未注入过滤器 = 08 号既有行为，逐字不变。
    */
   #buildRenderList(frame: SessionFrame): RenderSegment[] {
     const vars = this.#resolveVars();
     const revealed = frame.expanded.slice(0, frame.cursor);
+    // 场景级标签过滤：段落 schema（§2.4 segmentSchema）无独立 tags，屏蔽判定
+    // 以场景标签为粒度；屏蔽态在本帧渲染期恒定，未配置占位键 → 跳过该场文本
+    const filter = this.#contentFilter;
+    const blocked = filter !== undefined && !filter.passes(frame.scene.def.tags);
+    const placeholder =
+      blocked && filter !== undefined ? filter.placeholderFor(frame.scene.def.tags) : null;
+    const skipBlocked = blocked && placeholder === null;
     const out: RenderSegment[] = [];
     // 场景级媒体绑定（FR-NARR-01 / DD-05）映射为前置 image 段落（media intent
     // 随段落流产出，engine 不接触播放）；不计入段落游标（advance 语义只针对文本）
     if (frame.media.length > 0) {
       out.push({ kind: 'image', media: frame.media });
     }
+    // spacing 只出现在实际产出的文本段落之间（跳过屏蔽段落时不产生悬空间距）
+    let textEmitted = false;
     for (let i = 0; i < revealed.length; i++) {
-      if (i > 0) out.push({ kind: 'spacing' });
-      const segment: RenderSegment = { kind: 'text', key: revealed[i] as TextKey, vars };
+      if (skipBlocked) continue;
+      if (textEmitted) out.push({ kind: 'spacing' });
+      textEmitted = true;
+      // 被屏蔽且配置了占位键 → 以占位键替换；否则渲染原文（08 号既有路径）
+      const segment: RenderSegment = {
+        kind: 'text',
+        key: placeholder ?? (revealed[i] as TextKey),
+        vars,
+      };
       if (i >= frame.pushed) {
         this.#pushHistory(frame.sceneId, segment);
       }
