@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 import type { StoreApi } from 'zustand/vanilla';
+import { mergeToast } from '../notifications/toast.js';
 import {
   EMPTY_SESSION,
   initialUiState,
@@ -60,17 +61,18 @@ export function createUiStore(): UiStoreApi {
     },
     pushNotification: (item) => {
       set((state) => ({
-        notifications: [
-          ...state.notifications,
+        // 合并策略由纯函数承担（FR-UI-07 防刷屏，§6.4）：
+        // 同类同键且 500ms 窗口内折叠为一条，其余追加
+        notifications: mergeToast(
+          state.notifications,
           {
-            id: notificationIdSeq++,
             kind: item.kind,
             textKey: item.textKey,
             ...(item.vars !== undefined ? { vars: item.vars } : {}),
-            count: 1,
-            at: item.at ?? Date.now(),
+            ...(item.at !== undefined ? { at: item.at } : {}),
           },
-        ],
+          { nextId: () => notificationIdSeq++ },
+        ),
       }));
     },
     dismissNotification: (id) => {

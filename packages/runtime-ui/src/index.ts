@@ -178,3 +178,14 @@ export type {
   SelectAdapterOptions,
   StorageProbeResult,
 } from './persistence/index.js';
+
+// ---- notifications（§6.4 通知系统：合并/过期纯函数 + 浮层；FR-UI-07；任务 11） --
+export {
+  expireToasts,
+  mergeToast,
+  nextToastId,
+  TOAST_DEFAULT_TTL_MS,
+  TOAST_MERGE_WINDOW_MS,
+  ToastStack,
+} from './notifications/index.js';
+export type { MergeToastOptions, ToastInput, ToastStackProps } from './notifications/index.js';
