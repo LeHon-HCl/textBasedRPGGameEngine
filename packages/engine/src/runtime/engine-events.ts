@@ -61,11 +61,15 @@ export interface CheckResultEvent {
 /**
  * 媒体意图（DD-05：engine 不接触音频/图像，只产出 intent；播放由 runtime-ui
  * 的播放器消费，§6.8）。与 §5.10 MediaIntent 契约一致（24 号模块复用本定义）。
+ *
+ * `missing` 为占位标记（FR-MEDIA-06）：资源在 mediaCatalog 中缺失时置 true，
+ * 意图仍照常产出——「占位块 / 隐藏」的降级决策归播放器（§6.8），引擎只如实
+ * 表达「此处应有媒体但缺失」，同时经 warning 出口告警（24 号 MediaResolver）。
  */
 export type MediaIntent =
-  | { type: 'bg' | 'cg' | 'sprite'; assetId: string; transition?: 'fade' | 'cut' }
-  | { type: 'bgm'; assetId: string; loop: true }
-  | { type: 'sfx'; assetId: string };
+  | { type: 'bg' | 'cg' | 'sprite'; assetId: string; transition?: 'fade' | 'cut'; missing?: true }
+  | { type: 'bgm'; assetId: string; loop: true; missing?: true }
+  | { type: 'sfx'; assetId: string; missing?: true };
 
 /** 媒体意图事件（§3.3 media 指令 emit） */
 export interface MediaEvent {
