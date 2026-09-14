@@ -84,10 +84,6 @@ importers:
       zod:
         specifier: ^4.6.2
         version: 4.6.2
-    devDependencies:
-      '@game/fixtures-helpers':
-        specifier: workspace:^
-        version: link:../../fixtures/helpers
 
   packages/exporter: {}
 
