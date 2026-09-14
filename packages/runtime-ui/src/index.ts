@@ -94,3 +94,24 @@ export type {
   RichTextProps,
   TypewriterTextProps,
 } from './text/index.js';
+
+// ---- narrative（§6.1/§6.3 叙事区与选择前 checkpoint；FR-READ-03/05；任务 5） -----
+export {
+  choiceCheckpointLabel,
+  createChoiceCheckpoint,
+  DEFAULT_NARRATIVE_LABELS,
+  describeEnding,
+  NarrativeView,
+  OptionList,
+  withChoiceCheckpoint,
+} from './narrative/index.js';
+export type {
+  CheckpointRuntime,
+  ChoiceExecutionResult,
+  ChoiceTarget,
+  NarrativeLabels,
+  NarrativeSegmentEndReason,
+  NarrativeSegmentView,
+  NarrativeViewProps,
+  OptionView,
+} from './narrative/index.js';
