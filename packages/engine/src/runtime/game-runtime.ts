@@ -24,6 +24,7 @@ import {
 import type { GameState } from '../state/index.js';
 import { createBuiltinFunctionRegistry, evalExpr, truthy } from '../expr-eval/index.js';
 import type { EffectContext, EffectExecutor, ExecContext, ExecOutcome } from './exec-context.js';
+import type { TransactionDeriveContext, TransactionDeriver } from './exec-context.js';
 import type { EngineEvent, StatChangedEvent, Unsubscribe } from './engine-events.js';
 import { PERF_GUARD } from './perf-guard.js';
 
@@ -73,6 +74,12 @@ export interface GameRuntimeOptions {
   checkpointLimit?: number;
   /** 单快照体积告警阈值字节（缺省 = PERF_GUARD.checkpointSnapshotWarnBytes） */
   snapshotWarnBytes?: number;
+  /**
+   * 事务后置派生器（§4.5；缺省 = 无）：指令全部执行后、状态提交前按注册序调用，
+   * 携带本次事务触碰路径供脏标记评估（任务状态机等）。派生器的状态变更、事件与
+   * 子效果并入同一事务（原子性不变）。
+   */
+  derivers?: readonly TransactionDeriver[];
 }
 
 /** 回滚栈条目：快照 + 标签 + 打点时的 RNG 状态（DD-09 回滚一致） */
@@ -112,6 +119,7 @@ export class GameRuntime {
   readonly #listeners: Map<EngineEvent['type'], Set<(event: EngineEvent) => void>> = new Map();
   readonly #checkpointLimit: number;
   readonly #snapshotWarnBytes: number;
+  readonly #derivers: readonly TransactionDeriver[];
   #snapshots: SnapshotEntry[] = [];
 
   constructor(options: GameRuntimeOptions) {
@@ -125,6 +133,7 @@ export class GameRuntime {
     this.#executor = options.effectExecutor;
     this.#checkpointLimit = options.checkpointLimit ?? PERF_GUARD.checkpointStackDepth;
     this.#snapshotWarnBytes = options.snapshotWarnBytes ?? PERF_GUARD.checkpointSnapshotWarnBytes;
+    this.#derivers = options.derivers ?? [];
     if (!Number.isInteger(this.#checkpointLimit) || this.#checkpointLimit < 1) {
       throw new EngineError({
         code: 'INTERNAL',
@@ -195,6 +204,12 @@ export class GameRuntime {
       if (touched.length > 0) {
         work = this.#recomputeDerivedOn(work, touched, ctx, frame);
       }
+    }
+
+    // 事务后置派生（§4.5 任务状态机等）：指令全部执行后按触碰路径评估，
+    // 变更/事件/子效果并入同一事务（原子性不变；失败则整批回滚）
+    if (this.#derivers.length > 0) {
+      work = this.#runDerivers(work, frame, ctx);
     }
 
     this.#state = work;
@@ -400,6 +415,37 @@ export class GameRuntime {
     return { jumps: childFrame.jumps, events: childFrame.events, patches: childFrame.patches };
   }
 
+  /**
+   * 事务后置派生（§4.5）：以本次事务补丁路径为 touched，按注册序调用派生器；
+   * 每个派生器独立 produce（变更补丁并入事务 frame），事件经 emit 进同一
+   * frame。派生器抛错则事务整体失败（未提交，原子性保持）。
+   */
+  #runDerivers(work: GameState, frame: TransactionFrame, ctx: ExecContext): GameState {
+    const touched = touchedPathsFromPatches(frame.patches);
+    let next = work;
+    for (const deriver of this.#derivers) {
+      next = produce(
+        next,
+        (draft) => {
+          const deriveCtx: TransactionDeriveContext = {
+            draft,
+            touched,
+            rng: ctx.rng,
+            emit: (event) => {
+              frame.events.push(event);
+            },
+            child: (effects) => this.#runChild(effects, ctx, draft, frame),
+          };
+          deriver.afterTransaction(deriveCtx);
+        },
+        (patches) => {
+          frame.patches.push(...patches);
+        },
+      );
+    }
+    return next;
+  }
+
   /** 触碰域命中时的派生重算（独立 produce，重算补丁并入事务补丁集） */
   #recomputeDerivedOn(
     work: GameState,
@@ -523,6 +569,15 @@ function touchedFromPatches(patches: readonly Patch[]): DerivedTriggerDomain[] {
 /** 快照体积估算：JSON 序列化长度（口径见 checkpoint TSDoc） */
 function estimateStateBytes(state: GameState): number {
   return JSON.stringify(state).length;
+}
+
+/** 从补丁路径提取触碰路径（点分；去重后供派生器脏标记评估） */
+function touchedPathsFromPatches(patches: readonly Patch[]): string[] {
+  const paths = new Set<string>();
+  for (const patch of patches) {
+    paths.add(patch.path.map((segment) => String(segment)).join('.'));
+  }
+  return [...paths];
 }
 
 /**

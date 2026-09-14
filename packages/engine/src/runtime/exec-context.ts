@@ -92,3 +92,32 @@ export interface EffectExecution {
 export interface EffectExecutor {
   resolve(instruction: EffectData, where: ExecContext['where']): EffectExecution;
 }
+
+/**
+ * 事务后置派生器上下文（§4.5；11 号任务系统首用，DD-06「事务」交互面）。
+ *
+ * 运行时在指令全部执行后、状态提交前调用派生器：`draft` 为同一事务的可写
+ * draft，`touched` 为本次事务触碰的 GameState 路径（点分，来自 immer 补丁路径，
+ * 如 `world.flags.rumor`）——派生器按此做脏标记评估（不轮询）；`emit`/`child`
+ * 与指令执行面同批（事件与子效果并入当前事务 frame，失败整批回滚）。
+ */
+export interface TransactionDeriveContext {
+  /** 当前事务的可写 draft（与指令执行同一事务，变更并入同一补丁集） */
+  readonly draft: WritableDraft<GameState>;
+  /** 本次事务触碰的状态路径（点分前缀；脏标记评估的数据面） */
+  readonly touched: readonly string[];
+  readonly rng: Rng;
+  /** 事件收集进当前事务（提交后统一送达） */
+  emit(event: EngineEvent): void;
+  /** 嵌套原子批（子效果并入当前事务 frame） */
+  child(effects: readonly EffectData[]): ExecOutcome;
+}
+
+/**
+ * 事务后置派生器：运行时在每次 exec 成功路径上（提交前）按注册序调用。
+ * 结构性接口定义在 runtime 侧，具体派生器（如任务状态机）由宿主注入，
+ * 避免 runtime 对子系统类型的横向依赖（§1.2 R5 / DD-06）。
+ */
+export interface TransactionDeriver {
+  afterTransaction(ctx: TransactionDeriveContext): void;
+}

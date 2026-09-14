@@ -17,6 +17,8 @@ export type {
   ExecOutcome,
   ExecSource,
   JumpTarget,
+  TransactionDeriveContext,
+  TransactionDeriver,
 } from './exec-context.js';
 export type {
   CheckResultEvent,

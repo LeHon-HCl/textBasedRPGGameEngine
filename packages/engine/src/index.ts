@@ -42,6 +42,8 @@ export type {
   ExecOutcome,
   ExecSource,
   JumpTarget,
+  TransactionDeriveContext,
+  TransactionDeriver,
 } from './runtime/index.js';
 export type {
   CheckResultEvent,
@@ -166,6 +168,8 @@ export type {
 export {
   assertTransition,
   canTransition,
+  createQuestConditionEvaluator,
+  createQuestDeriver,
   QUEST_STATES,
   QUEST_TRANSITIONS,
   QuestMachine,
@@ -173,7 +177,9 @@ export {
 } from './quests/index.js';
 export type {
   ObjectiveProgress,
+  QuestConditionEvaluator,
   QuestContext,
+  QuestDeriverOptions,
   QuestLogEntry,
   QuestLogGroup,
   QuestLogProjectionOptions,
