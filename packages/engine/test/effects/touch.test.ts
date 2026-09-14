@@ -31,6 +31,8 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'player.skills',
   'player.statuses',
   'player.body',
+  'player.bodyProgress',
+  'player.bodyTemp',
   'player.equip',
   'player.outfit',
   'player.outfitPresets',
@@ -150,7 +152,10 @@ const EXEC_MATRIX: readonly MatrixEntry[] = [
   },
   {
     name: 'set_body',
-    instruction: { set_body: { part: 'build', value: 'sturdy' } },
+    // 覆盖 touch 声明的全部域：body（值变更）+ bodyProgress（进度）+ bodyTemp（临时登记）
+    instruction: {
+      set_body: { part: 'build', value: 'sturdy', progress: 50, revertAfter: { slots: 2 } },
+    },
     options: { bodyDefs: BODY_DEFS },
   },
   {
@@ -207,9 +212,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 30 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 31 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(30);
+    expect(registry.ids().length).toBe(31);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();

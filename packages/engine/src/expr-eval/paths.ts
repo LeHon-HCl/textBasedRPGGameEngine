@@ -55,7 +55,10 @@ export function pathShapeError(root: string, rest: readonly string[]): string | 
       // 数值层（garment.layer 1..3）经 worn(part, layer) 函数查询。
       return rest.length === 2 ? null : 'outfit 路径应为 outfit.<part>.<layer>';
     case 'body':
-      return rest.length === 1 ? null : 'body 路径应为 body.<part>';
+      if (rest.length === 1) return null;
+      // 渐进变身进度（FR-BODY-05）：body.progress.<part>（0..100）
+      if (rest.length === 2 && rest[0] === 'progress') return null;
+      return 'body 路径应为 body.<part> 或 body.progress.<part>';
     case 'npc':
       if (rest.length === 2) {
         return rest[1] === 'flags' ? 'npc.<id>.flags 需带 flag 名：npc.<id>.flags.<name>' : null;

@@ -21,6 +21,7 @@ export type {
   TransactionDeriver,
 } from './exec-context.js';
 export type {
+  BodyRevertedEvent,
   CheckResultEvent,
   EngineEvent,
   FavorStageChangedEvent,

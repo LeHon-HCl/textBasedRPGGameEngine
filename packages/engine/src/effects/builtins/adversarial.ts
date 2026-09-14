@@ -1,5 +1,5 @@
 import { effectParamSchemas } from '@game/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { EffectRegistryOptions } from '../types.js';
 import { eraseDef } from '../types.js';
 import type {
@@ -146,7 +146,10 @@ export function createAdversarialDefs(options: EffectRegistryOptions): ErasedEff
   const setBodyDef: EffectInstructionDef<SetBodyParams> = {
     id: 'set_body',
     schema: setBodySchema,
-    touch: (): TouchReport => ({ reads: [], writes: ['player.body'] }),
+    touch: (): TouchReport => ({
+      reads: [],
+      writes: ['player.body', 'player.bodyProgress', 'player.bodyTemp'],
+    }),
     execute: (arg, ectx) => {
       const parts = options.bodyDefs?.parts;
       if (parts !== undefined) {
@@ -164,11 +167,96 @@ export function createAdversarialDefs(options: EffectRegistryOptions): ErasedEff
           );
         }
       }
+      const previousValue = ectx.draft.player.body[arg.part];
       ectx.draft.player.body[arg.part] = arg.value;
-      // revertAfter（临时变身回退）为预留字段：形态已由 schema 校验，
-      // 回退执行与 BodyReverted 事件归 14 号管线步骤 3（§4.8）
+      // 渐进变身进度（FR-BODY-05 P2 预留）：省略 = 键级保留；0..100 由 schema 校验
+      if (arg.progress !== undefined) {
+        ectx.draft.player.bodyProgress[arg.part] = arg.progress;
+      }
+      if (arg.revertAfter !== undefined) {
+        // 临时变身登记（FR-BODY-02，14 号）：剩余时段直存（days 按当日时段数
+        // 换算）；同部位重复登记保留首次的 original（避免中间态被固化）
+        const remainingSlots = evalRevertSlots(ectx, arg.revertAfter, options);
+        const existing = ectx.draft.player.bodyTemp[arg.part];
+        // 原值取首次登记前的值；部位此前不存在时以 BodyDef 默认值兜底
+        //（无 BodyDef 时回退空串——还原为「未设置」，不阻塞事务）
+        const original = existing?.original ?? previousValue ?? parts?.[arg.part]?.default ?? '';
+        ectx.draft.player.bodyTemp[arg.part] = { original, remainingSlots };
+      }
     },
   };
 
-  return [eraseDef(checkDef), eraseDef(battleDef), eraseDef(setBodyDef)];
+  return [eraseDef(checkDef), eraseDef(battleDef), eraseDef(setBodyDef), bodyRevertDef()];
+}
+
+/**
+ * revertAfter 时长求值（slots 优先；days 按当日时段数换算）。
+ * TimeConfig 未注入时按每日 1 时段兜底？——不：缺 Config 无法换算，显性报错。
+ */
+function evalRevertSlots(
+  ectx: EffectExecuteContext,
+  revert: { slots?: string | number; days?: string | number },
+  options: EffectRegistryOptions,
+): number {
+  const slots = revert.slots;
+  const days = revert.days;
+  if (slots !== undefined) {
+    return evalPositiveIntParam(ectx, 'set_body', 'revertAfter.slots', slots);
+  }
+  if (days === undefined) {
+    throw instructionError('set_body', 'revertAfter 需要 slots 或 days 之一', {});
+  }
+  const dayCount = evalPositiveIntParam(ectx, 'set_body', 'revertAfter.days', days);
+  const slotsPerDay = options.timeConfig?.slots.length;
+  if (slotsPerDay === undefined) {
+    throw instructionError(
+      'set_body',
+      'revertAfter.days 需要 TimeConfig（每日时段数）换算；未注入时请改用 slots',
+      {},
+    );
+  }
+  return dayCount * slotsPerDay;
+}
+
+/** 正整数参数求值（revertAfter 时长；0/负数/小数拒绝） */
+function evalPositiveIntParam(
+  ectx: EffectExecuteContext,
+  op: string,
+  param: string,
+  value: string | number,
+): number {
+  const resolved = evalNonNegativeIntParam(ectx, op, param, value);
+  if (resolved < 1) {
+    throw instructionError(op, `参数 ${param} 须为正整数，实际 ${String(resolved)}`, {
+      param,
+      sourceExpr: typeof value === 'string' ? value : String(value),
+    });
+  }
+  return resolved;
+}
+
+/**
+ * `__body.revert` 内部指令（FR-BODY-02，§4.3 步骤 3，14 号）。
+ * **引擎内部面，不面向作者**——由时间管线经 createBodyRevertProvider 挂载。
+ *
+ * 递减全部临时项剩余时段；归零者还原原值 + emit body_reverted + 清除登记。
+ */
+function bodyRevertDef(): ErasedEffectDef {
+  const def: EffectInstructionDef<{ elapsedSlots: number }> = {
+    id: '__body.revert',
+    schema: z.strictObject({ elapsedSlots: z.number().int().min(0) }),
+    touch: (): TouchReport => ({ reads: [], writes: ['player.body', 'player.bodyTemp'] }),
+    execute: (arg, ectx) => {
+      const temp = ectx.draft.player.bodyTemp;
+      for (const [part, entry] of Object.entries(temp)) {
+        entry.remainingSlots -= arg.elapsedSlots;
+        if (entry.remainingSlots > 0) continue;
+        ectx.draft.player.body[part] = entry.original;
+        ectx.emit({ type: 'body_reverted', part, restored: entry.original });
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete temp[part];
+      }
+    },
+  };
+  return eraseDef(def);
 }

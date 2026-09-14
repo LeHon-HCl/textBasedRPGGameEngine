@@ -120,6 +120,8 @@ export function newGameState(bootstrap: NewGameBootstrap, rng: Rng): GameState {
       skills: copyRecord(bootstrap.skills, (skill) => ({ ...skill })),
       statuses: [],
       body: { ...bootstrap.body },
+      bodyTemp: {},
+      bodyProgress: {},
       equip: {},
       outfit: {},
       bag: (bootstrap.bag ?? []).map((entry) => ({ ...entry })),

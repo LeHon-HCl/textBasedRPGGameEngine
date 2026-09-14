@@ -47,6 +47,8 @@ const moneyParams = z.record(gameIdSchema, exprOrNumberSchema);
 const setBodyParams = z.strictObject({
   part: gameIdSchema,
   value: z.string().min(1),
+  /** 渐进变身进度（FR-BODY-05 P2 预留，14 号）：0..100 整数，省略 = 不改动 */
+  progress: z.number().int().min(0).max(100).optional(),
   /** 临时变身回退时长（§4.8：revertAfter {slots|days}） */
   revertAfter: z
     .strictObject({ slots: exprOrNumberSchema.optional(), days: exprOrNumberSchema.optional() })

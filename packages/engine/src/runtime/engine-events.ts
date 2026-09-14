@@ -150,6 +150,18 @@ export interface QuestStageEvent {
 /**
  * 引擎事件全集（04 号核心成员；后续模块在同一文件追加判别成员并纳入本联合）。
  */
+/**
+ * 临时变身回退（FR-BODY-02，§4.8，14 号）：管线步骤 3 到期还原即发出。
+ * 引擎只报事件不解释语义（中立性）——作者订阅后自行决定描写/后果。
+ */
+export interface BodyRevertedEvent {
+  type: 'body_reverted';
+  /** 被还原的身体部位 */
+  part: string;
+  /** 还原到的值（= 首次登记前的原值） */
+  restored: string;
+}
+
 export type EngineEvent =
   | StatChangedEvent
   | NotifyEvent
@@ -161,4 +173,5 @@ export type EngineEvent =
   | ReputationBandChangedEvent
   | ItemExpiredEvent
   | QuestStateChangedEvent
-  | QuestStageEvent;
+  | QuestStageEvent
+  | BodyRevertedEvent;
