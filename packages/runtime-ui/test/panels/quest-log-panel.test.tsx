@@ -157,6 +157,39 @@ describe('QuestLogPanel：分组与追踪置顶（FR-QUEST-03）', () => {
     );
     expect(screen.getByText(/npcs\.old_guard\.name/)).toBeInTheDocument();
   });
+
+  it('面板级标题恒渲染（与 StatusPanel/MapPanel 同规）', () => {
+    render(
+      <QuestLogPanel
+        view={groupedView}
+        nameOf={(key) => key}
+        tracked={[]}
+        onToggleTrack={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: '任务' })).toBeInTheDocument();
+  });
+
+  it('无任务时仍渲染面板标题 + 空态提示（宽屏侧栏不得无字可认）', () => {
+    // 2026-09-15 用户实测缺陷：宽屏三面板并排时，空任务日志没有任何标题
+    // （旧实现只在有分组/追踪条目时才渲染标题），看起来像面板不存在。
+    render(<QuestLogPanel view={{ groups: [], tracked: [] }} nameOf={(key) => key} tracked={[]} />);
+    expect(screen.getByRole('heading', { name: '任务' })).toBeInTheDocument();
+    expect(screen.getByText('暂无任务')).toBeInTheDocument();
+  });
+
+  it('面板标题与空态文案可注入本地化', () => {
+    render(
+      <QuestLogPanel
+        view={{ groups: [], tracked: [] }}
+        nameOf={(key) => key}
+        tracked={[]}
+        labels={{ title: 'Quests', empty: 'No quests yet' }}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Quests' })).toBeInTheDocument();
+    expect(screen.getByText('No quests yet')).toBeInTheDocument();
+  });
 });
 
 describe('QuestLogPanel：追踪开关（受控，追踪为 UI 状态）', () => {

@@ -9,6 +9,7 @@ import {
   ContentWizard,
   createGameHost,
   DEFAULT_SHORTCUT_HINTS,
+  expireToasts,
   MapPanel,
   NarrativeView,
   OptionList,
@@ -102,22 +103,64 @@ function useRevealedChars(text: string, speed: number, active: boolean): number 
   return revealed;
 }
 
-/** 顶部时钟（日历投影 + 当前场景；随推进更新） */
+/** 顶部时钟（日历投影；随推进更新） */
 function ClockBadge({ host }: { host: GameHost }): ReactNode {
-  const sceneId = useUiSelector((state) => state.session.sceneId);
-  const revisions = useUiSelector((state) => state.questRevision);
+  // 只显示玩家可见的日历信息。**不显示 sceneId**：那是调试信息，
+  // 2026-09-15 用户实测发现它泄漏在徽标里（如「第 1 天 · 傍晚 · ev_market_gossip_scene」）。
+  // 场景 id 属开发者视角，需要时归调试面板（FR-DEBG）。
   const calendar = host.calendar();
-  void revisions;
   return (
-    <span style={styles.badge}>
-      {`第 ${calendar.day} 天 · ${host.textOf(calendar.slotNameKey)} · ${sceneId}`}
-    </span>
+    <span
+      style={styles.badge}
+    >{`第 ${calendar.day} 天 · ${host.textOf(calendar.slotNameKey)}`}</span>
+  );
+}
+
+/**
+ * 错误卡片（FR-DEBG-07：错误显性化，允许继续/回退）。
+ *
+ * 为什么 demo 必须有：宿主把引擎错误捕获进 `lastError`（不抛给 React），
+ * 但**界面上没有呈现点**时玩家只看到「点了没反应 / 选项消失」——2026-09-15
+ * 用户实测的「卡死」正是这样被误解的。此处把 code/detail 显性化，并提供
+ * 「回退一步」入口（宿主 rollback 已按 §6.3 rollback + 重建 session）。
+ */
+function ErrorCard({ host }: { host: GameHost }): ReactNode {
+  // 订阅会话修订以在每次状态推进后重读 lastError（lastError 不是 store 切片）
+  useUiSelector((state) => state.questRevision);
+  useUiSelector((state) => state.session);
+  const error = host.lastError();
+  if (error === null) return null;
+  // 文案与 demo 其余 UI（「新游戏」「设置」「关闭」）同口径：demo 自持的中文硬编码。
+  // 游戏包内的错误 messageKey（ui.error.*）本就不属游戏词典，全量 UI i18n 归 25 号 C 组。
+  return (
+    <div role="alert" data-error-card style={styles.errorCard}>
+      <div style={styles.errorTitle}>操作失败</div>
+      <div style={styles.errorDetail}>{`[${error.code}] ${error.detail}`}</div>
+      <button type="button" onClick={() => host.rollback()} style={styles.errorButton}>
+        回退一步
+      </button>
+    </div>
   );
 }
 
 /** Toast 浮层（队列来自 store；合并与过期由包内纯函数承担） */
 function Toasts({ host }: { host: GameHost }): ReactNode {
   const notifications = useUiSelector(selectNotifications);
+  // 自动消失（FR-UI-07）：`expireToasts` 是纯函数、定时器归宿主（toast.ts TSDoc）
+  // ——2026-09-15 用户实测「提示不自己消失」的根因即宿主从未接过期定时器。
+  // 每 500ms 清理超期条目（TTL 4s）；队列为空时不触发状态写入（无谓重渲染）。
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const state = host.store.getState();
+      const next = expireToasts(state.notifications, Date.now());
+      if (next !== state.notifications) {
+        host.store.setState({ notifications: next });
+      }
+    }, 500);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [host]);
   return (
     <ToastStack
       items={notifications}
@@ -199,14 +242,17 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
         />
       }
       options={
-        session.choices.length > 0 ? (
-          <OptionList
-            choices={session.choices}
-            resolver={host.resolver}
-            lang={settings.lang}
-            onChoice={(id) => host.choose(id)}
-          />
-        ) : null
+        <>
+          <ErrorCard host={host} />
+          {session.choices.length > 0 ? (
+            <OptionList
+              choices={session.choices}
+              resolver={host.resolver}
+              lang={settings.lang}
+              onChoice={(id) => host.choose(id)}
+            />
+          ) : null}
+        </>
       }
       statusPanel={
         <StatusPanel
@@ -337,6 +383,24 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 900,
   },
   close: { minHeight: '32px', marginBottom: '8px', cursor: 'pointer' },
+  errorCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    padding: '10px 12px',
+    border: '1px solid rgba(180,60,60,0.5)',
+    background: 'rgba(180,60,60,0.08)',
+    borderRadius: '4px',
+    fontSize: '13px',
+  },
+  errorTitle: { fontWeight: 600 },
+  errorDetail: { opacity: 0.85, wordBreak: 'break-word' },
+  errorButton: {
+    alignSelf: 'flex-start',
+    minHeight: '32px',
+    padding: '4px 12px',
+    cursor: 'pointer',
+  },
   titleRoot: { padding: '48px 20px', textAlign: 'center' },
   title: { margin: '0 0 8px' },
   subtitle: { opacity: 0.75, marginBottom: '24px' },

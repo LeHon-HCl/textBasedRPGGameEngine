@@ -29,6 +29,8 @@ import type { GameDefinition } from '../../src/index.js';
 interface SceneChoice {
   id: string;
   goto?: string;
+  showIf?: string;
+  once?: boolean;
   effects?: unknown[];
 }
 
@@ -42,6 +44,46 @@ function collectFlowTargets(choice: SceneChoice): string[] {
     if (typeof goto === 'string') out.push(goto);
   }
   return out;
+}
+
+/** 流程类指令 id（设计 §3.3「仅产生 jumps，不改状态」的四条） */
+const FLOW_INSTRUCTION_IDS = ['goto', 'back', 'ending', 'loop_transition'] as const;
+
+/** 分支指令的子效果字段（check 四分支 / battle 三分支，§3.3 child 事务） */
+const BRANCH_EFFECT_FIELDS = [
+  'onSuccess',
+  'onFail',
+  'onCritical',
+  'onFumble',
+  'onVictory',
+  'onDefeat',
+  'onEscape',
+] as const;
+
+/**
+ * 判定一条效果序列是否**产出流程跳转**（即可把玩家带离当前场景）。
+ *
+ * 递归下探分支指令的子效果：`check` 的成功/失败分支里写 `goto` 同样算出口
+ * （夹具当前未用，但检查口径必须完整，否则「分支内跳转」会被误判为死胡同）。
+ */
+function effectsHaveFlowJump(effects: readonly unknown[] | undefined): boolean {
+  for (const effect of effects ?? []) {
+    if (typeof effect !== 'object' || effect === null) continue;
+    const record = effect as Record<string, unknown>;
+    for (const id of FLOW_INSTRUCTION_IDS) {
+      if (id in record) return true;
+    }
+    for (const field of BRANCH_EFFECT_FIELDS) {
+      const branch = record[field];
+      if (Array.isArray(branch) && effectsHaveFlowJump(branch)) return true;
+    }
+  }
+  return false;
+}
+
+/** 选项是否有出口（choice.goto 或任一效果/分支效果产出流程跳转） */
+function choiceHasExit(choice: SceneChoice): boolean {
+  return choice.goto !== undefined || effectsHaveFlowJump(choice.effects);
 }
 
 describe('内容连通性（约束 7 五检）', () => {
@@ -189,6 +231,154 @@ describe('内容连通性（约束 7 五检）', () => {
       orphans,
       `孤儿事件场景（ev_ 前缀但既无事件引用也不可达）：${orphans.join(', ')}`,
     ).toEqual([]);
+  });
+
+  it('C7 事件场景可退出：每条事件场景都有**无条件**出口选项', async () => {
+    const definition = await definitionPromise;
+    // 为什么需要本检（2026-09-15 用户实测暴露，本轮新增）：
+    // 事件场景以**子会话**进入（§4.2 挂起栈）。引擎对「选项无流程跳转」的语义是
+    // 正确的——留在当前场景、回到 await_choice（§4.2）——但这对事件子会话意味着
+    // **永远出不去**：没有 back/goto 就不会弹栈返回主会话。C2 只验「事件可触发」，
+    // 于是 10 条事件中 8 条是死胡同而全部检查全绿（与内容完整性反思报告同类盲区）。
+    //
+    // 判定口径：
+    // - 出口 = choice.goto 或任一效果（含 check/battle 分支的子效果）产出
+    //   goto/back/ending/loop_transition（设计 §3.3 四条流程指令）；
+    // - 要求至少一个出口**无 showIf**：带条件的出口可能在运行期被隐藏，
+    //   那时玩家仍会被困——「始终可离开」才是可交付的保证；
+    // - 零选项事件场景同样不合格：段落尽 → 无可见选项 → `#finish('exhausted')`
+    //   会连同挂起的主会话一起结束（整个游戏终局，不只是返回）。
+    const evScenes = new Set(definition.events.map((e) => e.scene));
+    const trapped: string[] = [];
+    for (const sceneId of evScenes) {
+      const scene = definition.scenes.get(sceneId);
+      if (scene === undefined) continue; // 缺失引用由上面的孤儿检查覆盖
+      const choices = scene.def.choices as SceneChoice[];
+      const hasUnconditionalExit = choices.some(
+        (choice) => choiceHasExit(choice) && choice.showIf === undefined,
+      );
+      if (!hasUnconditionalExit) trapped.push(sceneId);
+    }
+    expect(trapped, `无无条件出口的事件场景（进入后无法离开）：${trapped.join(', ')}`).toEqual([]);
+  });
+
+  it('C8 可重复点击的选项不得含可失败指令：quest accept/advance/complete 必须被 once/showIf 守护', async () => {
+    const definition = await definitionPromise;
+    // 为什么需要本检（2026-09-15 用户实测：重复点「辨认徽记」后选项全消失）：
+    // 选项效果是**单个原子事务**（§3.1）。`quest: accept` 在校验不满足时抛
+    // EFFECT_FAILED（§4.5 状态机拒绝），整批回滚；若该选项不含 once/showIf 守卫，
+    // 玩家就能反复点中一个「必然失败」的选项。宿主虽已做失败恢复（不卡死），
+    // 但「点得动却永远失败」本身就是内容缺陷——入口必须与它自己的前置条件同口径。
+    //
+    // 口径：`quest` 指令（非 accept 的 fail 也计）所在的选项，必须满足二者之一——
+    //   (a) `once: true`（选过即隐藏），或
+    //   (b) 有 `showIf`（前置不满足时不出现）。
+    // 纯 `accept` + 无条件 + 非一次性 = 一个「可重复失败」的入口。
+    const violations: string[] = [];
+    for (const scene of definition.scenes.values()) {
+      for (const choice of scene.def.choices as SceneChoice[]) {
+        const hasQuestInstruction = (choice.effects ?? []).some((effect) => {
+          if (typeof effect !== 'object' || effect === null) return false;
+          return 'quest' in (effect as Record<string, unknown>);
+        });
+        if (!hasQuestInstruction) continue;
+        const guarded = choice.once === true || choice.showIf !== undefined;
+        if (!guarded) violations.push(`${scene.def.id}#${choice.id}`);
+      }
+    }
+    expect(
+      violations,
+      `可重复点击且含 quest 指令（可能反复失败）的选项：${violations.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('C9 正向读取的 flag 必须有写入口（无「幽灵 flag」）', async () => {
+    const definition = await definitionPromise;
+    // 为什么需要本检（2026-09-15 排查事件零触发时发现）：
+    // `flag.<名>` 是**渐进域**（缺省 undefined，不报错），因此「读取一个永远为
+    // undefined 的 flag」不会抛错、也不会被加载器拦住——它只是**永远为假**。
+    // 事件 require、任务 completeWhen、场景 showIf 都可能因此永久失效
+    // （实测：ev_wall_whisper 的 require 读 `flag.old_guard_met`，而全包无写入点
+    // → 该事件永不触发）。C2 只验「事件可达」，覆盖不到这一层。
+    //
+    // 口径：从**已加载的 definition** 收集所有表达式的 flag 读取（正向，不含
+    // `!flag.x`）与全部 flag 写入点（set/flag 指令 + npc.flags 写入），
+    // 报告「只读不写」的名字。反向（写了不读）不报——预留写入是合法的。
+    const written = new Set<string>();
+    const positiveReads = new Map<string, Set<string>>();
+    /** 收集一段表达式原文中的 flag 读写；source 为定位标签 */
+    const scanExpr = (source: string, label: string): void => {
+      for (const match of source.matchAll(/(!?)\s*flag\.([a-z_][a-z0-9_]*)/g)) {
+        const negated = match[1] === '!';
+        const name = match[2] as string;
+        if (negated) continue; // 反向读取（「尚未发生」）不需要写入口
+        const holders = positiveReads.get(name) ?? new Set<string>();
+        holders.add(label);
+        positiveReads.set(name, holders);
+      }
+    };
+    /** 收集效果序列中的 flag 写入 */
+    const collectWrites = (effects: readonly unknown[] | undefined): void => {
+      for (const effect of effects ?? []) {
+        if (typeof effect !== 'object' || effect === null) continue;
+        const record = effect as Record<string, unknown>;
+        const flag = record['flag'];
+        if (typeof flag === 'object' && flag !== null) {
+          const name = (flag as Record<string, unknown>)['name'];
+          if (typeof name === 'string') written.add(name);
+        }
+        const set = record['set'];
+        if (typeof set === 'object' && set !== null) {
+          const key = (set as Record<string, unknown>)['key'];
+          if (typeof key === 'string' && key.startsWith('flag.')) {
+            written.add(key.slice('flag.'.length));
+          }
+        }
+      }
+    };
+
+    const scanNested = (effects: readonly unknown[] | undefined, label: string): void => {
+      collectWrites(effects);
+      for (const effect of effects ?? []) {
+        if (typeof effect !== 'object' || effect === null) continue;
+        const record = effect as Record<string, unknown>;
+        for (const field of BRANCH_EFFECT_FIELDS) {
+          const branch = record[field];
+          if (Array.isArray(branch)) scanNested(branch, label);
+        }
+      }
+    };
+
+    // 场景：段落 showIf、选项 showIf/disabledIf、选项效果写入
+    for (const scene of definition.scenes.values()) {
+      const label = `scene:${scene.def.id}`;
+      for (const segment of scene.def.segments) {
+        if (segment.showIf !== undefined) scanExpr(segment.showIf, label);
+      }
+      for (const choice of scene.def.choices as SceneChoice[]) {
+        if (choice.showIf !== undefined) scanExpr(choice.showIf, label);
+        scanNested(choice.effects, `${label}#${choice.id}`);
+      }
+    }
+    // 事件：when 条件与 require
+    for (const event of definition.events) {
+      const label = `event:${event.id}`;
+      if (event.trigger.require !== undefined) scanExpr(event.trigger.require, label);
+    }
+    // 任务：acceptIf / completeWhen / failWhen；奖励里的 flag 写入
+    for (const [questId, quest] of definition.quests) {
+      const label = `quest:${questId}`;
+      if (quest.acceptIf !== undefined) scanExpr(quest.acceptIf, label);
+      if (quest.failWhen !== undefined) scanExpr(quest.failWhen, label);
+      for (const stage of quest.stages) scanExpr(stage.completeWhen, label);
+      collectWrites(quest.rewards);
+    }
+
+    const phantom = [...positiveReads.keys()].filter((name) => !written.has(name)).sort();
+    const detail = phantom
+      .map((name) => `${name}（读取处：${[...(positiveReads.get(name) ?? [])].join(', ')}）`)
+      .join('；');
+    expect(phantom, `无写入口的 flag（永远为假）：${detail}`).toEqual([]);
   });
 });
 

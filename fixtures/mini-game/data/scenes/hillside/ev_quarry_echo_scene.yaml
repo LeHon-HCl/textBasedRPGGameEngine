@@ -11,8 +11,11 @@ choices:
       - set: { key: 'flag.quarry_echo_seen', value: true }
       - add: { key: 'attr.insight', amount: 1 }
       - notify: { textKey: 'scenes.ev_quarry_echo_scene.notify.called' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: listen
     textKey: scenes.ev_quarry_echo_scene.choice.listen
     effects:
       - set: { key: 'flag.quarry_echo_seen', value: true }
       - add: { key: 'attr.stamina', amount: -3 }
+      - back: null

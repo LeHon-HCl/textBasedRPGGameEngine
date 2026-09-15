@@ -12,7 +12,10 @@ choices:
       # favor 指令（而非 add npc.<id>.favor）：带 min/max clamp 与阶段事件（FR-NPCR-02）
       - favor: { npc: ferryman, amount: 10 }
       - notify: { textKey: 'scenes.ev_ferry_greeting_scene.notify.accepted' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: decline_ride
     textKey: scenes.ev_ferry_greeting_scene.choice.decline
     effects:
       - set: { key: 'flag.ferry_greeted', value: true }
+      - back: null

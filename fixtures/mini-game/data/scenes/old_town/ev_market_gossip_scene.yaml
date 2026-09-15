@@ -12,5 +12,10 @@ choices:
       - set: { key: 'flag.heard_riverside', value: true }
       - add: { key: 'attr.insight', amount: 1 }
       - notify: { textKey: 'scenes.ev_market_gossip_scene.notify.heard' }
+      # 出口（事件场景是子会话，§4.2）：没有 back/goto 会永远留在事件里，
+      # 主会话的挂起栈也回不去。约束 7 的 C7 检守护此不变量。
+      - back: null
   - id: skip
     textKey: scenes.ev_market_gossip_scene.choice.skip
+    effects:
+      - back: null

@@ -11,5 +11,9 @@ choices:
       - set: { key: 'flag.lantern_followed', value: true }
       - add: { key: 'attr.stamina', amount: -3 }
       - notify: { textKey: 'scenes.ev_night_lantern_scene.notify.followed' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: turn_home
     textKey: scenes.ev_night_lantern_scene.choice.home
+    effects:
+      - back: null

@@ -10,5 +10,9 @@ choices:
       - add: { key: 'attr.stamina', amount: -5 }
       - favor: { npc: ferryman, amount: 5 }
       - notify: { textKey: 'scenes.ev_trail_wanderer_scene.notify.shared' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: pass_by
     textKey: scenes.ev_trail_wanderer_scene.choice.pass
+    effects:
+      - back: null

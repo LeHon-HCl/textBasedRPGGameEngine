@@ -20,12 +20,25 @@ choices:
       # `set` 只接受 attr/flag/counter 标量域与 npc.<id>.flags.<名>（引擎 §3.3）。
       # 故「已遇见」用 flag 域表达（设计 §3.3 指定的 NPC 记忆机制）：
       # 场景段落与事件条件的 showIf/require 一律读同一 flag。
+      #
+      # **为什么任务接取不在这条效果序列里**（2026-09-15 缺陷修复）：效果序列是
+      # 单个原子事务（§3.1），其中 `quest: accept` 会因 acceptIf/requires 不满足
+      # 而抛 EFFECT_FAILED → **整批回滚，连 `ferryman_met` 一起丢掉**，导致
+      # 「搭话」永远无效、渡口事件（require: flag.ferryman_met）永不触发。
+      # 现在把「遇见」（必成功）与「接任务」（可失败）拆成两条选项：
+      # 接取选项以 showIf 门控，只在真能接取时才出现（FR-NARR-02）。
       - flag: { name: 'ferryman_met' }
-      # 任务接取（2026-09-15 连通性修复）：摆渡人是 hillside_survey 的 giver。
-      # acceptIf 为 flag.ferryman_met && insight>=3 → 搭话后该 flag 已置，
-      # insight 不足时 accept 被拒（引擎拒绝原因可读，符合 §4.5 校验语义）。
-      - quest: { id: hillside_survey, action: accept }
       - notify: { textKey: 'scenes.riverside_ferry.notify.met' }
+  # 任务接取（hillside_survey 的 giver = ferryman）：showIf 与 acceptIf 同口径
+  # （flag.ferryman_met && attr.insight >= 3），故不满足时不出现，从根上避免
+  # 「点了必失败」。（requires 前置当前的满足性见待裁定项，不在本轮改动。）
+  - id: accept_survey
+    textKey: scenes.riverside_ferry.choice.accept_survey
+    showIf: 'flag.ferryman_met && attr.insight >= 3'
+    once: true
+    effects:
+      - quest: { id: hillside_survey, action: accept }
+      - notify: { textKey: 'scenes.riverside_ferry.notify.survey' }
   - id: ask_ferry
     textKey: scenes.riverside_ferry.choice.ask_ferry
     showIf: 'flag.ferryman_met'

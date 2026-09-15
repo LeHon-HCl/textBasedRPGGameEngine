@@ -83,15 +83,15 @@ test.describe('M1 玩家流冒烟', () => {
     // **断言交互结果**（约束 10：禁止只断言可见性——M1 收尾的 set 语法错误
     // 正是因「只断言可见」而漏网）：点击「上前搭话」后，选项集合必须**改变**
     // （talk_ferryman 的 showIf 为 !flag.ferryman_met，点击后 flag 置位而消失）。
-    const beforeTalk = await page.locator('[data-choice]').count();
     await page.locator('[data-choice="talk_ferryman"]').click();
     await drainAdvance(page);
-    // 结果一：该选项已消失（一次性语义生效）
+    // 结果一：该选项已消失（showIf 语义生效——不是靠失败而消失）
     await expect(page.locator('[data-choice="talk_ferryman"]')).toHaveCount(0);
-    // 结果二：界面发生了实质变化（选项数或场景变化——可能进入事件子会话）
-    const afterTalk = await page.locator('[data-choice]').count();
-    const narrativeText = await narrative.innerText();
-    expect(beforeTalk !== afterTalk || narrativeText.length > 0).toBe(true);
+    // 结果二：**交互真的成功**——必须出现「已遇见」后的新选项，且无错误卡片。
+    // 旧断言只检查「选项数变了」，而「点失败 → 会话卡死 → 选项消失」同样满足它，
+    // 于是 talk_ferryman 的 EFFECT_FAILED 长期漏网（2026-09-15 用户实测）。
+    await expect(page.locator('[data-choice="ask_ferry"]')).toBeVisible();
+    await expect(page.locator('[data-error-card]')).toHaveCount(0);
 
     // 界面无错误卡片（宿主把引擎错误渲染为可见文本，形如 [EFFECT_FAILED]）
     await expect(page.locator('body')).not.toContainText('[EFFECT_FAILED]');

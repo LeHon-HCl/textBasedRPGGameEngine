@@ -5,8 +5,10 @@ tide: 潮水正在上涨，木栈道在脚下轻轻起伏。
 notify:
   met: 你与摆渡人打了个照面。
   ferry_tip: 老人提了一句：涨潮前的河湾最浅，也最藏东西。
+  survey: 老人打量你两眼，说山道上有处塌方的料场，让你得空去看看。
 choice:
   talk: 上前搭话
+  accept_survey: 应下勘察山道的活计
   ask_ferry: 问一句渡船的事
   to_market: 沿堤去渔市
   to_embankment: 下到河堤边

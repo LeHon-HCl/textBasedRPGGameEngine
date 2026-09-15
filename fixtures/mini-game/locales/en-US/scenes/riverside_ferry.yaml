@@ -5,8 +5,10 @@ tide: The tide is rising; the boardwalk shifts gently underfoot.
 notify:
   met: You have made yourself known to the ferryman.
   ferry_tip: The old man mentions that the bend runs shallow before the flood tide — and hides things.
+  survey: The old man looks you over twice, then mentions a collapsed quarry up the hill trail worth a look.
 choice:
   talk: Go up and greet him
+  accept_survey: Take on the trail survey
   ask_ferry: Ask about the ferry
   to_market: Follow the bank to the fish market
   to_embankment: Climb down to the embankment
