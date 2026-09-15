@@ -103,6 +103,32 @@ gh api repos/LeHon-HCl/textBasedRPGGameEngine/commits/<sha>/pulls --jq 'length'
 - **与 CI 的关系**：钩子是**提交期/发布期**防线，CI 仍是**合入期**防线，二者互补；
   钩子可被 `--no-verify` 绕过，因此 CI 与人工审查不可省。
 
+### 4.1 落地过程中发现的第二个坑：POSIX 可执行位（本 PR 内修复）
+
+守卫本身在首次 CI 运行时就踩了一次同类陷阱，值得单独记录：
+
+- **现象**：PR #21 首轮 CI 失败——`git-hooks-guard.test.ts` 中两条「应被拒绝」的用例
+  在 Linux runner 上断言失败（commit/push 居然成功了）。
+- **根因**：POSIX 平台的 git **只执行带可执行位的钩子文件**，无位则静默忽略
+  （仅打印 `hint: ... ignoredHook`）。两处踩中：
+  1. 测试夹具用 `copyFileSync` 复制钩子（默认权限 0644）→ 钩子被忽略；
+  2. 更严重的是**入库产物本身**：本仓库在 Windows 开发（`core.filemode=false`），
+     `git add` 把钩子记为 `100644`——即使测试夹具修好，Unix/CI 侧的真实守卫仍是死的。
+- **证据**（WSL 实测，同一脚本 0644 vs 0755 对照）：
+
+  ```
+  A: 0644 → commit SUCCEEDED (hook ignored - reproduces CI bug)
+  B: 0755 → commit rejected (guard works on POSIX)
+  ```
+
+- **修复**：
+  1. `git update-index --chmod=+x .githooks/pre-commit .githooks/pre-push`（入库为 `100755`）；
+  2. 测试夹具补 `chmodSync(target, 0o755)`；
+  3. 新增回归断言：`.githooks/` 下不得存在 `100644` 模式的钩子文件。
+- **教训**：「有守卫」不等于「守卫生效」——幂等性/权限/静默忽略这类
+  **平台相关失效模式**，只有跨平台实测（或 CI 上的真实执行）才能暴露；
+  这与本项目 11 个缺陷「模块内正确、跨环境失配」的形态一致。
+
 ---
 
 ## 5. 改进建议（待人类审查）
