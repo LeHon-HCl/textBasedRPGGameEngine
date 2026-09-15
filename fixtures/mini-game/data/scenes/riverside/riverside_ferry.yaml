@@ -7,22 +7,22 @@ area: riverside
 segments:
   - key: scenes.riverside_ferry.arrive
   - key: scenes.riverside_ferry.ferryman
-    showIf: '!npc.ferryman.met'
+    showIf: '!flag.ferryman_met'
   - key: scenes.riverside_ferry.ferryman_seen
-    showIf: 'npc.ferryman.met'
+    showIf: 'flag.ferryman_met'
   - key: scenes.riverside_ferry.tide
     showIf: "time.slot == 'evening' || time.slot == 'night'"
 choices:
   - id: talk_ferryman
     textKey: scenes.riverside_ferry.choice.talk
-    showIf: '!npc.ferryman.met'
+    showIf: '!flag.ferryman_met'
     effects:
       # `set` 只接受 attr/flag/counter 标量域与 npc.<id>.flags.<名>（引擎 §3.3）。
-      # 故 npc.ferryman.met 的置位用 flag 域表达（NPC 记忆命名空间）：
-      # 场景段落的 showIf 同步改为读同一 flag，避免依赖只读的 met 视图。
+      # 故「已遇见」用 flag 域表达（设计 §3.3 指定的 NPC 记忆机制）：
+      # 场景段落与事件条件的 showIf/require 一律读同一 flag。
       - flag: { name: 'ferryman_met' }
       # 任务接取（2026-09-15 连通性修复）：摆渡人是 hillside_survey 的 giver。
-      # acceptIf 为 npc.ferryman.met && insight>=3 → 搭话后即建档 met，
+      # acceptIf 为 flag.ferryman_met && insight>=3 → 搭话后该 flag 已置，
       # insight 不足时 accept 被拒（引擎拒绝原因可读，符合 §4.5 校验语义）。
       - quest: { id: hillside_survey, action: accept }
       - notify: { textKey: 'scenes.riverside_ferry.notify.met' }

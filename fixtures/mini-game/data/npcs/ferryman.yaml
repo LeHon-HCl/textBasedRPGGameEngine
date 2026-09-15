@@ -1,7 +1,8 @@
 # 河畔 NPC「摆渡人」（NpcDef，设计 §2.4 / FR-NPCR）：日程 × 好感阈值
 #
 # riverside 区域的向导角色：ferry 与 fish_market 两地按时段轮转；
-# warehouse 的解锁条件引用 npc.ferryman.met（见 areas/riverside.yaml）。
+# warehouse 的解锁条件引用 flag.ferryman_met（见 areas/riverside.yaml；
+# 用 flag 而非 npc.<id>.met——后者在引擎中只读且无写入口，见约束 8「设计对账」）。
 id: ferryman
 nameKey: npcs.ferryman.name
 schedule:

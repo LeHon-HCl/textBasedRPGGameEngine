@@ -81,7 +81,8 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
     expect(definition.poolIndex.dirtyMap.get('flag.wall_rubbing_taken')).toEqual(
       new Set(['ev_wall_whisper']),
     );
-    expect(definition.poolIndex.dirtyMap.get('npc.old_guard.met')).toEqual(
+    // 「已遇见」用 flag 域表达（约束 8「设计对账」：npc.<id>.met 只读且无写入口）
+    expect(definition.poolIndex.dirtyMap.get('flag.old_guard_met')).toEqual(
       new Set(['ev_wall_whisper']),
     );
     expect(definition.poolIndex.dirtyMap.get('flag.heard_rumor')).toEqual(
@@ -106,10 +107,10 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
   it('exprCache：全包表达式按原文编译入缓存（refs 抽取供增量求值）', async () => {
     const definition = await loadFixturePackage('mini-game');
     expect(definition.exprCache.size).toBeGreaterThan(0);
-    const whisper = definition.exprCache.get('!flag.wall_rubbing_taken && npc.old_guard.met');
+    const whisper = definition.exprCache.get('!flag.wall_rubbing_taken && flag.old_guard_met');
     expect(whisper?.refs.map((ref) => ref.path).sort()).toEqual([
+      'flag.old_guard_met',
       'flag.wall_rubbing_taken',
-      'npc.old_guard.met',
     ]);
     // 商店买价的带默认值条件表达式同样入缓存（FR-ECON-02 动态定价）
     expect(definition.exprCache.has('faction.town >= 10 ? 8 : 10')).toBe(true);

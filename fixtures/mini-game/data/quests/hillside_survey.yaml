@@ -4,7 +4,7 @@
 # 但 requires 关系体现「先看到徽记再往山上去」的叙事因果。
 id: hillside_survey
 giver: ferryman
-acceptIf: 'npc.ferryman.met && attr.insight >= 3'
+acceptIf: 'flag.ferryman_met && attr.insight >= 3'
 requires: [wall_rubbing]
 stages:
   - id: reach_trailhead

@@ -7,7 +7,9 @@
     slots: [evening, night]
   trigger:
     type: condition
-    require: '!flag.wall_rubbing_taken && npc.old_guard.met'
+    # 约束 8「设计对账」：npc.<id>.met 在引擎中只读且从不为真（无写入口），
+    # 故改用 flag 域表达「已遇见」（设计 §3.3 指定的 NPC 记忆机制）。
+    require: '!flag.wall_rubbing_taken && flag.old_guard_met'
   priority: 10
   mutexGroup: wall_line
   tags: [general]
@@ -37,7 +39,7 @@
     slots: [morning, afternoon, evening]
   trigger:
     type: condition
-    require: 'npc.ferryman.met && !flag.ferry_greeted'
+    require: 'flag.ferryman_met && !flag.ferry_greeted'
   priority: 8
   mutexGroup: ferry_line
   tags: [general]
@@ -108,7 +110,7 @@
   trigger:
     type: random
     weight: 3
-    require: 'npc.ferryman.met'
+    require: 'flag.ferryman_met'
     cooldown:
       days: 3
   priority: 0
