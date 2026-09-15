@@ -2,9 +2,11 @@ guard: The old guard at the gate dozes over his spear, its tassel trailing on th
 wall: A blurred old emblem is carved into the weathered town wall.
 notify:
   guard_met: You trade a word with the old guard; he grunts and settles back against the wall.
+  reported: You hand the old guard the rubbed pattern. He studies it a long while, then digs a few coins from his coat.
 choice:
   greet_guard: Speak to the old guard
   inspect_wall: Study the emblem on the wall
+  report_rubbing: Show the old guard the emblem's pattern
   back_market: Back to the market
   go_riverside: Out the gate to the riverside
   leave_town: Leave Old Town for good

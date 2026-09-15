@@ -181,6 +181,14 @@ test.describe('M1 玩家流冒烟', () => {
     // **结果断言**：任务日志面板出现该任务（消费 projectQuestLog 投影）
     // 任务面板在侧栏/移动 Tab；此处断言其文本出现在页面（桌面布局默认可见）
     await expect(page.locator('body')).toContainText(/墙中徽记|wall_rubbing/);
+
+    // 任务可结算的 UI 契约（C11 检守护；此前全包无 quest:complete 调用点，
+    // 奖励永远发不出）：提交入口以 showIf 门控——未达 ready_to_submit 时
+    // **不出现**（不会「点了必失败」）；达成后的提交与奖励入账由 Node 侧
+    // m1-acceptance 的「任务全生命周期」用例确定性覆盖（浏览器侧无法可靠
+    // 走完需要事件子会话的 stage1）。
+    await expect(page.locator('[data-choice="report_rubbing"]')).toHaveCount(0);
+    await expect(page.locator('[data-error-card]')).toHaveCount(0);
   });
 
   test('内容过滤：关闭 mild_horror 标签后带该标签的场景被过滤', async ({ page }) => {
