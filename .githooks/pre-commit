@@ -1,0 +1,14 @@
+#!/bin/sh
+# develop.md 约束 9 的机械化兜底：禁止直接向 main 提交。
+# 启用方式：pnpm install（prepare 脚本会自动 git config core.hooksPath .githooks）。
+# 紧急绕过：git commit --no-verify（须在 PR/反思报告中说明原因）。
+branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo "✖ 禁止直接向 $branch 提交（docs/develop.md 约束 9：main 分支禁止直接提交）。" >&2
+  echo "  正确流程：" >&2
+  echo "    git checkout -b <type>/<slug>   # 从最新 main 切出" >&2
+  echo "    ...开发并提交...；git push -u origin <branch>；gh pr create" >&2
+  echo "  确需绕过：git commit --no-verify" >&2
+  exit 1
+fi
+exit 0
