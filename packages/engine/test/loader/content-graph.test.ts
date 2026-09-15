@@ -404,6 +404,41 @@ describe('内容连通性（约束 7 五检）', () => {
       .map(([key, sceneId]) => `${key} → ${sceneId}`);
     expect(unreachable, `入口场景不可达（叙事上走不到）：${unreachable.join(', ')}`).toEqual([]);
   });
+
+  it('C11 任务可结算：有奖励的任务必须有 quest:complete 提交入口', async () => {
+    const definition = await definitionPromise;
+    // 为什么需要本检（2026-09-15 实测：任务链能接取、能推进，但奖励永远发不出）：
+    // 六态机里 `ready_to_submit → done` 是**唯一结算 rewards 的路径**，而它只能
+    // 由 `quest: {action: complete}`（对 ready_to_submit 任务内部转 submit）触发。
+    // 夹具曾只有两条 `accept` 调用点、**没有任何 advance/complete**——任务停在
+    // 「待提交」，`rewards` 永不入账。C3 只验「有接取点」，验不了「能结算」。
+    //
+    // 口径：声明了非空 `rewards` 的任务，必须存在 `quest {id, action: complete}`
+    // 调用点（advance 只推进阶段，不结算奖励，不算数）。
+    const completed = new Set<string>();
+    for (const scene of definition.scenes.values()) {
+      for (const choice of scene.def.choices as SceneChoice[]) {
+        for (const effect of choice.effects ?? []) {
+          if (typeof effect !== 'object' || effect === null) continue;
+          const quest = (effect as Record<string, unknown>)['quest'];
+          if (typeof quest !== 'object' || quest === null) continue;
+          const record = quest as Record<string, unknown>;
+          if (record['action'] === 'complete' && typeof record['id'] === 'string') {
+            completed.add(record['id']);
+          }
+        }
+      }
+    }
+    const unreachable: string[] = [];
+    for (const [questId, quest] of definition.quests) {
+      if ((quest.rewards ?? []).length === 0) continue;
+      if (!completed.has(questId)) unreachable.push(questId);
+    }
+    expect(
+      unreachable,
+      `有奖励但无提交入口的任务（奖励永远发不出）：${unreachable.join(', ')}`,
+    ).toEqual([]);
+  });
 });
 
 /** 从 entryScene 出发沿跳转边 BFS 的可达场景集合 */

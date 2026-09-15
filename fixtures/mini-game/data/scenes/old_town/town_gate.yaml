@@ -29,6 +29,17 @@ choices:
       # 永远停在 undiscovered。wall_rubbing 的 acceptIf 为 flag.heard_rumor，
       # 集市「听传闻」后此处即可接取——剧情因果：听到传闻 → 来镇口辨认徽记）
       - quest: { id: wall_rubbing, action: accept }
+  # 任务提交（2026-09-15 补；约束 7 的 C11 检抓出）：六态机里
+  # `ready_to_submit → done` 是**唯一结算 rewards 的路径**，只能由 quest:complete
+  # 触发。此前全包只有 accept 调用点 → 任务停在「待提交」，20 银与老卫兵好感
+  # 永远发不出。showIf 与「可提交」同口径（quest() 未开始时返回 undefined，
+  # 安全），故不可提交时不出现——不会出现「可点但必失败」的选项。
+  - id: report_rubbing
+    textKey: scenes.town_gate.choice.report_rubbing
+    showIf: "quest('wall_rubbing') == 'ready_to_submit'"
+    effects:
+      - quest: { id: wall_rubbing, action: complete }
+      - notify: { textKey: 'scenes.town_gate.notify.reported' }
   - id: back_market
     textKey: scenes.town_gate.choice.back_market
     goto: market_street

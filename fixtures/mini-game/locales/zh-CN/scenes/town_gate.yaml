@@ -2,9 +2,11 @@ guard: 镇门口的老卫兵抱着长枪打盹，枪缨垂到地上。
 wall: 斑驳的镇墙上刻着模糊的旧徽记。
 notify:
   guard_met: 你与老卫兵搭了句话，他含糊应了一声，又靠回墙根。
+  reported: 你把拓下的徽记纹样递给老卫兵，他盯着看了半晌，从怀里摸出几枚银币塞给你。
 choice:
   greet_guard: 跟老卫兵搭话
   inspect_wall: 仔细辨认墙上的徽记
+  report_rubbing: 把徽记的纹样给老卫兵看
   back_market: 回集市
   go_riverside: 出镇门去河畔
   leave_town: 就此离开旧镇

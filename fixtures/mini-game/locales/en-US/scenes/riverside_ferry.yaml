@@ -6,9 +6,11 @@ notify:
   met: You have made yourself known to the ferryman.
   ferry_tip: The old man mentions that the bend runs shallow before the flood tide — and hides things.
   survey: The old man looks you over twice, then mentions a collapsed quarry up the hill trail worth a look.
+  reported: You recount what you saw on the trail. The old man nods, hands over a pouch of coins, and warms to you.
 choice:
   talk: Go up and greet him
   accept_survey: Take on the trail survey
+  report_survey: Report what you found on the trail
   ask_ferry: Ask about the ferry
   to_market: Follow the bank to the fish market
   to_embankment: Climb down to the embankment

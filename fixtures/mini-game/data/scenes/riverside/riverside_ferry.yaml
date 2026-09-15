@@ -31,14 +31,23 @@ choices:
       - notify: { textKey: 'scenes.riverside_ferry.notify.met' }
   # 任务接取（hillside_survey 的 giver = ferryman）：showIf 与 acceptIf 同口径
   # （flag.ferryman_met && attr.insight >= 3），故不满足时不出现，从根上避免
-  # 「点了必失败」。（requires 前置当前的满足性见待裁定项，不在本轮改动。）
+  # 「点了必失败」。requires 前置（wall_rubbing 完成）由 showIf 一并核对——
+  # 否则前置未达时点击会被状态机拒绝（C8 守护的同一类问题）。
   - id: accept_survey
     textKey: scenes.riverside_ferry.choice.accept_survey
-    showIf: 'flag.ferryman_met && attr.insight >= 3'
+    showIf: "flag.ferryman_met && attr.insight >= 3 && quest('wall_rubbing') == 'done'"
     once: true
     effects:
       - quest: { id: hillside_survey, action: accept }
       - notify: { textKey: 'scenes.riverside_ferry.notify.survey' }
+  # 任务提交（2026-09-15 补；约束 7 的 C11 检抓出）：结算 hillside_survey 的
+  # rewards（35 银 + 摆渡人好感 +20 + 洞察 +3）。showIf 与「可提交」同口径。
+  - id: report_survey
+    textKey: scenes.riverside_ferry.choice.report_survey
+    showIf: "quest('hillside_survey') == 'ready_to_submit'"
+    effects:
+      - quest: { id: hillside_survey, action: complete }
+      - notify: { textKey: 'scenes.riverside_ferry.notify.reported' }
   - id: ask_ferry
     textKey: scenes.riverside_ferry.choice.ask_ferry
     showIf: 'flag.ferryman_met'
