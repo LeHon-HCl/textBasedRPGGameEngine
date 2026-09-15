@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "prepare": "node scripts/setup-git-hooks.mjs",
     "build": "pnpm -r build",
     "dev:player": "pnpm --filter @game/player-demo dev",
     "dev:editor": "pnpm --filter @game/editor-app dev",

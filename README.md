@@ -58,11 +58,14 @@ docs/
   architecture.md   已实现架构（人类入口：数据流图 + 子系统索引）
   proposal.md       需求基线（FR/NFR 编号定义处）
   detail-design.md  详细设计（§ 与 DD-* 决策）
-  develop.md        开发流程规范（四条约束 + PR 自审清单）
+  develop.md        开发流程规范（十条约束 + PR 自审清单）
+  reviews/          里程碑审查报告
+  retros/           事件反思报告（异常复盘）
   tasks/            任务拆分与进度
   archive/          已归档文档（不再生效，仅作溯源）
 scripts/
   validate-docs.mjs 文档一致性校验（编号引用 / 任务登记 / 架构与代码结构一致）
+  setup-git-hooks.mjs 启用 .githooks（pnpm install 经 prepare 自动调用）
 ```
 
 ## 快速开始
@@ -106,12 +109,13 @@ CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在 `main` 的 pus
 | # | 命令 | 内容 |
 |---|---|---|
 | 0 | `pnpm install --frozen-lockfile` | 锁文件一致性 |
-| 1 | `pnpm -w lint && pnpm -w test` | eslint + prettier；全量单元测试（130 文件 / 2011 用例） |
+| 1 | `pnpm -w lint && pnpm -w test` | eslint + prettier；全量单元测试（163 文件 / 2319 用例） |
 | 2 | `pnpm -w build && pnpm -w typecheck` | 递归构建 + 全仓类型检查 |
 | 3 | `node scripts/validate-docs.mjs` | 文档一致性（含架构文档与代码结构一致性校验） |
 
 本地提交前应跑同样的命令。开发流程与 PR 自审清单见 [`docs/develop.md`](docs/develop.md)：
-改动走分支 → 严格 TDD → PR → AI 自审 + CI 绿 → rebase 合入（`main` 禁止直接提交）；
+改动走分支 → 严格 TDD → PR → AI 自审 + CI 绿 → rebase 合入（`main` 禁止直接提交；
+该约束有 `.githooks/` 双钩子机械化兜底，`pnpm install` 自动启用）；
 **里程碑收尾由人工验收把关**。
 
 ## 文档导航
@@ -123,8 +127,9 @@ CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在 `main` 的 pus
    加载管线、子系统索引（想改代码先看这里）
 3. [`docs/proposal.md`](docs/proposal.md) — 需求基线，FR/NFR 编号定义处 + 关键决策 D1–D15
 4. [`docs/detail-design.md`](docs/detail-design.md) — 详细设计，§x.y 接口签名 + DD-* 决策
-5. [`docs/develop.md`](docs/develop.md) — 开发流程四条约束 + PR 自审清单
+5. [`docs/develop.md`](docs/develop.md) — 开发流程十条约束 + PR 自审清单
 6. [`docs/tasks/progress.md`](docs/tasks/progress.md) — 里程碑与模块进度总表
-7. [`docs/archive/`](docs/archive/) — 已归档文档（不再生效）
+7. [`docs/reviews/`](docs/reviews/) / [`docs/retros/`](docs/retros/) — 里程碑审查 / 事件反思
+8. [`docs/archive/`](docs/archive/) — 已归档文档（不再生效）
 
 > 需求变更须先更新 `docs/proposal.md` 并单独提交，再落实现代码。
