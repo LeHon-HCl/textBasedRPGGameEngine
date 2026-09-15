@@ -1,6 +1,7 @@
 # 事件场景：神龛之梦（ev_shrine_dream 的子会话入口；condition 型）
 id: ev_shrine_dream_scene
 area: hillside
+tags: [mild_horror]
 segments:
   - key: scenes.ev_shrine_dream_scene.open
   - key: scenes.ev_shrine_dream_scene.vision

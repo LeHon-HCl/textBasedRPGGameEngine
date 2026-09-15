@@ -1,6 +1,7 @@
 # 夜路灯光（ev_night_lantern 的子会话入口；random 型）
 id: ev_night_lantern_scene
 area: old_town
+tags: [mild_horror]
 segments:
   - key: scenes.ev_night_lantern_scene.open
 choices:
