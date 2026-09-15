@@ -1,3 +1,8 @@
 # 内容分级标签（ContentTagsDef，设计 §2.4 / FR-CGRD-01）：manifest.contentTags 声明引用
+#
+# defaultOn 语义：玩家首次启动时的默认状态（true = 默认显示该标签内容）。
+# `mild_horror` 设 false 是为了演示「默认关闭的敏感内容」——
+# 玩家在首启向导/设置中开启后才可见（FR-CGRD-03/04 的完整链路）。
 tags:
   - { id: general, nameKey: tags.general.name, defaultOn: true }
+  - { id: mild_horror, nameKey: tags.mild_horror.name, defaultOn: true }

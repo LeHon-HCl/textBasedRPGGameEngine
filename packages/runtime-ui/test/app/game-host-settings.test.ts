@@ -92,7 +92,9 @@ describe('宿主：设置写入面（FR-UI-05 / FR-CGRD-03）', () => {
   it('wizardTags 透出标签目录（含 defaultOn，向导初始态的数据源）', async () => {
     const { host } = await makeHost();
     host.start();
-    expect(host.wizardTags().map((tag) => tag.id)).toEqual(['general']);
+    // 夹具声明两个标签（general + mild_horror，均为 defaultOn=true；
+    // mild_horror 的存在使内容过滤链路可在 E2E 中被真实验证）
+    expect(host.wizardTags().map((tag) => tag.id)).toEqual(['general', 'mild_horror']);
     expect(host.wizardTags()[0]?.defaultOn).toBe(true);
   });
 });
