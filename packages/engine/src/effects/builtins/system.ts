@@ -204,12 +204,19 @@ export function createSystemDefs(options: EffectRegistryOptions): ErasedEffectDe
           return { reads: [], writes: ['seen.endings'] };
         case 'codex':
           return { reads: [], writes: ['seen.codex'] };
+        case 'area':
+          // 区域解锁写 world.unlockedAreas（FR-XPLR-01；地图 FR-UI-02 的数据源）
+          return { reads: [], writes: ['world.unlockedAreas'] };
         default:
           return { reads: [], writes: [] }; // achievement → Profile（宿主路由，D7）
       }
     },
     execute: (arg, ectx) => {
-      if (arg.kind !== 'achievement') {
+      if (arg.kind === 'area') {
+        // 幂等：已解锁不重复写入（避免 patches 噪声与无谓重渲染）
+        const areas = ectx.draft.world.unlockedAreas;
+        if (!areas.includes(arg.id)) areas.push(arg.id);
+      } else if (arg.kind !== 'achievement') {
         const list = ectx.draft.seen[arg.kind === 'ending' ? 'endings' : arg.kind];
         if (!list.includes(arg.id)) list.push(arg.id);
       }

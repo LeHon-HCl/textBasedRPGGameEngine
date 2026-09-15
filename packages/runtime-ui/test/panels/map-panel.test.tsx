@@ -108,6 +108,21 @@ describe('projectAreaViews：区域与地点投影（FR-UI-02）', () => {
     expect(locked?.unlocked).toBe(false);
     expect(locked?.locations.every((entry) => entry.unlocked === false)).toBe(true);
   });
+
+  it('提供 locationEntries 时标注 navigable（有映射 true / 无映射 false）', () => {
+    const views = projectAreaViews(AREAS, {
+      unlockedAreas: ['old_town'],
+      locationEntries: new Map([['old_town/market', 'market_street']]),
+    });
+    const locations = views[0]?.locations ?? [];
+    expect(locations.find((entry) => entry.id === 'market')?.navigable).toBe(true);
+    expect(locations.find((entry) => entry.id === 'gate')?.navigable).toBe(false);
+  });
+
+  it('不提供 locationEntries 时不标注 navigable（旧宿主行为逐字不变）', () => {
+    const views = projectAreaViews(AREAS, { unlockedAreas: ['old_town'] });
+    expect(views[0]?.locations.every((entry) => entry.navigable === undefined)).toBe(true);
+  });
 });
 
 describe('MapPanel：渲染与交互（FR-UI-02）', () => {

@@ -307,6 +307,80 @@ describe('面板数据源投影（FR-UI-02/03/QUEST-03）', () => {
   });
 });
 
+describe('地图导航切场景（FR-XPLR-02；2026-09-15 用户实测问题 1c）', () => {
+  it('点击地图地点 → 叙事会话切到该地点的入口场景', async () => {
+    const host = await makeHost();
+    host.start();
+    expect(host.store.getState().session.sceneId).toBe('arrival');
+    // gate → town_gate。选 gate 而非 market：market 在上午/下午有随机事件
+    // （ev_market_rumor），事件会按设计抢占导航（见下一条用例）。
+    // 启动时段为 morning，gate 的事件窗口是 evening/night → 本次不至触发。
+    host.moveTo({ area: 'old_town', location: 'gate' });
+    expect(host.lastError()).toBeNull();
+    expect(host.store.getState().session.sceneId).toBe('town_gate');
+  });
+
+  it('事件优先于导航：地点事件触发时进入事件子会话（不覆盖为入口场景）', async () => {
+    const host = await makeHost();
+    host.start();
+    // market 在 morning 命中 ev_market_rumor（random 型）→ 事件子会话优先
+    host.moveTo({ area: 'old_town', location: 'market' });
+    expect(host.lastError()).toBeNull();
+    // 会话进入事件场景（子会话），而非 market_street；depth > 0 证明是压栈子会话
+    expect(host.store.getState().session.sceneId).toMatch(/^ev_/);
+  });
+
+  it('跨区域导航：河畔/山丘地点各自进入入口场景', async () => {
+    const host = await makeHost();
+    host.start();
+    host.moveTo({ area: 'riverside', location: 'ferry' });
+    expect(host.store.getState().session.sceneId).toBe('riverside_ferry');
+    host.moveTo({ area: 'riverside', location: 'fish_market' });
+    expect(host.store.getState().session.sceneId).toBe('riverside_fish_market');
+    host.moveTo({ area: 'hillside', location: 'quarry' });
+    expect(host.store.getState().session.sceneId).toBe('hillside_quarry');
+    expect(host.lastError()).toBeNull();
+  });
+
+  it('导航到的场景可正常交互（推进后有选项）', async () => {
+    const host = await makeHost();
+    host.start();
+    host.moveTo({ area: 'old_town', location: 'gate' });
+    for (let i = 0; i < 8; i += 1) {
+      if (host.store.getState().session.phase !== 'await_advance') break;
+      host.advance();
+    }
+    expect(host.store.getState().session.phase).toBe('await_choice');
+    expect(host.store.getState().session.choices.length).toBeGreaterThan(0);
+  });
+
+  it('地图投影标注 navigable；默认只列已解锁区域', async () => {
+    const host = await makeHost();
+    host.start();
+    const areas = host.areas();
+    expect(areas.map((area) => area.id)).toEqual(['old_town']);
+    const market = areas[0]?.locations.find((location) => location.id === 'market');
+    expect(market?.navigable).toBe(true);
+  });
+
+  it('开发者模式：未解锁区域也列出（供内容走查）', async () => {
+    const definition = await loadGamePackage(new InMemoryPackageSource(files));
+    const { attrDefs, contentTags } = readSupportDomains(files);
+    const host = createGameHost({
+      definition,
+      attrDefs,
+      contentTags,
+      initialAttrs: { hp: 100, stamina: 30, insight: 0 },
+      developerMode: true,
+      seed: 2026,
+    });
+    host.start();
+    const ids = host.areas().map((area) => area.id);
+    expect(ids).toEqual(expect.arrayContaining(['hillside', 'old_town', 'riverside']));
+    expect(host.areas().find((area) => area.id === 'riverside')?.unlocked).toBe(false);
+  });
+});
+
 describe('错误不逃逸（UI 错误卡片数据面）', () => {
   it('未 start 即 choose：lastError 报告 NOT_STARTED 而非抛异常', async () => {
     const host = await makeHost();

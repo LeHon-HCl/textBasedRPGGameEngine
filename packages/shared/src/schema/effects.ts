@@ -104,13 +104,22 @@ const backParams = z.null();
 const endingParams = gameIdSchema;
 const loopTransitionParams = z.null();
 
-/** 回想/CG/结局/百科/成就标记（§3.3 unlock：seen 域）；gallery 引用场景、cg 引用媒体、achievement 引用成就 */
+/**
+ * 回想/CG/结局/百科/成就/区域标记（§3.3 unlock 指令的 kind 判别联合）。
+ *
+ * - `gallery` 引用场景、`cg` 引用媒体、`achievement` 引用成就；
+ * - `area`（2026-09-15 新增，FR-XPLR-01「区域与地点有…解锁条件」的落地）：
+ *   解锁区域 → 写入 `world.unlockedAreas`，使地图（FR-UI-02）显示该区域。
+ *   此前该状态域**只有新游戏 bootstrap 一个写入口**，导致「地图只显示已解锁
+ *   区域」时未解锁区域永远不出现（跨区域只能靠叙事 goto，地图恒缺）。
+ */
 const unlockParams = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('gallery'), id: refId('scene') }),
   z.strictObject({ kind: z.literal('cg'), id: refId('media') }),
   z.strictObject({ kind: z.literal('ending'), id: gameIdSchema }),
   z.strictObject({ kind: z.literal('codex'), id: gameIdSchema }),
   z.strictObject({ kind: z.literal('achievement'), id: refId('achievement') }),
+  z.strictObject({ kind: z.literal('area'), id: refId('area') }),
 ]);
 
 /** 媒体意图（DD-05）：engine 只产出 intent，播放由 runtime-ui 承担 */

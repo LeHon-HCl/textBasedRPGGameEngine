@@ -24,6 +24,7 @@ import {
   ENGINE_VERSION,
   EventPool,
   GameRuntime,
+  locationEntryKey,
   MediaResolver,
   newGameState,
   projectCalendar,
@@ -100,6 +101,14 @@ export interface GameHostOptions {
   readonly seed?: number;
   /** 起始地点（缺省：入口场景所在区域；地图高亮的初始值） */
   readonly startLocation?: { readonly area: GameId; readonly location?: GameId };
+  /**
+   * 开发者模式（FR-DEBG；2026-09-15 人类裁定）。
+   *
+   * 开启时地图**全量列出所有区域**（含未解锁），供开发/内容走查；关闭时只列
+   * 已解锁区域（默认，FR-UI-02「地图展示已解锁区域/地点」）。
+   * 完整调试面板（变量查看/修改、跳场景、时间快进）属 25 号 C 组，不在此处。
+   */
+  readonly developerMode?: boolean;
 }
 
 /** 宿主级错误摘要（UI 错误卡片的数据面；控件不抛异常给 React） */
@@ -190,6 +199,8 @@ export function createGameHost(options: GameHostOptions): GameHost {
   const store = createUiStore();
   const timeConfig = definition.time ?? DEFAULT_TIME_CONFIG;
   const mainLang = definition.manifest.mainLang;
+  /** 开发者模式（地图全量列出区域；见 GameHostOptions.developerMode） */
+  const developerMode = options.developerMode ?? false;
 
   const resolver = createTextResolver({
     mainLang,
@@ -618,6 +629,22 @@ export function createGameHost(options: GameHostOptions): GameHost {
           const outcome = timePipeline(requireRuntime()).advance(location.moveCost);
           withSession((runner) => runner.applyFlowJumps(outcome.jumps));
         }
+        // **地图导航切场景**（FR-XPLR-02；2026-09-15 补，用户实测问题 1c）：
+        // 点击地图地点 = 一次导航跳转（与选项 goto 同语义：替换当前帧，不压栈）。
+        // 若上一步的事件评估已把会话带入事件子会话（depth > 0），则不覆盖——
+        // 玩家的点击被事件打断，符合叙事直觉。
+        const entryScene = definition.locationEntries.get(
+          locationEntryKey(target.area, target.location),
+        );
+        const runner = session;
+        if (
+          entryScene !== undefined &&
+          runner !== undefined &&
+          runner.depth === 0 &&
+          runner.currentSceneId !== entryScene
+        ) {
+          session = createRunnerSession(runnerRuntime(), entryScene);
+        }
         syncSession();
       }),
     calendar: () => projectCalendar(requireRuntime().state.world.time, timeConfig),
@@ -627,11 +654,19 @@ export function createGameHost(options: GameHostOptions): GameHost {
         attrDefs: options.attrDefs,
         items: definition.items,
       }),
+    /**
+     * 区域图投影（FR-UI-02）。
+     *
+     * **只列已解锁区域**（`includeLockedAreas: false`，2026-09-15 用户裁定）：
+     * 未解锁区域不再显示为「未解锁」条目。开发者模式（`developerMode` 选项）
+     * 打开时改为全量列出，供调试与内容走查。
+     */
     areas: () =>
       projectAreaViews(definition.areas, {
         unlockedAreas: requireRuntime().state.world.unlockedAreas,
         evaluate: evalConditionSource,
-        includeLockedAreas: true,
+        includeLockedAreas: developerMode,
+        locationEntries: definition.locationEntries,
       }),
     location: () => currentLocation,
     // 语言口径（M1 收尾修正）：按**当前设置语言**解析，而非固定 mainLang ——

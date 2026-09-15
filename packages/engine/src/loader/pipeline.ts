@@ -1,6 +1,7 @@
 import { collectPackage } from './collect.js';
 import { compilePackage } from './compile.js';
 import { crossRefCheck, buildRefRegistries } from './cross-ref.js';
+import { resolveLocationEntries } from './navigation.js';
 import { validateEffectArgs } from './validate-effects.js';
 import { throwIfErrors } from './diagnostics.js';
 import { buildGameDefinition } from './freeze.js';
@@ -77,11 +78,23 @@ export async function loadGamePackage(
   const effectArgDiagnostics = validateEffectArgs(inventory, scriptResult.effectRegistry);
   throwIfErrors(effectArgDiagnostics);
 
+  // 6.6 地点→入口场景导航解析（FR-XPLR-02；2026-09-15）
+  //   放在 crossRef 之后（entryScene 的悬空引用已由 refKind 检查拦下）、freeze 之前；
+  //   产出运行期只读映射（宿主 moveTo 查表，无运行期推断）。
+  const navigation = resolveLocationEntries(validated.domains);
+  throwIfErrors(navigation.diagnostics);
+
   // 7 freeze
   return buildGameDefinition({
     validated,
     artifacts: compiled.artifacts,
     scriptResult,
-    warnings: [...validated.diagnostics, ...crossRefDiagnostics, ...effectArgDiagnostics],
+    locationEntries: navigation.entries,
+    warnings: [
+      ...validated.diagnostics,
+      ...crossRefDiagnostics,
+      ...effectArgDiagnostics,
+      ...navigation.diagnostics,
+    ],
   });
 }

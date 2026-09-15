@@ -24,8 +24,11 @@ choices:
   - id: to_town
     textKey: scenes.riverside_embankment.choice.to_town
     goto: town_gate
-  # 上山入口（2026-09-15 连通性修复：此前 hillside 无任何入口，整区域不可达）
+  # 上山入口（2026-09-15 连通性修复：此前 hillside 无任何入口，整区域不可达）。
+  # `unlock: area` 让山丘出现在地图上（同 go_riverside 的口径）。
   - id: to_hillside
     textKey: scenes.riverside_embankment.choice.to_hillside
     showIf: 'attr.insight >= 4'
-    goto: hillside_trailhead
+    effects:
+      - unlock: { kind: area, id: hillside }
+      - goto: hillside_trailhead

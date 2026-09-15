@@ -80,7 +80,7 @@ export type {
 } from './effects/index.js';
 
 // ---- loader（§3.4 游戏包加载器：包源抽象 / 七步管线 / 冻结 GameDefinition） ----
-export { InMemoryPackageSource, loadGamePackage } from './loader/index.js';
+export { InMemoryPackageSource, loadGamePackage, locationEntryKey } from './loader/index.js';
 export type {
   CompiledScene,
   GameDefinition,
@@ -88,6 +88,7 @@ export type {
   LocaleRecord,
   LocaleValue,
   LoadGameOptions,
+  LocationEntryMap,
   MediaAsset,
   MediaCatalog,
   PackageSource,

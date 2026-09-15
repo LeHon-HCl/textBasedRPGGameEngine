@@ -6,8 +6,12 @@ locations:
     nameKey: areas.old_town.market
     moveCost: 1
     mapPos: [120, 80]
+    # 地图导航目标（FR-XPLR-02；2026-09-15 补）：点击地图「露天集市」进入 market_street。
+    # 本区域有多个普通场景，故必须显式声明（加载器只在「恰一个候选」时自动推导）。
+    entryScene: market_street
   gate:
     nameKey: areas.old_town.gate
     unlockIf: 'attr.insight >= 2'
     moveCost: 1
     mapPos: [220, 60]
+    entryScene: town_gate

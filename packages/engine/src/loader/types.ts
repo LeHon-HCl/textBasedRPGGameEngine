@@ -33,6 +33,7 @@ import type {
   EffectInstructionDef,
   EffectRegistry,
 } from '../effects/index.js';
+import type { LocationEntryMap } from './navigation.js';
 
 /**
  * 游戏包加载器类型（设计 §3.4，06 号模块）。
@@ -248,6 +249,12 @@ export interface GameDefinition {
   readonly mediaCatalog: MediaCatalog;
   /** 时段制日历（§4.3 TimeConfig；data/time.yaml 缺省 = undefined，09 号） */
   readonly time: TimeConfig | undefined;
+  /**
+   * 地点 → 入口场景映射（键 `"<area>/<location>"`，管线步骤 6.6 产物）。
+   * 地图点击导航（FR-XPLR-02）的运行期查表数据源。解析不出映射的地址点在
+   * 加载期已报 error 阻断，故运行期查表缺失属防御性分支。
+   */
+  readonly locationEntries: LocationEntryMap;
   /** 语言包（FR-L10N-02：仅 manifest.langs 声明语言） */
   readonly locales: Record<Lang, LocalePack>;
   /** manifest.redirects（旧 ID → 新 ID，§5.7 迁移定向改写用） */

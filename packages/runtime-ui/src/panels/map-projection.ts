@@ -22,6 +22,12 @@ export interface MapLocationView {
   readonly unlocked: boolean;
   /** 解锁条件原文（仅未解锁时给出；文案由游戏配置，引擎不解释语义） */
   readonly unlockHint?: string;
+  /**
+   * 是否为可导航地点（FR-XPLR-02 地图导航；2026-09-15 新增）。
+   * 有已解析的入口场景（`GameDefinition.locationEntries`）时为 true——点击即
+   * 切换叙事场景。缺省（未提供 `locationEntries`）= 全部可导航（向后兼容旧宿主）。
+   */
+  readonly navigable?: boolean;
 }
 
 /** 地图区域视图（区域图节点） */
@@ -45,6 +51,11 @@ export interface MapProjectionOptions {
   readonly evaluate?: (expr: string) => boolean;
   /** 是否列出未解锁区域（缺省 false = 只列已解锁区域，FR-UI-02「展示已解锁」） */
   readonly includeLockedAreas?: boolean;
+  /**
+   * 地点→入口场景映射（`GameDefinition.locationEntries`；FR-XPLR-02 导航）。
+   * 提供时按「是否有映射」标注 `navigable`；缺省 = 不标注（旧宿主行为不变）。
+   */
+  readonly locationEntries?: ReadonlyMap<string, GameId>;
 }
 
 /**
@@ -71,7 +82,7 @@ export function projectAreaViews(
       id,
       nameKey: area.nameKey,
       unlocked: areaUnlocked,
-      locations: projectLocations(area, areaUnlocked, evaluate),
+      locations: projectLocations(area, areaUnlocked, evaluate, options.locationEntries),
     });
   }
   views.sort((a, b) => a.nameKey.localeCompare(b.nameKey) || a.id.localeCompare(b.id));
@@ -83,6 +94,7 @@ function projectLocations(
   area: AreaDef,
   areaUnlocked: boolean,
   evaluate: ((expr: string) => boolean) | undefined,
+  locationEntries: ReadonlyMap<string, GameId> | undefined,
 ): MapLocationView[] {
   const out: MapLocationView[] = [];
   for (const [id, location] of Object.entries(area.locations) as [GameId, LocationDef][]) {
@@ -97,6 +109,10 @@ function projectLocations(
       unlocked,
       // 已解锁地点不带提示（避免陈旧提示误导玩家）
       ...(unlocked || condition === undefined ? {} : { unlockHint: condition }),
+      // 导航能力仅在调用方提供映射表时标注（缺省不标注 = 旧宿主行为逐字不变）
+      ...(locationEntries !== undefined
+        ? { navigable: locationEntries.has(`${area.id}/${id}`) }
+        : {}),
     });
   }
   // 按坐标（y 后 x）稳定排序：区域图上的空间次序（同为 0,0 时回落 id 序）

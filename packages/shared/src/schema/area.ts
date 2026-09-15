@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { refId } from '../ids.js';
 import { exprSchema, gameIdSchema, mediaBindingSchema, textKeySchema } from './common.js';
 
 /**
@@ -19,6 +20,17 @@ export const locationDefSchema = z.strictObject({
   moveCost: z.number().int().min(0),
   /** 地图坐标 [x, y]（地图 UI 渲染用） */
   mapPos: z.tuple([z.number(), z.number()]),
+  /**
+   * 地图点击该地点时进入的场景（FR-XPLR-02「世界地图与导航」的落地字段）。
+   *
+   * 语义：地点 → 入口场景的**导航映射**。省略时由加载器按「本区域内、非事件
+   * 场景（非 ev_ 前缀）、恰好命中一个场景」自动推导；推导不出时加载期报错，
+   * 要求作者显式声明（避免运行期「点了没反应」）。
+   *
+   * 约束（加载期校验）：必须指向**同区域**的普通场景（不得跨区域、不得为事件场景）。
+   * 跨区域移动应由叙事 `goto` / 事件承载，不开地图直通口子。
+   */
+  entryScene: refId('scene').optional(),
 });
 
 export type LocationDef = z.infer<typeof locationDefSchema>;

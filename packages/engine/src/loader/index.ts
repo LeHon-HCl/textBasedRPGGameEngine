@@ -18,6 +18,8 @@ export {
   throwIfErrors,
 } from './diagnostics.js';
 export { buildGameDefinition, deepFreeze } from './freeze.js';
+export { locationEntryKey, resolveLocationEntries } from './navigation.js';
+export type { LocationEntryMap } from './navigation.js';
 export { parsePackage } from './parse.js';
 export { loadGamePackage } from './pipeline.js';
 export { runScriptStep } from './scripts.js';

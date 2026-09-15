@@ -130,6 +130,37 @@ test.describe('M1 玩家流冒烟', () => {
     await expect(page.locator('[data-phase]')).toContainText(/flagstones|Old Town|market/i);
   });
 
+  test('地图导航：点击地图地点切换叙事场景（FR-XPLR-02）', async ({ page }) => {
+    await page.goto('/');
+    await passWizard(page);
+    await page.getByRole('button', { name: '新游戏' }).click();
+    await drainAdvance(page);
+    const narrative = page.locator('[data-phase]');
+
+    // 取得 insight≥2 解锁「旧镇门口」（集市听传闻 +2 insight），再回集市场景。
+    // 说明：场景 goto 不推进时间，故全程停留在上午——「旧镇门口」的事件窗口是
+    // 傍晚/夜晚，因此本次点击不会被随机事件抢占（结果可判定）。
+    await page.locator('[data-choice="go_market"]').click();
+    await drainAdvance(page);
+    await page.locator('[data-choice="listen_rumor"]').click();
+    await drainAdvance(page);
+    await page.locator('[data-choice="back_market"]').click();
+    await drainAdvance(page);
+    await expect(narrative).toContainText('集市');
+
+    // 地图上「旧镇门口」已解锁且可导航（data-navigable=true）
+    const gateButton = page.locator('[data-location="gate"]');
+    await expect(gateButton).toBeVisible();
+    await expect(gateButton).toBeEnabled();
+    await expect(gateButton).toHaveAttribute('data-navigable', 'true');
+
+    // **结果断言**：点击地图 → 叙事区切到镇口场景文案（不是仅高亮变化）
+    await gateButton.click();
+    await drainAdvance(page);
+    await expect(narrative).toContainText('镇门口');
+    await expect(page.locator('[data-error-card]')).toHaveCount(0);
+  });
+
   test('任务推进：集市听传闻 → 镇口接取任务 → 任务日志出现条目', async ({ page }) => {
     await page.goto('/');
     await passWizard(page);
