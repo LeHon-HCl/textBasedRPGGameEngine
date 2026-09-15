@@ -15,7 +15,7 @@ locations:
     mapPos: [420, 180]
   warehouse:
     nameKey: areas.riverside.warehouse
-    unlockIf: 'npc.ferryman.met || flag.warehouse_open'
+    unlockIf: 'flag.ferryman_met || flag.warehouse_open'
     moveCost: 2
     mapPos: [500, 120]
   embankment:
