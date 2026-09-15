@@ -154,6 +154,26 @@ describe('内容连通性（约束 7 五检）', () => {
     expect(noEntry, `无入口的商店：${noEntry.join(', ')}`).toEqual([]);
   });
 
+  it('C6 UI 约定文本键齐备：quests.<id>.name / attrs.<id>.name 均有译文', async () => {
+    const definition = await definitionPromise;
+    // 为什么单独检：运行时面板按**约定**拼接文本键（QuestLogPanel 用
+    // `quests.<id>.name`、状态面板用 `attrs.<id>.name`），这些键不出现在 data/ 中，
+    // 故加载器 crossRef 的「data 引用 × 词典」检查覆盖不到——缺失时界面显示原始键
+    // （M1 收尾实测：任务日志显示 `quests.wall_rubbing.name`）。
+    const mainKeys = definition.locales[definition.manifest.mainLang]?.keys ?? new Map();
+    const missing: string[] = [];
+    for (const id of definition.quests.keys()) {
+      if (!mainKeys.has(`quests.${id}.name`)) missing.push(`quests.${id}.name`);
+    }
+    // attrs 域未发布到 GameDefinition（06 号导出面缺口，宿主以显式注入承接），
+    // 故其约定键（attrs.<id>.name）暂由宿主侧测试覆盖（见 runtime-ui 的
+    // game-host 测试）——此处只检已发布域的约定键。
+    for (const id of definition.npcs.keys()) {
+      if (!mainKeys.has(`npcs.${id}.name`)) missing.push(`npcs.${id}.name`);
+    }
+    expect(missing, `UI 约定文本键缺译文：${missing.join(', ')}`).toEqual([]);
+  });
+
   it('事件场景均被事件池引用（无孤儿事件场景）', async () => {
     const definition = await definitionPromise;
     const eventScenes = new Set(definition.events.map((e) => e.scene));
