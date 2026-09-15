@@ -421,6 +421,13 @@ export function createGameHost(options: GameHostOptions): GameHost {
             },
           ]),
         ),
+        // 阵营声望播种（约束 8）：`faction.<id>` 是表达式封闭域（缺 key 即 EVAL_ERROR），
+        // 而 NPC 日程的 showIf（如 'faction.town >= 0'）等条件会读它——不播种则
+        // 任何声望条件都抛错（M1 验收路径实测暴露，与 NPC/钱包同类的「包内有数据
+        // 未初始化进状态」缺口）。初值取 FactionDef.init。
+        factions: Object.fromEntries(
+          [...definition.factions.values()].map((faction) => [faction.id, faction.init]),
+        ),
         // 缺省解锁区域 = **入口场景所在区域**（语义口径，不是 areas.keys() 的首项：
         // 后者依赖字典序，多区域夹具下会解锁到字母序最前的区域而非玩家真正起步的区域。
         // 见 docs/architecture.md §5.4 宿主装配。）
