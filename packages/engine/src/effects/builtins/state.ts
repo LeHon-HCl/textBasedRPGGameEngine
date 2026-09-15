@@ -3,7 +3,12 @@ import type { FlagValue, NpcState } from '@game/shared';
 import type { WritableDraft } from 'immer';
 import type { GameState } from '../../state/index.js';
 import { eraseDef } from '../types.js';
-import type { EffectInstructionDef, ErasedEffectDef, TouchReport } from '../types.js';
+import type {
+  EffectArgDiagnostic,
+  EffectInstructionDef,
+  ErasedEffectDef,
+  TouchReport,
+} from '../types.js';
 import { describeValue, evalLenientParam, evalNumberParam, instructionError } from './util.js';
 
 /**
@@ -112,6 +117,29 @@ export function createStateDefs(): ErasedEffectDef[] {
     id: 'set',
     schema: effectParamSchemas.set,
     touch: (arg): TouchReport => ({ reads: [], writes: stateKeyWritePrefix(arg.key) }),
+    /**
+     * key 形态的**加载期**校验（develop.md 约束 8；设计 §7.7 `invalid-instruction-arg`）。
+     *
+     * 此前 key 形态只在 `execute`（运行期）校验：`set { key: 'npc.x.met' }` 这类
+     * 非法形态让包加载零诊断通过、玩家点到该选项才抛 EFFECT_FAILED
+     * （M1 收尾实测：渡口搭话选项卡死，见内容完整性反思报告）。
+     * 本钩子把同一套判定前移到加载期——`parseStateKey` 是唯一事实源，
+     * 加载期与运行期共用，避免两处规则漂移。
+     */
+    validateArg: (arg): readonly EffectArgDiagnostic[] => {
+      try {
+        parseStateKey(arg.key, 'set');
+        return [];
+      } catch (error) {
+        return [
+          {
+            code: 'invalid-instruction-arg',
+            severity: 'error',
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        ];
+      }
+    },
     execute: (arg, ectx) => {
       const parsed = parseStateKey(arg.key, 'set');
       const raw = evalLenientParam(ectx, 'set', 'value', arg.value);
@@ -155,6 +183,21 @@ export function createStateDefs(): ErasedEffectDef[] {
     id: 'add',
     schema: effectParamSchemas.add,
     touch: (arg): TouchReport => ({ reads: [], writes: stateKeyWritePrefix(arg.key) }),
+    /** key 形态加载期校验（与 set 同一规则；见 setDef.validateArg 说明） */
+    validateArg: (arg): readonly EffectArgDiagnostic[] => {
+      try {
+        parseStateKey(arg.key, 'add');
+        return [];
+      } catch (error) {
+        return [
+          {
+            code: 'invalid-instruction-arg',
+            severity: 'error',
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        ];
+      }
+    },
     execute: (arg, ectx) => {
       const parsed = parseStateKey(arg.key, 'add');
       const amount = evalNumberParam(ectx, 'add', 'amount', arg.amount);

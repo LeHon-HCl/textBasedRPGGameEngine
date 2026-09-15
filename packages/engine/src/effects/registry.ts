@@ -121,6 +121,20 @@ export class EffectRegistry implements EffectExecutor {
   }
 
   /**
+   * 取指令定义（参数语义校验与编辑器校验中心用；2026-09-15 增补）。
+   *
+   * 为什么需要：加载期步骤 6.5 要跑各指令的 `validateArg` 钩子
+   * （develop.md 约束 8 / 设计 §7.7 `invalid-instruction-arg`），而注册表此前只
+   * 公开 `resolve`（会执行 schema 校验并产出可执行句柄，语义不符）。
+   * 26 号编辑器的校验中心复用同一入口与同一套规则（DD-12）。
+   *
+   * @returns 指令定义（泛型已擦除，调用方按 `ErasedEffectDef` 消费）；未注册返回 undefined
+   */
+  getDef(id: string): ErasedEffectDef | undefined {
+    return this.#defs.get(id);
+  }
+
+  /**
    * 解析一条指令为可执行句柄（EffectExecutor 契约）：调用方定位（where）由
    * 运行时在包装 EFFECT_FAILED 时统一附加，本实现不重复消费。
    * 单键对象 → id 查找 → 参数 schema 校验 → EffectExecution。
