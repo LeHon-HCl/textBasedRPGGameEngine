@@ -31,6 +31,8 @@ export interface MapPanelLabels {
   readonly current?: string;
   /** 未解锁区域提示（缺省「未解锁」） */
   readonly lockedArea?: string;
+  /** 不可导航地点提示（无入口场景映射；缺省「无法前往」） */
+  readonly notNavigable?: string;
 }
 
 /** 缺省文案（D4 边界：正式文案由宿主注入） */
@@ -40,6 +42,7 @@ const DEFAULT_LABELS: Required<MapPanelLabels> = {
   moveFree: '无需耗时',
   current: '当前',
   lockedArea: '未解锁',
+  notNavigable: '无法前往',
 };
 
 /** MapPanel 属性（受控） */
@@ -90,7 +93,11 @@ function renderLocation(
   labels: Required<MapPanelLabels>,
 ): ReactNode {
   const isCurrent = props.current.area === area.id && props.current.location === location.id;
-  const disabled = !location.unlocked || isCurrent;
+  // 不可导航（无入口场景映射）的地点禁用：点击只会推进时间、不切场景，
+  // 玩家会误以为「点了没反应」（2026-09-15 用户实测）。`navigable` 缺省
+  // （旧宿主未提供映射表）= 视为可导航，保持行为不变。
+  const notNavigable = location.navigable === false;
+  const disabled = !location.unlocked || isCurrent || notNavigable;
   const costText =
     location.moveCost === 0
       ? labels.moveFree
@@ -101,6 +108,7 @@ function renderLocation(
       type="button"
       data-location={location.id}
       data-current={isCurrent ? 'true' : 'false'}
+      data-navigable={notNavigable ? 'false' : 'true'}
       {...(isCurrent ? { 'aria-current': 'true' as const } : {})}
       disabled={disabled}
       onClick={() => props.onMove({ area: area.id, location: location.id })}
@@ -110,6 +118,7 @@ function renderLocation(
       <span style={styles.locationHint}>
         {costText}
         {isCurrent ? ` · ${labels.current}` : ''}
+        {notNavigable && !isCurrent ? ` · ${labels.notNavigable}` : ''}
         {location.unlockHint !== undefined ? ` · ${location.unlockHint}` : ''}
       </span>
     </button>

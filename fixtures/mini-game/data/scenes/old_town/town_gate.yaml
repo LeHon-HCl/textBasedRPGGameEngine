@@ -32,10 +32,14 @@ choices:
   - id: back_market
     textKey: scenes.town_gate.choice.back_market
     goto: market_street
-  # 跨区域衔接：出镇门即到河畔渡口（M1 收尾·多区域探索）
+  # 跨区域衔接：出镇门即到河畔渡口（M1 收尾·多区域探索）。
+  # `unlock: area` 使河畔出现在地图上（FR-XPLR-01；2026-09-15 新增的写入口）——
+  # 地图默认只显示已解锁区域，此前无任何运行期解锁路径，河畔/山丘恒不显示。
   - id: go_riverside
     textKey: scenes.town_gate.choice.go_riverside
-    goto: riverside_ferry
+    effects:
+      - unlock: { kind: area, id: riverside }
+      - goto: riverside_ferry
   # 结局入口（2026-09-15 连通性修复）：此前 quiet_town 无任何触发点。
   # 语义：在镇口选择「就此离开」→ 置 left_town（endings.reachWhen 的条件之一），
   # 满足时间条件（day ≥ 7）时达成结局；未满足时也不阻断（flag 已置，日后再来）。

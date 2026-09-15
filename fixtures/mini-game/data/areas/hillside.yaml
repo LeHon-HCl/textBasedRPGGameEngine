@@ -9,13 +9,16 @@ locations:
     nameKey: areas.hillside.trailhead
     moveCost: 1
     mapPos: [180, 300]
+    entryScene: hillside_trailhead
   quarry:
     nameKey: areas.hillside.quarry
     unlockIf: 'flag.quarry_open || attr.insight >= 4'
     moveCost: 2
     mapPos: [120, 380]
+    entryScene: hillside_quarry
   shrine:
     nameKey: areas.hillside.shrine
     unlockIf: 'flag.embankment_found || attr.insight >= 6'
     moveCost: 2
     mapPos: [240, 360]
+    entryScene: hillside_shrine

@@ -1,5 +1,6 @@
 import { EngineError } from '@game/shared';
 import { mergeDiagnostics } from './diagnostics.js';
+import type { LocationEntryMap } from './navigation.js';
 import type { CompiledArtifacts, Diagnostic, GameDefinition, ValidatedPackage } from './types.js';
 import type { ScriptStepResult } from './scripts.js';
 
@@ -46,9 +47,11 @@ export function buildGameDefinition(deps: {
   validated: ValidatedPackage;
   artifacts: CompiledArtifacts;
   scriptResult: ScriptStepResult;
+  /** 地点→入口场景映射（管线步骤 6.6 产物；FR-XPLR-02 地图导航） */
+  locationEntries: LocationEntryMap;
   warnings: readonly Diagnostic[];
 }): GameDefinition {
-  const { validated, artifacts, scriptResult, warnings } = deps;
+  const { validated, artifacts, scriptResult, locationEntries, warnings } = deps;
   const domains = validated.domains;
   const manifest = domains.manifest;
   if (manifest === undefined) {
@@ -77,6 +80,7 @@ export function buildGameDefinition(deps: {
     effectRegistry: scriptResult.effectRegistry,
     mediaCatalog: artifacts.mediaCatalog,
     time: domains.time,
+    locationEntries,
     locales: Object.fromEntries(validated.locales),
     redirects: { ...manifest.redirects },
     diagnostics: mergeDiagnostics(warnings).filter((d) => d.severity === 'warning'),

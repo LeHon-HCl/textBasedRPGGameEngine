@@ -194,6 +194,19 @@ describe('05-B5 unlock：seen 域标记与 Profile 路由事件', () => {
     expect(outcome.patches).toEqual([]);
     expect(outcome.events).toEqual([{ type: 'unlock', kind: 'achievement', id: 'achv_first' }]);
   });
+
+  it('area 解锁写入 world.unlockedAreas（FR-XPLR-01；地图 FR-UI-02 的数据源）', () => {
+    // 2026-09-15 新增：此前 unlockedAreas 只有新游戏 bootstrap 一个写入口，
+    // 「地图只显示已解锁区域」时未解锁区域永远不出现（用户实测问题 1c 的连带）。
+    const { rt } = makeBuiltinRuntime();
+    expect(rt.state.world.unlockedAreas).toEqual([]);
+    const outcome = rt.exec([{ unlock: { kind: 'area', id: 'riverside' } }], makeCtx());
+    expect(rt.state.world.unlockedAreas).toEqual(['riverside']);
+    expect(outcome.events).toEqual([{ type: 'unlock', kind: 'area', id: 'riverside' }]);
+    // 幂等：重复解锁不产生重复项
+    rt.exec([{ unlock: { kind: 'area', id: 'riverside' } }], makeCtx());
+    expect(rt.state.world.unlockedAreas).toEqual(['riverside']);
+  });
 });
 
 describe('05-B5 media / notify：事件面产出（engine 不接触播放，DD-05）', () => {

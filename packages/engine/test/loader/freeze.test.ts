@@ -170,6 +170,7 @@ describe('freeze 步骤（管线步骤 7，06 任务 B4）', () => {
         validated: { domains: { manifest: undefined } } as unknown as ValidatedPackage,
         artifacts: minimalArtifacts(),
         scriptResult: minimalScriptResult(),
+        locationEntries: new Map(),
         warnings: [],
       });
     expect(call).toThrow(EngineError);
@@ -199,6 +200,7 @@ describe('freeze 步骤（管线步骤 7，06 任务 B4）', () => {
       validated: minimalValidated(),
       artifacts: minimalArtifacts(),
       scriptResult: minimalScriptResult(),
+      locationEntries: new Map(),
       warnings: [warning, errorDiag],
     });
     expect(definition.diagnostics).toEqual([warning]);

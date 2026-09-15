@@ -283,7 +283,7 @@ export interface ExprFunctionDef {
 | Manifest | `manifest.ts` | `gameId, entryScene, mainLang, langs[], contentTags[], contentWarning?, gameVersion, schemaVersion, minEngineVersion, redirects{}, credits`（contentWarning 为 2026-09-14 勘误补齐：§6.5 首启向导引用该键而本表原漏列） |
 | AttrDefs | `attrs.ts` | `numeric{min,max,init,show}` / `level{levels[],init}` / `derived{formula}` |
 | SceneDef | `scene.ts` | `id, area, entry.require?, segments[], choices[], media?, tags[]` |
-| AreaDef | `area.ts` | `locations{id→{nameKey, unlockIf?, moveCost, mapPos}}` |
+| AreaDef | `area.ts` | `locations{id→{nameKey, unlockIf?, moveCost, mapPos, entryScene?}}`（`entryScene` 为 2026-09-15 新增：地点→入口场景导航映射，FR-XPLR-02；省略时按「本区域恰一个非事件场景」推导，解析不出即加载期 error） |
 | EventDef | `event.ts` | `where{area,location?}, when{slots?,weekdays?}, trigger{type: condition\|random\|explore, weight?, cooldown?, once?}, priority?, mutexGroup?, tags[], scene` |
 | QuestDef | `quest.ts` | `giver?, acceptIf?, stages[{id, objectiveKey, completeWhen}], rewards[], failWhen?, conflicts[], requires[]` |
 | NpcDef | `npc.ts` | `nameKey, sprites[], schedule[{at:{slots,weekdays}, location, showIf?}], favor{min,max,stages[]}` |
@@ -490,7 +490,7 @@ export interface EffectContext {
 | `check` | 判定并按结果执行子效果 | §5.1，on_success/on_fail/… |
 | `battle` | 进入战斗会话 | jump 类，§5.2 |
 | `goto` / `back` / `ending` / `loop_transition` | 流程跳转 | 仅产生 jumps，不改状态 |
-| `unlock` | 回想/结局/百科/成就标记 | seen 域 |
+| `unlock` | 回想/结局/百科/成就/**区域**标记 | seen 域；`kind: area` 写 `world.unlockedAreas`（2026-09-15 新增，FR-XPLR-01 解锁条件的运行期写入口） |
 | `media` | 发出 MediaIntent | DD-05 |
 | `notify` | Toast 通知（文本键+插值） | FR-UI-07 |
 | `call` | 调用作者扩展指令 | DD-08，仅存在性校验后转发 |
@@ -522,6 +522,7 @@ export interface GameDefinition {
   exprCache: Map<string, CompiledExpr>;   // 全包表达式编译缓存
   functionRegistry: FunctionRegistry;     // 冻结后的最终注册表
   mediaCatalog: MediaCatalog;             // DD-05：assetId→{path,hash,preload}
+  locationEntries: Map<string, GameId>;   // 2026-09-15：`"<area>/<location>"`→入口场景（FR-XPLR-02 导航）
   locales: Record<Lang, LocalePack>;
   redirects: Record<string, GameId>;      // manifest.redirects（§5.7）
   diagnostics: Diagnostic[];              // warning 级收集（error 已阻断）
@@ -537,6 +538,10 @@ export interface GameDefinition {
 4 crossRef  —— §2.1 refKind 元数据驱动的悬空引用检查（跳转/物品/NPC/媒体/文本键）
 5 compile   —— 表达式编译入缓存；事件池索引；成就/任务 refs 反查表；媒体目录
 6 scripts   —— 宿主注入 ScriptModule[] → ScriptHost 注册 → 注册表冻结（§5.9）
+6.5 validateEffects —— 指令参数语义校验（约束 8 / §7.7 invalid-instruction-arg）
+6.6 resolveNavigation —— 地点→入口场景映射解析（FR-XPLR-02；2026-09-15 新增：
+      显式 `entryScene` 校验同区域/非事件场景；省略时按「本区域恰一个非事件场景」
+      推导，解析不出即 error）
 7 freeze    —— GameDefinition 全部字段 Object.freeze（运行期不可变）
 ```
 
@@ -1068,6 +1073,10 @@ export interface UiStore {
 ```ts
 interface NarrativeViewProps { session: SessionView; onAdvance(): void; onChoice(id: string): void; textSpeed: number }
 interface MapPanelProps { areas: AreaView[]; current: GameId; onMove(locId: string): void }  // FR-UI-02
+// 2026-09-15：AreaView 增 navigable（地点已解析入口场景）；宿主 moveTo 命中
+// locationEntries 时切换叙事会话（与选项 goto 同语义：替换当前帧、不压栈），
+// 事件跳转优先于导航（事件触发时进入子会话，不覆盖）。地图默认只列已解锁区域，
+// 开发者模式（GameHostOptions.developerMode）全量列出。
 ```
 
 - **响应式**：≥900px 双栏；<900px 侧栏折叠为 mobileTab（FR-UI-09）；触控目标 ≥44px。

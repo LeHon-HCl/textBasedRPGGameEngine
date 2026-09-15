@@ -380,6 +380,30 @@ describe('内容连通性（约束 7 五检）', () => {
       .join('；');
     expect(phantom, `无写入口的 flag（永远为假）：${detail}`).toEqual([]);
   });
+
+  it('C10 地图可导航：每个地点都解析出入口场景，且入口场景可达', async () => {
+    const definition = await definitionPromise;
+    // 为什么需要本检（FR-XPLR-02 地图导航；2026-09-15 用户实测问题 1c）：
+    // C1 只验「区域里有场景可达」，验不了「点地图能走到」——地点与场景之间
+    // 原本没有映射边，点击地图只会推进时间、不切场景，而全部检查全绿。
+    // 本检守护映射的**完整性与一致性**（解析规则本身在 navigation.ts 的单测覆盖）。
+    const missing: string[] = [];
+    for (const area of definition.areas.values()) {
+      for (const locationId of Object.keys(area.locations)) {
+        if (!definition.locationEntries.has(`${area.id}/${locationId}`)) {
+          missing.push(`${area.id}/${locationId}`);
+        }
+      }
+    }
+    expect(missing, `无导航入口的地点（地图点击将无反应）：${missing.join(', ')}`).toEqual([]);
+
+    // 入口场景必须从 entryScene 出发可达（否则「点得到却走不进去」）
+    const reachable = reachableSceneIds(definition);
+    const unreachable = [...definition.locationEntries.entries()]
+      .filter(([, sceneId]) => !reachable.has(sceneId))
+      .map(([key, sceneId]) => `${key} → ${sceneId}`);
+    expect(unreachable, `入口场景不可达（叙事上走不到）：${unreachable.join(', ')}`).toEqual([]);
+  });
 });
 
 /** 从 entryScene 出发沿跳转边 BFS 的可达场景集合 */

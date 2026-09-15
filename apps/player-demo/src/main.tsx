@@ -354,11 +354,15 @@ async function mount(): Promise<void> {
   const definition = await loadGamePackage(new InMemoryPackageSource(files));
   const attrDefs = parse(files['data/attrs.yaml'] ?? '') as AttrDefs | undefined;
   const contentTags = parse(files['data/content-tags.yaml'] ?? '') as ContentTagsDef | undefined;
+  // 开发者模式（FR-DEBG 的轻量入口）：`?dev=1` 时地图全量列出未解锁区域，
+  // 供内容走查与调试。完整调试面板（变量改值/跳场景/时间快进）属 25 号 C 组。
+  const developerMode = new URLSearchParams(window.location.search).get('dev') === '1';
   const host = createGameHost({
     definition,
     ...(attrDefs !== undefined ? { attrDefs } : {}),
     ...(contentTags !== undefined ? { contentTags } : {}),
     initialAttrs: { hp: 100, stamina: 30, insight: 0 },
+    developerMode,
     seed: 2026,
   });
   createRoot(container).render(<App host={host} definition={definition} />);

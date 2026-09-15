@@ -47,6 +47,10 @@
             "items": false,
             "minItems": 2,
             "maxItems": 2
+          },
+          "entryScene": {
+            "type": "string",
+            "refKind": "scene"
           }
         },
         "required": ["nameKey", "moveCost", "mapPos"],

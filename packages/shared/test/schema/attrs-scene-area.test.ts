@@ -207,9 +207,28 @@ describe('areaDefSchema（设计 §2.4 AreaDef，02 任务 A2）', () => {
           unlockIf?: string | undefined;
           moveCost: number;
           mapPos: [number, number];
+          entryScene?: string | undefined;
         }
       >
     >();
+  });
+
+  it('解析地点导航字段 entryScene（FR-XPLR-02 地图导航）', () => {
+    const parsed = areaDefSchema.parse({
+      ...VALID_AREA,
+      locations: {
+        market: {
+          nameKey: 'areas.old_town.market',
+          moveCost: 1,
+          mapPos: [120, 80],
+          entryScene: 'market_street',
+        },
+      },
+    });
+    expect(parsed.locations.market?.entryScene).toBe('market_street');
+    // 可选：省略时 undefined（加载器按「本区域恰一个非事件场景」推导）
+    const withoutEntry = areaDefSchema.parse(VALID_AREA);
+    expect(withoutEntry.locations.market?.entryScene).toBeUndefined();
   });
 
   it('非法样例：location 缺 mapPos / moveCost 为负 / mapPos 非二元数值', () => {

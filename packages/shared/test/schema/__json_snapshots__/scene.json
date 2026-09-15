@@ -778,6 +778,21 @@
                   },
                   "required": ["kind", "id"],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "area"
+                    },
+                    "id": {
+                      "type": "string",
+                      "refKind": "area"
+                    }
+                  },
+                  "required": ["kind", "id"],
+                  "additionalProperties": false
                 }
               ]
             }

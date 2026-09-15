@@ -223,18 +223,26 @@ flowchart LR
   P3 --> P4["4 crossRef<br/>悬空引用检查"]
   P4 --> P5["5 compile<br/>表达式编译缓存<br/>PoolIndex / mediaCatalog"]
   P5 --> P6["6 scripts<br/>宿主脚本注入 + 冻结"]
-  P6 --> P7["7 freeze<br/>deepFreeze → GameDefinition"]
+  P6 --> P65["6.5 validateEffects<br/>指令参数语义校验"]
+  P65 --> P66["6.6 resolveNavigation<br/>地点→入口场景映射"]
+  P66 --> P7["7 freeze<br/>deepFreeze → GameDefinition"]
 ```
 
 - **错误分两级**：`error` 阻断加载并抛 `EngineError`；`warning` 进入 `definition.diagnostics`
   随包携带（编辑器校验中心复用同一规则集）。
 - **引用类型驱动校验**（§2.1 `refKind` 元数据）：场景跳转/物品/NPC 引用缺失 → error；
   媒体/文本键缺失 → warning（运行期占位或回退显示原始键）。
+- **步骤 6.5 / 6.6**（2026-09-15 新增，均 error 级）：6.5 校验指令参数语义
+  （约束 8 `invalid-instruction-arg`）；6.6 解析地点→入口场景映射（FR-XPLR-02 地图
+  导航），显式 `entryScene` 校验同区域/非事件场景，省略时按「本区域恰一个非事件场景」
+  推导，解析不出即报错。
 - **`GameDefinition` 发布全部实体域**（scenes/areas/events/npcs/items/quests/shops/
-  achievements/perks/endings/factions），宿主由此投影装配运行时的目录注入面。
+  achievements/perks/endings/factions）与 `locationEntries`（导航映射），宿主由此投影
+  装配运行时的目录注入面。
 
 > 快速定位：入口 `loader/pipeline.ts` 的 `loadGamePackage()`；每步一个文件
-> （collect / parse / validate / cross-ref / compile / freeze / scripts）。
+> （collect / parse / validate / cross-ref / compile / scripts / validate-effects /
+> navigation / freeze）。
 
 <details>
 <summary><b>GameDefinition 的完整字段（写宿主接线时查）</b></summary>
@@ -523,8 +531,9 @@ React 通用游玩界面组件库（设计 §6）。**唯一允许 React/DOM 的
 - **narrative/**：`NarrativeView` / `OptionList`（受控；打字机只作用于最后一段）；
   `checkpoint.ts` 提供 `createChoiceCheckpoint` / `withChoiceCheckpoint`（FR-READ-03）。
 - **panels/**：`projectStatusPanel` + `StatusPanel`（五块内容 + 增量高亮，高亮走面板内部
-  不占 Toast）、`projectAreaViews` + `MapPanel`（区域图/移动消耗/解锁提示原文）、
-  `QuestLogPanel`（消费引擎 `projectQuestLog`，追踪条目置顶且不在分组内重复）。
+  不占 Toast）、`projectAreaViews` + `MapPanel`（区域图/移动消耗/解锁提示原文/
+  `navigable` 导航标注）、`QuestLogPanel`（面板级标题 + 空态；消费引擎 `projectQuestLog`，
+  追踪条目置顶且不在分组内重复）。
 - **notifications/**：`mergeToast` / `expireToasts`（纯函数：同类同键 500ms 窗口折叠、
   count 递增、超窗新起条）+ `ToastStack`（受控浮层）。
 - **settings/**：`SettingsPanel`（PlayerSettings 表单化：语言/排版/媒体开关/减弱动画/

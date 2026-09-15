@@ -9,17 +9,21 @@ locations:
     nameKey: areas.riverside.ferry
     moveCost: 1
     mapPos: [320, 140]
+    entryScene: riverside_ferry
   fish_market:
     nameKey: areas.riverside.fish_market
     moveCost: 1
     mapPos: [420, 180]
+    entryScene: riverside_fish_market
   warehouse:
     nameKey: areas.riverside.warehouse
     unlockIf: 'flag.ferryman_met || flag.warehouse_open'
     moveCost: 2
     mapPos: [500, 120]
+    entryScene: riverside_warehouse
   embankment:
     nameKey: areas.riverside.embankment
     unlockIf: 'attr.insight >= 3'
     moveCost: 1
     mapPos: [380, 240]
+    entryScene: riverside_embankment
