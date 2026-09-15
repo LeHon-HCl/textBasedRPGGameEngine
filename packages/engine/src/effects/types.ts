@@ -75,6 +75,38 @@ export interface EffectInstructionDef<T = unknown> {
    * EffectExecution.jumps；动态目标（advance_time）改用 ectx.emitJump。
    */
   jumps?(arg: T): readonly JumpTarget[];
+  /**
+   * 参数**语义**校验（可选；加载期执行，2026-09-15 增补，develop.md 约束 8）。
+   *
+   * 与 `schema` 的分工：schema 只保证结构（类型/必填），本钩子校验**跨数据语义**——
+   * 如 `set` 的 key 形态是否合法、`favor` 的目标 NPC 是否在包内声明、
+   * `wear` 的物品是否为 garment。返回诊断列表（空数组 = 通过）。
+   *
+   * 为什么必须在加载期：这些错误此前只在 `execute`（运行期）暴露，表现为
+   * 「包加载零诊断通过、玩家点到该选项才炸」——`set { key: 'npc.x.met' }` 即实例
+   * （见 `docs/retros/content-integrity-postmortem.md` 与设计 §7.7
+   * `invalid-instruction-arg`）。缺省实现返回空数组（结构校验足够时无需覆写）。
+   */
+  validateArg?(arg: T, ctx: EffectValidationContext): readonly EffectArgDiagnostic[];
+}
+
+/** 参数语义校验可用的包内目录（加载期注入；与 EffectRegistryOptions 目录同源） */
+export interface EffectValidationContext {
+  readonly npcs?: ReadonlyMap<string, unknown>;
+  readonly items?: ReadonlyMap<string, unknown>;
+  readonly quests?: ReadonlyMap<string, unknown>;
+  readonly factions?: ReadonlyMap<string, unknown>;
+  readonly endings?: ReadonlyMap<string, unknown>;
+  readonly scenes?: ReadonlyMap<string, unknown>;
+}
+
+/** 参数语义校验诊断（加载期 error/warning；code 对应设计 §7.7 规则 id） */
+export interface EffectArgDiagnostic {
+  /** 与设计 §7.7 规则 id 对齐（如 `invalid-instruction-arg`） */
+  readonly code: string;
+  readonly severity: 'error' | 'warning';
+  /** 可读细节（写入加载诊断的 detail） */
+  readonly detail: string;
 }
 
 /** 注册表存储视图（@internal）：参数泛型擦除，resolve 经 schema.parse 产出后再交还 def */

@@ -1,6 +1,7 @@
 import { collectPackage } from './collect.js';
 import { compilePackage } from './compile.js';
 import { crossRefCheck, buildRefRegistries } from './cross-ref.js';
+import { validateEffectArgs } from './validate-effects.js';
 import { throwIfErrors } from './diagnostics.js';
 import { buildGameDefinition } from './freeze.js';
 import { parsePackage } from './parse.js';
@@ -71,11 +72,16 @@ export async function loadGamePackage(
     options,
   });
 
+  // 6.5 指令参数语义校验（develop.md 约束 8；设计 §7.7 invalid-instruction-arg）
+  //   必须在 scripts 步骤之后：注册表此时已冻结（含作者扩展指令），校验面对完整指令集。
+  const effectArgDiagnostics = validateEffectArgs(inventory, scriptResult.effectRegistry);
+  throwIfErrors(effectArgDiagnostics);
+
   // 7 freeze
   return buildGameDefinition({
     validated,
     artifacts: compiled.artifacts,
     scriptResult,
-    warnings: [...validated.diagnostics, ...crossRefDiagnostics],
+    warnings: [...validated.diagnostics, ...crossRefDiagnostics, ...effectArgDiagnostics],
   });
 }

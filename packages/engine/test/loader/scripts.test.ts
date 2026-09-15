@@ -63,7 +63,7 @@ const EMPTY_DOMAINS: PackageDomains = {
   factions: new Map(),
 };
 
-const EMPTY_INVENTORY: PackageInventory = { refs: [], exprs: [], calls: [] };
+const EMPTY_INVENTORY: PackageInventory = { refs: [], exprs: [], calls: [], effects: [] };
 
 describe('scripts 步骤（管线步骤 6，06 任务 B3）', () => {
   it('缺省无脚本：functionRegistry 仅含内置 20 函数，效果注册表冻结', async () => {

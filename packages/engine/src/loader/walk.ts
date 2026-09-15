@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { effectParamSchemas, exprSchema } from '@game/shared';
+import { effectDataSchema, effectParamSchemas, exprSchema } from '@game/shared';
 import type { ExprNode, ExprSource, RefKind } from '@game/shared';
 import {
   achievementDefSchema,
@@ -61,6 +61,20 @@ export interface CallSite {
 }
 
 /**
+ * 效果指令位点（develop.md 约束 8；设计 §7.7 `invalid-instruction-arg`）。
+ *
+ * 抽取「数据结构里出现的每一条 effect」（指令 id + 已通过 schema 校验的参数 +
+ * 数据路径），供加载期跑各指令注册表的 `validateArg` 语义校验。
+ * 为什么在 walker 里抽：它已是「域 schema × 数据」的单遍遍历，effect 位点
+ * 与 refs/exprs/calls 同源——避免为校验再扫一遍 YAML 树。
+ */
+export interface EffectSite {
+  readonly id: string;
+  readonly arg: unknown;
+  readonly dataPath: string;
+}
+
+/**
  * 包内容盘点结果（设计 §3.4 步骤 4-6 的共享数据源；06 号）。
  *
  * 单遍遍历「域 schema × 已解析数据」抽出三类位点：`refs`（引用，供 crossRef 悬空
@@ -71,6 +85,8 @@ export interface PackageInventory {
   readonly refs: readonly RefSite[];
   readonly exprs: readonly ExprSite[];
   readonly calls: readonly CallSite[];
+  /** 效果指令位点（约束 8：加载期 validateArg 语义校验的输入） */
+  readonly effects: readonly EffectSite[];
 }
 
 /** zod v4 运行时 def 的访问面（walker 只依赖本结构） */
@@ -91,6 +107,7 @@ interface Wip {
   refs: RefSite[];
   exprs: ExprSite[];
   calls: CallSite[];
+  effects: EffectSite[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -118,6 +135,22 @@ function isExprSafeUnion(options: readonly z.ZodType[]): boolean {
 /** 事件 require 是缓存敏感位置（DD-01：pure=false 函数禁入事件 require） */
 function isRequireSensitivePath(path: string): boolean {
   return path.endsWith('.trigger.require');
+}
+
+/**
+ * 效果指令位点收集（约束 8）：抽出「单键 id + 参数」。
+ *
+ * 调用点已确认 schema 是 effectDataSchema（见 union 分支），此处按结构取值：
+ * 恰一个键，键即指令 id。键不在 effectParamSchemas 时跳过（未知指令由 schema
+ * 校验与 scripts 步骤各自负责，避免重复诊断）。
+ */
+function maybeCollectEffect(data: unknown, path: string, out: Wip): void {
+  if (!isRecord(data)) return;
+  const keys = Object.keys(data);
+  if (keys.length !== 1) return;
+  const id = keys[0] as string;
+  if (!(id in effectParamSchemas)) return;
+  out.effects.push({ id, arg: data[id], dataPath: path });
 }
 
 /** 单遍遍历：refKind 元数据、exprSchema 身份与 call 指令同趟收集 */
@@ -197,6 +230,12 @@ function walk(schema: z.ZodType, data: unknown, path: string, out: Wip): void {
         matched = options.find((option) => option.safeParse(data).success);
       }
       if (matched === undefined) return;
+      // 效果指令位点（约束 8）：effectDataSchema 是**普通 union**（非 discriminated），
+      // 其成员形态为「单键对象，键 = 指令 id」。命中后此处按 schema 身份记录位点
+      // ——不能在 object 分支判（那里递归进来的是 matched 成员 schema，已非 union）。
+      if (schema === effectDataSchema) {
+        maybeCollectEffect(data, path, out);
+      }
       // 宽松字符串联合（exprOrLiteral：字符串可能是字面量）不下探表达式识别
       if (typeof data === 'string' && matched === exprSchema && !isExprSafeUnion(options)) {
         return;
@@ -238,7 +277,7 @@ export function collectXFunctionCalls(ast: ExprNode, out: Set<string>): void {
  * 结果分别供 crossRef / compile / scripts 消费）。
  */
 export function inventoryPackage(domains: PackageDomains): PackageInventory {
-  const out: Wip = { refs: [], exprs: [], calls: [] };
+  const out: Wip = { refs: [], exprs: [], calls: [], effects: [] };
 
   const walkDomain = (schema: z.ZodType, data: unknown, basePath: string): void => {
     walk(schema, data, basePath, out);
@@ -296,5 +335,5 @@ export function inventoryPackage(domains: PackageDomains): PackageInventory {
     walkDomain(factionDefSchema, faction, `factions[${id}]`);
   }
 
-  return { refs: out.refs, exprs: out.exprs, calls: out.calls };
+  return { refs: out.refs, exprs: out.exprs, calls: out.calls, effects: out.effects };
 }
