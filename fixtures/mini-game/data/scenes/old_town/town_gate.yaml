@@ -10,6 +10,10 @@ choices:
     showIf: 'attr.insight >= 2'
     effects:
       - add: { key: 'attr.insight', amount: 2 }
+      # 任务接取（2026-09-15 连通性修复：此前无任何 accept 调用点，两条任务线
+      # 永远停在 undiscovered。wall_rubbing 的 acceptIf 为 flag.heard_rumor，
+      # 集市「听传闻」后此处即可接取——剧情因果：听到传闻 → 来镇口辨认徽记）
+      - quest: { id: wall_rubbing, action: accept }
   - id: back_market
     textKey: scenes.town_gate.choice.back_market
     goto: market_street
@@ -17,3 +21,12 @@ choices:
   - id: go_riverside
     textKey: scenes.town_gate.choice.go_riverside
     goto: riverside_ferry
+  # 结局入口（2026-09-15 连通性修复）：此前 quiet_town 无任何触发点。
+  # 语义：在镇口选择「就此离开」→ 置 left_town（endings.reachWhen 的条件之一），
+  # 满足时间条件（day ≥ 7）时达成结局；未满足时也不阻断（flag 已置，日后再来）。
+  - id: leave_town
+    textKey: scenes.town_gate.choice.leave_town
+    showIf: 'time.day >= 7'
+    effects:
+      - flag: { name: 'left_town' }
+      - ending: quiet_town
