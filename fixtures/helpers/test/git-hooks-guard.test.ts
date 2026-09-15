@@ -7,7 +7,15 @@
 //
 // 依赖：git 可执行（本仓库所有开发与 CI 环境均具备）。
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +35,11 @@ function makeTempRepo(branch: string): string {
   git('config', 'user.name', 'hooks guard test');
   mkdirSync(join(dir, '.githooks'), { recursive: true });
   for (const hook of ['pre-commit', 'pre-push']) {
-    copyFileSync(join(hookSource, hook), join(dir, '.githooks', hook));
+    const target = join(dir, '.githooks', hook);
+    copyFileSync(join(hookSource, hook), target);
+    // POSIX 上 git 只执行带可执行位的钩子；copyFileSync 默认 0644，
+    // 不显式 chmod 会让守卫在 Linux/CI 上静默失效（本测试曾在 CI 上因此误报「提交成功」）。
+    chmodSync(target, 0o755);
   }
   git('config', 'core.hooksPath', '.githooks');
   writeFileSync(join(dir, 'seed.txt'), 'seed\n');
@@ -135,6 +147,22 @@ describe('git 钩子：main 分支禁止直接提交（约束 9 机械化兜底�
   });
 
   describe('安装接线', () => {
+    it('钩子文件以可执行位入库（100755）——否则 Linux/macOS 上 git 静默忽略', () => {
+      // 背景：本仓库在 Windows 上开发（core.filemode=false），git add 默认记为
+      // 100644；而 POSIX 平台只执行带可执行位的钩子——守卫会在 Unix/CI 上静默失效。
+      // 该断言守护 `git update-index --chmod=+x` 的落地不被回退。
+      const output = execFileSync('git', ['ls-files', '-s', '.githooks/'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      });
+      const modes = output
+        .trim()
+        .split('\n')
+        .map((line) => line.split(/\s+/)[0]);
+      expect(modes).toContain('100755');
+      expect(modes.filter((m) => m === '100644')).toEqual([]);
+    });
+
     it('setup-git-hooks.mjs 存在且把 core.hooksPath 指向 .githooks', () => {
       const script = join(repoRoot, 'scripts', 'setup-git-hooks.mjs');
       // 在临时仓库中执行该脚本，验证其真实效果（而非读源码文本）
