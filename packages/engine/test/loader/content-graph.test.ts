@@ -1,8 +1,6 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
-import { InMemoryPackageSource, loadGamePackage } from '@game/engine';
-import type { GameDefinition } from '@game/engine';
+import { loadFixturePackage } from './fs-source.js';
+import type { GameDefinition } from '../../src/index.js';
 
 /**
  * 内容连通性检查（develop.md 约束 7；2026-09-15 新增）。
@@ -22,23 +20,10 @@ import type { GameDefinition } from '@game/engine';
  * - 豁免：内容可显式标记预留（当前夹具无预留项）。
  */
 
-const ROOT = 'fixtures/mini-game';
-
-function listFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true, recursive: true })
-    .filter((e) => e.isFile())
-    .map((e) => `${e.parentPath.replaceAll('\\', '/')}/${e.name}`);
-}
-
-function readPackage(): Record<string, string> {
-  const files: Record<string, string> = {};
-  for (const abs of listFiles(ROOT)) {
-    files[abs.slice(abs.indexOf(ROOT) + ROOT.length + 1)] = readFileSync(abs, 'utf8');
-  }
-  return files;
-}
-
-const files = readPackage();
+/**
+ * 夹具加载走仓库共用辅助（`./fs-source.js`，与 mini-game.test.ts 同规）：
+ * engine 包内测试禁止自引用包名（lint R2），且加载语义须与 06 号端到端一致。
+ */
 
 /** 取场景被引用为跳转目标的全部 id（choice.goto + effects 内 goto/back/ending/quest） */
 interface SceneChoice {
@@ -60,7 +45,7 @@ function collectFlowTargets(choice: SceneChoice): string[] {
 }
 
 describe('内容连通性（约束 7 五检）', () => {
-  const definitionPromise = loadGamePackage(new InMemoryPackageSource(files));
+  const definitionPromise = loadFixturePackage('mini-game');
 
   it('C1 区域可达：从 entryScene 出发能到达每个区域的至少一个场景', async () => {
     const definition = await definitionPromise;
