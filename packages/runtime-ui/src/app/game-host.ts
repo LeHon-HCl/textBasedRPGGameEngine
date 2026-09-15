@@ -10,6 +10,7 @@ import type {
 import {
   ContentFilter,
   createBuiltinEffectRegistry,
+  createEventStepProvider,
   createItemTickProvider,
   createNpcScheduleDeriver,
   createNpcScheduleProvider,
@@ -21,6 +22,7 @@ import {
   DEFAULT_PLAYER_SETTINGS,
   DEFAULT_TIME_CONFIG,
   ENGINE_VERSION,
+  EventPool,
   GameRuntime,
   MediaResolver,
   newGameState,
@@ -216,6 +218,12 @@ export function createGameHost(options: GameHostOptions): GameHost {
     new ContentFilter({ tags: options.contentTags?.tags ?? [] }, { disabledTags });
 
   let runtime: GameRuntime | undefined;
+  /**
+   * 事件池持有者（约束 8 接线）：装配期创建（供 `__events.eval` 注入），
+   * start 后由 `moveTo` 经 `locate()` 同步当前作用域（池按 area/location 过滤候选）。
+   * 用 holder 对象是因为池在 `new GameRuntime` 之前构造、而位置在之后才更新。
+   */
+  const eventPoolHolder: { pool?: EventPool } = {};
   /** 叙事会话（每次 start/rollback 重建） */
   let session: SceneRunnerType | undefined;
   let unsubscribeBridge: Unsubscribe | undefined;
@@ -364,6 +372,9 @@ export function createGameHost(options: GameHostOptions): GameHost {
       config: timeConfig,
       statusTick: createItemTickProvider(),
       npcSchedule: createNpcScheduleProvider(timeConfig),
+      // 步骤 6 事件池评估（§4.4；develop.md 约束 8「宿主接线完整性」）：
+      // 此前缺失导致 10 条事件零触发——包内有 events.yaml 却无人评估。
+      eventEval: createEventStepProvider(),
       questDeadline: createQuestDeadlineProvider(),
     });
   }
@@ -438,6 +449,30 @@ export function createGameHost(options: GameHostOptions): GameHost {
         factions: definition.factions,
         quests: definition.quests,
         timeConfig,
+        // 事件池注入（`__events.eval` 需要；develop.md 约束 8「宿主接线完整性」）：
+        // 此前缺失导致包内 10 条事件零触发（有 events.yaml 却无人评估）。
+        // require 的字符串求值走 exprCache（加载期编译）+ 运行时 evalCondition，
+        // 与地图解锁条件（evalConditionSource）同一口径。
+        eventPool: (eventPoolHolder.pool = new EventPool({
+          events: definition.events,
+          poolIndex: definition.poolIndex,
+          area: currentLocation.area,
+          ...(currentLocation.location !== undefined ? { location: currentLocation.location } : {}),
+          config: timeConfig,
+          // 闭包内懒取运行时：装配发生在 newGameState/new GameRuntime 之前，
+          // 而池的实际求值总在 start() 之后（此时 requireRuntime 已可用）。
+          runtime: {
+            get state() {
+              return requireRuntime().state as never;
+            },
+            eval: ((expr: unknown) => requireRuntime().eval(expr as never)) as never,
+            evalCondition: ((expr: unknown) =>
+              requireRuntime().evalCondition(expr as never)) as never,
+            rng: { next: () => rng.next() },
+          },
+          evalRequire: (source) => evalConditionSource(source),
+          contentFilter: contentFilter(),
+        })),
       }),
       derivers: [
         createQuestDeriver(machine, {
@@ -531,9 +566,19 @@ export function createGameHost(options: GameHostOptions): GameHost {
           };
           return;
         }
-        // 移动消耗经时间管线（一次推进 = 一个 undo 点，FR-XPLR-02）
-        if (location.moveCost > 0) timePipeline(requireRuntime()).advance(location.moveCost);
         currentLocation = target;
+        // 移动消耗经时间管线（一次推进 = 一个 undo 点，FR-XPLR-02）。
+        // **事件跳转回流**（develop.md 约束 8）：管线步骤 6 的事件评估产出
+        // `outcome.jumps`，必须注入当前会话来播放（事件场景按子会话进入，§4.2
+        // 挂起栈）。此前宿主丢弃了 jumps → 事件永不呈现（内容完整性反思报告）。
+        if (location.moveCost > 0) {
+          // 事件池的作用域随位置更新（池按 area/location 过滤候选）
+          const pool = eventPoolHolder.pool;
+          if (pool !== undefined) pool.locate(target.area, target.location);
+          const outcome = timePipeline(requireRuntime()).advance(location.moveCost);
+          withSession((runner) => runner.applyFlowJumps(outcome.jumps));
+        }
+        syncSession();
       }),
     calendar: () => projectCalendar(requireRuntime().state.world.time, timeConfig),
     questLog: () => projectQuestLog(requireRuntime().state, definition.quests),

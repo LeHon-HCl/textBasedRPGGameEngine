@@ -419,6 +419,25 @@ export class SceneRunner {
     return [...this.#history];
   }
 
+  /**
+   * 外部流程跳转接入（2026-09-15 增补；develop.md 约束 8「宿主接线完整性」）。
+   *
+   * 用途：**时间管线产生的事件跳转**（§4.4 步骤 6 `__events.eval` → `ExecOutcome.jumps`）
+   * 需要注入当前会话——事件场景作为子会话进入（挂起栈语义与选项跳转一致）。
+   *
+   * 为什么需要公开方法：`#consumeJumps` / `#enterScene` 是私有的（08 号设计假定
+   * 跳转只源自选项与宏），但事件评估发生在**时间推进**中（宿主驱动 `moveTo` /
+   * 时段推进），其跳转必须回流到会话才能播放。此前宿主丢弃了这些跳转
+   * → 事件永不呈现（见 `docs/retros/content-integrity-postmortem.md`）。
+   *
+   * 语义：与选项跳转**完全一致**的流程跳转消费（取最后一个有效跳转：
+   * scene → 子会话/导航、ending/back/loopTransition → 终局），
+   * 非流程类（battle/advanceTime）忽略并保持当前相位。
+   */
+  applyFlowJumps(flowJumps: readonly JumpTarget[]): void {
+    this.#consumeJumps(flowJumps);
+  }
+
   /** 段落尽后的终局迁移（§4.2：存在可见选项 → await_choice，否则 finished） */
   #transitionAfterExhausted(): void {
     // 只读会话（回想重放）不可交互：段落尽即自然终局，不进入选项相位
