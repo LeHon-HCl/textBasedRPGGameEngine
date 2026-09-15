@@ -12,7 +12,10 @@ choices:
       - add: { key: 'attr.insight', amount: 2 }
       - give: { item: warm_bun, count: 2 }
       - notify: { textKey: 'scenes.ev_embankment_find_scene.notify.picked' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: leave_it
     textKey: scenes.ev_embankment_find_scene.choice.leave
     effects:
       - set: { key: 'flag.embankment_found', value: true }
+      - back: null

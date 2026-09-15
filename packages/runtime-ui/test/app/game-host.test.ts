@@ -164,6 +164,95 @@ describe('选择前 checkpoint（FR-READ-03）', () => {
   });
 });
 
+describe('选择失败后的会话恢复（2026-09-15 用户实测缺陷）', () => {
+  /**
+   * 背景：某选项的效果在运行期失败（典型：`quest: accept` 被状态机拒绝）时，
+   * SceneRunner 会停在 `resolving` 错误挂起态（设计 §4.2：由宿主经 rollback 恢复）。
+   * 原实现只回滚状态、**未重建 session**——`choices()` 只在 `await_choice` 返回列表，
+   * 于是选项全部消失，玩家卡死在场景里（用户实测：「再点一次徽记选项全没了」）。
+   *
+   * 为什么用注入的失败选项而不是夹具现成的选项：夹具里的失败路径是**内容缺陷**
+   * （修掉后不应再有），而本组用例守护的是**宿主契约**——任何效果失败都不得
+   * 把会话留在 `resolving`。故构造一个必然失败的选项（acceptIf 未满足时 accept）。
+   */
+  function injectAlwaysFailChoice(files: Record<string, string>): Record<string, string> {
+    const key = 'data/scenes/old_town/arrival.yaml';
+    const original = files[key] as string;
+    // wall_rubbing.acceptIf = flag.heard_rumor；新档未听传闻 → accept 必然被拒
+    const injected = original.replace(
+      /^choices:$/m,
+      [
+        'choices:',
+        '  - id: always_fail_probe',
+        '    textKey: scenes.arrival.choice.go_market',
+        '    effects:',
+        '      - quest: { id: wall_rubbing, action: accept }',
+      ].join('\n'),
+    );
+    return { ...files, [key]: injected };
+  }
+
+  async function makeHostWithFailingChoice(): Promise<GameHost> {
+    const definition = await loadGamePackage(
+      new InMemoryPackageSource(injectAlwaysFailChoice(files)),
+    );
+    const { attrDefs, contentTags } = readSupportDomains(files);
+    const host = createGameHost({
+      definition,
+      attrDefs,
+      contentTags,
+      initialAttrs: { hp: 100, stamina: 30, insight: 0 },
+      seed: 2026,
+    });
+    host.start();
+    return host;
+  }
+
+  /** 推进段落直到出现选项（或到达上限） */
+  function drainToChoice(host: GameHost): void {
+    for (let i = 0; i < 8; i += 1) {
+      if (host.store.getState().session.phase !== 'await_advance') break;
+      host.advance();
+    }
+  }
+
+  it('选择失败后：会话不留在 resolving，选项仍可用，可继续游玩', async () => {
+    const host = await makeHostWithFailingChoice();
+    drainToChoice(host);
+    const before = host.store.getState().session.choices.map((c) => c.id);
+    expect(before).toContain('always_fail_probe');
+
+    host.choose('always_fail_probe');
+    // 错误被显性化（UI 错误卡片的数据面）
+    expect(host.lastError()?.code).toBe('EFFECT_FAILED');
+
+    // 关键断言：失败后会话必须已恢复（而非卡在 resolving）。
+    // 恢复口径遵循设计 §6.3「rollback(1) + 重建 session」：状态回到选择前、
+    // 叙事在该场景重开，故相位是 entering/await_advance，**不是** resolving。
+    const afterFail = host.store.getState().session;
+    expect(afterFail.phase).not.toBe('resolving');
+    expect(afterFail.sceneId).toBe('arrival');
+
+    // 重开会话后重新推进 → 选项恢复，且能正常选（证明未被永久锁死）
+    drainToChoice(host);
+    const recovered = host.store.getState().session;
+    expect(recovered.phase).toBe('await_choice');
+    expect(recovered.choices.map((c) => c.id)).toContain('go_market');
+    host.choose('go_market');
+    expect(host.lastError()).toBeNull();
+    expect(host.store.getState().session.sceneId).toBe('market_street');
+  });
+
+  it('失败事务原子回滚：状态与失败前逐字段一致', async () => {
+    const host = await makeHostWithFailingChoice();
+    drainToChoice(host);
+    const before = host.runtime.serialize();
+    host.choose('always_fail_probe');
+    expect(host.lastError()?.code).toBe('EFFECT_FAILED');
+    expect(host.runtime.serialize()).toEqual(before);
+  });
+});
+
 describe('面板数据源投影（FR-UI-02/03/QUEST-03）', () => {
   it('状态面板投影含属性（attrs.yaml 的 numeric 域）', async () => {
     const host = await makeHost();

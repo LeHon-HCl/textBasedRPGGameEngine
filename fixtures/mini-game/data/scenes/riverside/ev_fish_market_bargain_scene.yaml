@@ -10,11 +10,16 @@ choices:
     effects:
       - money: { town_silver: 8 }
       - notify: { textKey: 'scenes.ev_fish_market_bargain_scene.notify.win' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: pay_fair
     textKey: scenes.ev_fish_market_bargain_scene.choice.fair
     effects:
       - money: { town_silver: -3 }
       - add: { key: 'attr.stamina', amount: 5 }
       - notify: { textKey: 'scenes.ev_fish_market_bargain_scene.notify.fair' }
+      - back: null
   - id: walk_away
     textKey: scenes.ev_fish_market_bargain_scene.choice.away
+    effects:
+      - back: null

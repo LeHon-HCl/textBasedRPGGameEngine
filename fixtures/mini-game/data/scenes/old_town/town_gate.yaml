@@ -5,9 +5,24 @@ segments:
   - key: scenes.town_gate.guard
   - key: scenes.town_gate.wall
 choices:
+  # 与老卫兵搭话（2026-09-15 补）：此前 ev_wall_whisper 的 require 读
+  # `flag.old_guard_met`，而全包**没有任何写入口**——该事件永不触发（约束 7 的
+  # C9「幽灵 flag」检抓出）。同时在 npc 记忆域记 `talked`，供 wall_rubbing 第 2
+  # 阶段 completeWhen（`npc.old_guard.talked`）推进。
+  - id: greet_guard
+    textKey: scenes.town_gate.choice.greet_guard
+    showIf: '!flag.old_guard_met'
+    effects:
+      - flag: { name: 'old_guard_met' }
+      - set: { key: 'npc.old_guard.flags.talked', value: true }
+      - notify: { textKey: 'scenes.town_gate.notify.guard_met' }
   - id: inspect_wall
     textKey: scenes.town_gate.choice.inspect_wall
     showIf: 'attr.insight >= 2'
+    # 一次性（§4.2「once 选项」）：辨认徽记是「看过就完了」的动作，且其效果含
+    # `quest: accept`——重复触发会被任务状态机合法拒绝（active→active 非 accept
+    # 触发）。加 once 后选过即隐藏，与同夹具 survey/mark_shrine 的守卫口径一致。
+    once: true
     effects:
       - add: { key: 'attr.insight', amount: 2 }
       # 任务接取（2026-09-15 连通性修复：此前无任何 accept 调用点，两条任务线

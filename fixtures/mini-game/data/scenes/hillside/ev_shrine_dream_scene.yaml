@@ -12,8 +12,11 @@ choices:
       - set: { key: 'flag.shrine_dream_seen', value: true }
       - add: { key: 'attr.insight', amount: 3 }
       - notify: { textKey: 'scenes.ev_shrine_dream_scene.notify.accepted' }
+      # 出口（事件场景是子会话，§4.2）：约束 7 C7 检守护
+      - back: null
   - id: resist_vision
     textKey: scenes.ev_shrine_dream_scene.choice.resist
     effects:
       - set: { key: 'flag.shrine_dream_seen', value: true }
       - add: { key: 'attr.hp', amount: -5 }
+      - back: null

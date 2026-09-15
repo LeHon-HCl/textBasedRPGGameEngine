@@ -563,11 +563,18 @@ export function createGameHost(options: GameHostOptions): GameHost {
           // 选择前 checkpoint（FR-READ-03）：先打点再执行，顺序不可交换；
           // 失败时会话可能停在 resolving，由宿主 rollback 恢复（§4.2 约定）
           const label = `choice:${runner.currentSceneId}:${choiceId}`;
+          const sceneBefore = runner.currentSceneId;
           rt.checkpoint(label);
           try {
             runner.choose(choiceId);
           } catch (error) {
             rt.rollback(1);
+            // **会话重建（2026-09-15 修复）**：状态回滚只还原状态树，会话仍停在
+            // `resolving` 错误挂起态（设计 §4.2），而 `choices()` 仅在该相位为
+            // `await_choice` 时返回列表——不重建则选项全部消失、玩家卡死在场景
+            // （用户实测：重复点击「辨认徽记」触发 EFFECT_FAILED 后无任何选项）。
+            // 在**失败前所在场景**重开会话：玩家留在原处、可另选其他选项。
+            session = createRunnerSession(runnerRuntime(), sceneBefore);
             throw error;
           }
         });

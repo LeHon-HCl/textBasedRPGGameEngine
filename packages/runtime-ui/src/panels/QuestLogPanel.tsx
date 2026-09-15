@@ -16,6 +16,8 @@ import { TOUCH_TARGET_PX } from '../app/AppShell.js';
 
 /** 任务状态分组标题（可注入本地化；缺省中文可用性回退） */
 export interface QuestLogLabels {
+  /** 面板标题（缺省「任务」；与 StatusPanel/MapPanel 的面板级标题同规） */
+  readonly title?: string;
   readonly tracked?: string;
   readonly active?: string;
   readonly ready_to_submit?: string;
@@ -30,10 +32,13 @@ export interface QuestLogLabels {
   readonly startedAt?: string;
   /** 发布者模板（`{npc}` 占位） */
   readonly giver?: string;
+  /** 空态提示（无任何任务时显示，缺省「暂无任务」） */
+  readonly empty?: string;
 }
 
 /** 缺省文案（D4 边界：正式文案由宿主注入） */
 const DEFAULT_LABELS: Required<QuestLogLabels> = {
+  title: '任务',
   tracked: '追踪中',
   active: '进行中',
   ready_to_submit: '待提交',
@@ -45,6 +50,7 @@ const DEFAULT_LABELS: Required<QuestLogLabels> = {
   untrack: '取消追踪',
   startedAt: '第 {day} 天接取',
   giver: '委托人：{npc}',
+  empty: '暂无任务',
 };
 
 /** 状态 → 缺省标题键（覆盖 labels 未提供的状态） */
@@ -77,8 +83,12 @@ export interface QuestLogPanelProps {
  * 任务日志面板（见模块 TSDoc）。
  *
  * 呈现细节：
+ * - **面板级标题（`labels.title`）恒渲染**——与 StatusPanel/MapPanel 同规：
+ *   三面板在宽屏侧栏并排，缺标题会让空任务日志整块「无字可认」
+ *   （2026-09-15 用户实测：宽屏看不到「任务」，窄屏 Tab 有标签）；
  * - 追踪条目只在置顶区渲染（不在分组内重复，避免同一任务出现两次）；
- * - 空分组/空追踪区不渲染标题（无噪声）；
+ * - 空分组/空追踪区不渲染分组标题（无噪声）；
+ * - 无任何任务时给一行空态提示（否则面板只剩标题）；
  * - `objectiveKey` 经 `nameOf` 物化（D4：数据与文本分离）。
  */
 export function QuestLogPanel(props: QuestLogPanelProps): ReactNode {
@@ -86,9 +96,14 @@ export function QuestLogPanel(props: QuestLogPanelProps): ReactNode {
   const trackedIds = new Set(props.tracked);
   /** 追踪区条目按 tracked 顺序（视图已按调用方顺序置顶，此处原样消费） */
   const trackedEntries = props.view.tracked;
+  const hasAnyEntry =
+    trackedEntries.length > 0 || props.view.groups.some((group) => group.entries.length > 0);
 
   return (
     <section style={styles.root}>
+      <h3 style={styles.title}>{labels.title}</h3>
+      {hasAnyEntry ? null : <p style={styles.empty}>{labels.empty}</p>}
+
       {trackedEntries.length > 0 ? (
         <div style={styles.group}>
           <h3 style={styles.groupTitle}>{labels.tracked}</h3>
@@ -154,6 +169,8 @@ function renderEntry(
 /** 样式（内联；只锁定触控尺寸与列表结构这类契约性属性） */
 const styles: Record<string, CSSProperties> = {
   root: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  title: { margin: 0, fontSize: '14px', fontWeight: 600, opacity: 0.8 },
+  empty: { margin: 0, fontSize: '13px', opacity: 0.6 },
   group: { display: 'flex', flexDirection: 'column', gap: '6px' },
   groupTitle: { margin: 0, fontSize: '14px', fontWeight: 600, opacity: 0.8 },
   entry: {
