@@ -45,6 +45,8 @@ import type {
   Unsubscribe,
 } from '@game/engine';
 import { bridgeRuntimeEvents } from './types.js';
+import { checkHostWiring } from './wiring-check.js';
+import type { WiringWarning } from './wiring-check.js';
 import { createUiStore } from './store.js';
 import type { SessionView, UiStoreApi } from './types.js';
 import { projectAreaViews } from '../panels/map-projection.js';
@@ -163,6 +165,13 @@ export interface GameHost {
   setDisabledTags(disabledTags: readonly string[]): void;
   /** 最近一次错误（null = 无） */
   lastError(): HostError | null;
+  /**
+   * 接线缺口告警（约束 8 自检产物；`start()` 时刷新）。
+   *
+   * 用途：调试面板展示、「接线完备性」测试断言、E2E 在控制台校验。
+   * 空数组 = 包内数据与宿主能力匹配（正常态）。
+   */
+  wiringWarnings(): readonly WiringWarning[];
   /** 换档/卸载时退订事件桥（防旧运行时事件串入） */
   dispose(): void;
 }
@@ -224,6 +233,8 @@ export function createGameHost(options: GameHostOptions): GameHost {
    * 用 holder 对象是因为池在 `new GameRuntime` 之前构造、而位置在之后才更新。
    */
   const eventPoolHolder: { pool?: EventPool } = {};
+  /** 接线缺口告警（constraint 8 自检产物；start() 时刷新，调试面板与测试消费） */
+  let wiringWarnings: readonly WiringWarning[] = [];
   /** 叙事会话（每次 start/rollback 重建） */
   let session: SceneRunnerType | undefined;
   let unsubscribeBridge: Unsubscribe | undefined;
@@ -491,6 +502,21 @@ export function createGameHost(options: GameHostOptions): GameHost {
     unsubscribeBridge?.();
     unsubscribeBridge = bridgeRuntimeEvents(runtime, store);
     lastError = null;
+    // 接线自检（develop.md 约束 8）：把「包内有数据但宿主未接线」显性化。
+    // 不阻断启动（这是装配告警而非数据错误），但必须可见——写控制台并记入
+    // 宿主告警列表，调试面板与 E2E 可断言（M1 收尾的「事件零触发」即此类缺口）。
+    wiringWarnings = checkHostWiring(definition, {
+      eventEval: true, // timePipeline 恒定接入（见 timePipeline 装配）
+      statusTick: true,
+      npcSchedule: true,
+      questDeadline: true,
+      bodyRevert: false, // 14 号的临时变身回退尚未接入管线（见 wiring-check 说明）
+    });
+    for (const warning of wiringWarnings) {
+      // 显性化：控制台告警（宿主是浏览器包，直接 console.warn；文案用中文，
+      // 与引擎侧 engine.warn 的「数据问题要看得见」标准一致）。
+      console.warn(`[host-wiring-gap] ${warning.capability}: ${warning.detail}`);
+    }
     // 玩家设置**跨开局保留**：主菜单阶段即可改语言/内容标签（FR-CGRD-04 向导、
     // FR-UI-05 设置面板）。此处把镜像同步进 store（受控回流），新档缺省由
     // newGameState 的 bootstrap.settings 承担（见上方 start 的 bootstrap 注入）。
@@ -630,6 +656,7 @@ export function createGameHost(options: GameHostOptions): GameHost {
       syncSession();
     },
     lastError: () => lastError,
+    wiringWarnings: () => wiringWarnings,
     dispose: () => {
       unsubscribeBridge?.();
       unsubscribeBridge = undefined;
