@@ -7,6 +7,8 @@ import {
   attrDefsSchema,
   bodyDefSchema,
   contentTagsDefSchema,
+  encounterDefSchema,
+  enemyDefSchema,
   endingDefSchema,
   eventDefSchema,
   factionDefSchema,
@@ -321,6 +323,12 @@ export function inventoryPackage(domains: PackageDomains): PackageInventory {
   }
   for (const [id, shop] of domains.shops) {
     walkDomain(shopDefSchema, shop, `shops[${id}]`);
+  }
+  for (const [id, enemy] of domains.enemies) {
+    walkDomain(enemyDefSchema, enemy, `enemies[${id}]`);
+  }
+  for (const [id, encounter] of domains.encounters) {
+    walkDomain(encounterDefSchema, encounter, `encounters[${id}]`);
   }
   for (const [id, achievement] of domains.achievements) {
     walkDomain(achievementDefSchema, achievement, `achievements[${id}]`);

@@ -6,47 +6,52 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*$"
     },
-    "nameKey": {
-      "type": "string",
-      "minLength": 1,
-      "refKind": "text"
-    },
-    "descKey": {
-      "type": "string",
-      "minLength": 1,
-      "refKind": "text"
-    },
-    "cost": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "effects": {
+    "enemies": {
       "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "refKind": "enemy"
+      }
+    },
+    "openingKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "roundKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "victoryKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "defeatKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "escapeKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "escapeRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "rewards": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/__schema0"
       }
-    },
-    "requires": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-z][a-z0-9_]*$"
-      }
-    },
-    "conflicts": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-z][a-z0-9_]*$"
-      }
-    },
-    "repeatable": {
-      "type": "boolean"
     }
   },
-  "required": ["id", "nameKey", "cost", "effects"],
+  "required": ["id", "enemies", "openingKey", "victoryKey", "defeatKey"],
   "additionalProperties": false,
   "$defs": {
     "__schema0": {

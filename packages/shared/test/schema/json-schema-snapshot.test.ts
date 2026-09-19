@@ -21,6 +21,8 @@ import {
   questDefSchema,
   saveBlobSchema,
   sceneDefSchema,
+  enemyDefSchema,
+  encounterDefSchema,
   serializedStateSchema,
   shopDefSchema,
   statsPageDefSchema,
@@ -68,11 +70,14 @@ const CASES: ReadonlyArray<[name: string, schema: z.ZodType]> = [
   ['save-blob', saveBlobSchema],
   ['profile', profileSchema],
   ['time', timeConfigSchema],
+  // 16 号战斗域回填（设计 §5.2 EncounterDef 缺口）：enemy/encounter 两域各自锁定
+  ['enemy', enemyDefSchema],
+  ['encounter', encounterDefSchema],
 ];
 
 describe('schema JSON Schema 快照守护（NFR-12/15，02 任务 C2）', () => {
-  it('全部 22 份 schema 均可生成 JSON Schema（结构可导出，编辑器表单生成的数据前提）', () => {
-    expect(CASES).toHaveLength(22);
+  it('全部 24 份 schema 均可生成 JSON Schema（结构可导出，编辑器表单生成的数据前提）', () => {
+    expect(CASES).toHaveLength(24);
     for (const [, schema] of CASES) {
       expect(() => z.toJSONSchema(schema, { io: 'input' })).not.toThrow();
     }

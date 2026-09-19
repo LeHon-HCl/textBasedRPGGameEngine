@@ -257,6 +257,8 @@ function minimalValidated(): ValidatedPackage {
       perks: new Map(),
       endings: new Map(),
       factions: new Map(),
+      enemies: new Map(),
+      encounters: new Map(),
     },
     locales: new Map(),
     diagnostics: [],

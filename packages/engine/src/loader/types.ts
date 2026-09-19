@@ -14,6 +14,8 @@ import type {
   BodyDef,
   ContentTagsDef,
   EndingDef,
+  EncounterDef,
+  EnemyDef,
   EventDef,
   FactionDef,
   ItemDef,
@@ -168,6 +170,9 @@ export interface PackageDomains {
   readonly npcs: ReadonlyMap<GameId, NpcDef>;
   readonly items: ReadonlyMap<GameId, ItemDef>;
   readonly shops: ReadonlyMap<GameId, ShopDef>;
+  /** 战斗域（16 号回填，设计 §5.2 EncounterDef 缺口） */
+  readonly enemies: ReadonlyMap<GameId, EnemyDef>;
+  readonly encounters: ReadonlyMap<GameId, EncounterDef>;
   readonly achievements: ReadonlyMap<GameId, AchievementDef>;
   readonly perks: ReadonlyMap<GameId, PerkDef>;
   readonly endings: ReadonlyMap<GameId, EndingDef>;
@@ -234,6 +239,9 @@ export interface GameDefinition {
   readonly items: ReadonlyMap<GameId, ItemDef>;
   readonly quests: ReadonlyMap<GameId, QuestDef>;
   readonly shops: ReadonlyMap<GameId, ShopDef>;
+  /** 战斗域（16 号回填）：宿主由此投影装配战斗数据面 */
+  readonly enemies: ReadonlyMap<GameId, EnemyDef>;
+  readonly encounters: ReadonlyMap<GameId, EncounterDef>;
   readonly achievements: ReadonlyMap<GameId, AchievementDef>;
   readonly perks: ReadonlyMap<GameId, PerkDef>;
   readonly endings: ReadonlyMap<GameId, EndingDef>;

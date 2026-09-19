@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { GAME_ID_PATTERN, isValidGameId, refId } from '../src/index.js';
 import type { ExprSource, GameId, Lang, RefKind, TextKey } from '../src/index.js';
 
-/** RefKind 设计 §2.1 的全集（顺序即设计文档声明顺序） */
+/**
+ * RefKind 设计 §2.1 的全集（顺序即设计文档声明顺序）。
+ * enemy/encounter 为 16 号战斗域回填新增（设计 §5.2 引用了 EncounterDef 但
+ * §2.1/§2.4 清单漏列，回填见 shared/schema/battle.ts）。
+ */
 const ALL_REF_KINDS: readonly RefKind[] = [
   'scene',
   'item',
@@ -15,6 +19,8 @@ const ALL_REF_KINDS: readonly RefKind[] = [
   'location',
   'media',
   'text',
+  'enemy',
+  'encounter',
 ];
 
 describe('ID 与基础类型（设计 §2.1）', () => {
@@ -25,7 +31,7 @@ describe('ID 与基础类型（设计 §2.1）', () => {
     expectTypeOf<ExprSource>().toBeString();
   });
 
-  it('RefKind 为设计 §2.1 的 10 值联合', () => {
+  it('RefKind 为设计 §2.1 的 12 值联合（含 16 号战斗域回填的 enemy/encounter）', () => {
     expectTypeOf<RefKind>().toEqualTypeOf<
       | 'scene'
       | 'item'
@@ -37,6 +43,8 @@ describe('ID 与基础类型（设计 §2.1）', () => {
       | 'location'
       | 'media'
       | 'text'
+      | 'enemy'
+      | 'encounter'
     >();
   });
 });

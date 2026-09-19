@@ -30,6 +30,10 @@ export interface RefRegistries {
   /** 区域 → 地点 id 集（location 作用域核对） */
   readonly locationsByArea: ReadonlyMap<GameId, ReadonlySet<string>>;
   readonly locationsAll: ReadonlySet<string>;
+  /** 战斗域（16 号回填）：敌人 id 集（encounter.enemies 引用的核对集） */
+  readonly enemies: ReadonlySet<string>;
+  /** 遭遇 id 集（battle 指令 encounter 参数的核对集，约束 8 加载期完整性） */
+  readonly encounters: ReadonlySet<string>;
   readonly mediaIds: ReadonlySet<string>;
   readonly mainLangKeys: ReadonlySet<string>;
 }
@@ -47,6 +51,8 @@ export function buildRefRegistries(
     locationsByArea.set(area.id, locationIds);
     for (const locationId of locationIds) locationsAll.add(locationId);
   }
+  const enemies = new Set(domains.enemies.keys());
+  const encounters = new Set(domains.encounters.keys());
   const mainLangPack =
     domains.manifest !== undefined ? locales.get(domains.manifest.mainLang) : undefined;
   return {
@@ -57,6 +63,8 @@ export function buildRefRegistries(
     quests: new Set(domains.quests.keys()),
     achievements: new Set(domains.achievements.keys()),
     factions: new Set(domains.factions.keys()),
+    enemies,
+    encounters,
     locationsByArea,
     locationsAll,
     mediaIds: new Set(mediaIds),
@@ -81,6 +89,10 @@ function refExists(site: RefSite, registries: RefRegistries): boolean {
       return registries.achievements.has(site.value);
     case 'faction':
       return registries.factions.has(site.value);
+    case 'enemy':
+      return registries.enemies.has(site.value);
+    case 'encounter':
+      return registries.encounters.has(site.value);
     case 'media':
       return registries.mediaIds.has(site.value);
     case 'text':
