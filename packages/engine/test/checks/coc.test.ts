@@ -202,10 +202,7 @@ describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）',
 describe('coc 规则：奖励/惩罚骰池（15 号 commit 4，FR-CMBT-04）', () => {
   it('奖励骰 1：十位骰池取最低 + 个位组合；rolls 报 [最终值, ...骰池, 个位]', () => {
     // 骰池 [7, 2]（基础 + 1 枚奖励）取低 2，个位 5 → roll 25
-    const result = cocRule.resolve(
-      { rule: 'coc', value: 50, bonusDice: 1 },
-      queueRng([7, 2, 5]),
-    );
+    const result = cocRule.resolve({ rule: 'coc', value: 50, bonusDice: 1 }, queueRng([7, 2, 5]));
     expect(result.rolls).toEqual([25, 7, 2, 5]);
     expect(result.outcome).toBe('success');
     expect(result.detail).toMatchObject({
@@ -219,10 +216,7 @@ describe('coc 规则：奖励/惩罚骰池（15 号 commit 4，FR-CMBT-04）', (
 
   it('惩罚骰 1：十位骰池取最高', () => {
     // 骰池 [2, 8] 取高 8，个位 5 → roll 85
-    const result = cocRule.resolve(
-      { rule: 'coc', value: 50, penaltyDice: 1 },
-      queueRng([2, 8, 5]),
-    );
+    const result = cocRule.resolve({ rule: 'coc', value: 50, penaltyDice: 1 }, queueRng([2, 8, 5]));
     expect(result.rolls).toEqual([85, 2, 8, 5]);
     expect(result.outcome).toBe('fail');
     expect(result.detail).toMatchObject({ chosenTens: 8, netBonusDice: -1 });
@@ -257,19 +251,13 @@ describe('coc 规则：奖励/惩罚骰池（15 号 commit 4，FR-CMBT-04）', (
   });
 
   it('骰池组合出 00 → 100（大失败照常触发）', () => {
-    const result = cocRule.resolve(
-      { rule: 'coc', value: 50, bonusDice: 1 },
-      queueRng([9, 0, 0]),
-    );
+    const result = cocRule.resolve({ rule: 'coc', value: 50, bonusDice: 1 }, queueRng([9, 0, 0]));
     expect(result.rolls[0]).toBe(100);
     expect(result.level).toBe('fumble');
   });
 
   it('奖励骰把失败救回：基础十位 9 + 奖励十位 1 → roll 13 ≤ 50 转成功', () => {
-    const result = cocRule.resolve(
-      { rule: 'coc', value: 50, bonusDice: 1 },
-      queueRng([9, 1, 3]),
-    );
+    const result = cocRule.resolve({ rule: 'coc', value: 50, bonusDice: 1 }, queueRng([9, 1, 3]));
     expect(result.outcome).toBe('success');
     expect(result.rolls[0]).toBe(13);
   });
@@ -293,7 +281,12 @@ describe('coc 规则：对抗检定（15 号 commit 5，FR-CMBT-03）', () => {
     const result = opposed([3, 7], 8, 0); // 守方 roll 80 > 50 → fail
     expect(result.outcome).toBe('success');
     expect(result.detail).toMatchObject({
-      opposed: { defenderRoll: 80, attackerLevel: 'normal', defenderLevel: 'fail', winner: 'attacker' },
+      opposed: {
+        defenderRoll: 80,
+        attackerLevel: 'normal',
+        defenderLevel: 'fail',
+        winner: 'attacker',
+      },
     });
   });
 
@@ -311,7 +304,9 @@ describe('coc 规则：对抗检定（15 号 commit 5，FR-CMBT-03）', () => {
       queueRng([3, 7, 3, 0]), // 攻 37 normal，守 30 恰好 normal（≤ 30）
     );
     expect(result.outcome).toBe('fail');
-    expect(result.detail).toMatchObject({ opposed: { winner: 'defender', defenderLevel: 'normal' } });
+    expect(result.detail).toMatchObject({
+      opposed: { winner: 'defender', defenderLevel: 'normal' },
+    });
   });
 
   it('同级「技能值低者胜」：守方技能更高 → 攻方胜', () => {

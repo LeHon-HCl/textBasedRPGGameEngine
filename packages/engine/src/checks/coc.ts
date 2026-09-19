@@ -36,7 +36,13 @@ function rollD100(rng: Rng): { roll: number; tens: number; units: number } {
 function grade(
   roll: number,
   skill: number,
-): { level: CheckResult['level']; isFumble: boolean; critical: number; hard: number; extreme: number } {
+): {
+  level: CheckResult['level'];
+  isFumble: boolean;
+  critical: number;
+  hard: number;
+  extreme: number;
+} {
   const hard = Math.floor(skill / 2);
   const extreme = Math.floor(skill / 5);
   const critical = Math.max(1, extreme);
@@ -105,7 +111,8 @@ export const cocRule: CheckRule = {
       // 攻方须同时满足自身请求难度档（对抗赢了但难度不够 = 仍失败）；
       // 大成功豁免与单方检定同款（roll ≤ 大成功线即视作满足难度档）
       const outcome: CheckResult['outcome'] =
-        winner === 'attacker' && (attacker.roll <= attackerGrade.critical || attacker.roll <= required)
+        winner === 'attacker' &&
+        (attacker.roll <= attackerGrade.critical || attacker.roll <= required)
           ? 'success'
           : 'fail';
 

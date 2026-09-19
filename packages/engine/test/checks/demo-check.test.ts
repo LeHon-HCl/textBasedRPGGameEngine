@@ -47,7 +47,11 @@ async function makeFixtureRuntime(insight: number, dice: number[]) {
     { versions: BASE_VERSIONS, attrs: { hp: 100, stamina: 30, insight } },
     createRng(1),
   );
-  const rt = new GameRuntime({ state, rng: createRng(1), effectExecutor: definition.effectRegistry });
+  const rt = new GameRuntime({
+    state,
+    rng: createRng(1),
+    effectExecutor: definition.effectRegistry,
+  });
   const scene = definition.scenes.get('hillside_trailhead');
   if (scene === undefined) throw new Error('hillside_trailhead 缺失');
   const choice = scene.def.choices.find((entry) => entry.id === 'read_marks');
@@ -67,7 +71,9 @@ describe('demo 检定端到端：hillside_trailhead#read_marks（15 号 commit 8
     expect(rt.state.world.flags['quarry_open']).toBe(true);
     // check_result 之外，成功分支的 notify 也产生一条事件
     expect(outcome.events).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: 'check_result', rule: 'coc', level: 'critical' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'check_result', rule: 'coc', level: 'critical' }),
+      ]),
     );
   });
 
@@ -76,7 +82,9 @@ describe('demo 检定端到端：hillside_trailhead#read_marks（15 号 commit 8
     const outcome = rt.exec(choice.effects ?? [], ctx);
     expect(rt.state.world.flags['quarry_open']).toBeUndefined();
     expect(outcome.events).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: 'check_result', rule: 'coc', outcome: 'fail' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'check_result', rule: 'coc', outcome: 'fail' }),
+      ]),
     );
   });
 });

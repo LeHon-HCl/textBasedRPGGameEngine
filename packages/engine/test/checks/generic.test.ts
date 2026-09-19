@@ -71,8 +71,8 @@ describe('generic 规则（15 号 commit 6）', () => {
   });
 
   it('difficultyValue 缺失 → EFFECT_FAILED 显性化（不静默按 0 处理）', () => {
-    expect(() =>
-      genericRule.resolve({ rule: 'generic', value: 50 }, queueRng([1])),
-    ).toThrowError(EngineError);
+    expect(() => genericRule.resolve({ rule: 'generic', value: 50 }, queueRng([1]))).toThrowError(
+      EngineError,
+    );
   });
 });

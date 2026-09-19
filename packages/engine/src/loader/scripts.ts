@@ -83,7 +83,9 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
   const hostResolver = options.checkResolver;
   const checkResolver: CheckRuleResolver = {
     resolve(ruleId: string) {
-      return scriptRules.get(ruleId) ?? hostResolver?.resolve(ruleId) ?? builtinResolver.resolve(ruleId);
+      return (
+        scriptRules.get(ruleId) ?? hostResolver?.resolve(ruleId) ?? builtinResolver.resolve(ruleId)
+      );
     },
   };
 
