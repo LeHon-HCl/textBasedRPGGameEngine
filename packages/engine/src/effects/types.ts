@@ -207,6 +207,8 @@ export interface CheckRequest {
   /** 技能值或表达式求值结果 */
   value: number;
   difficulty?: 'normal' | 'hard' | 'extreme';
+  /** generic 规则的难度数值（roll + value ≥ difficultyValue；coc 忽略） */
+  difficultyValue?: number;
   bonusDice?: number;
   penaltyDice?: number;
   /** 对抗检定（FR-CMBT-03） */

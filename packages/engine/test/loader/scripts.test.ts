@@ -331,8 +331,8 @@ describe('scripts 步骤（管线步骤 6，06 任务 B3）', () => {
     expect(result.checkResolver.resolve('x.rules.custom')).toBe(customRule);
     // 宿主权威：宿主对 'coc' 的实现覆盖内置 coc（解析链中段）
     expect(result.checkResolver.resolve('coc')).toBe(hostCoc);
-    // 15 号 commit 1 时内置仅有 coc，generic 尚未落地 → 全链未命中返回 undefined
-    expect(result.checkResolver.resolve('generic')).toBeUndefined();
+    // 宿主未覆盖的内置规则（generic）由 checks/ 兜底提供（15 号 commit 6）
+    expect(result.checkResolver.resolve('generic')).toBeDefined();
     expect(result.effectRegistry.frozen).toBe(true);
   });
 

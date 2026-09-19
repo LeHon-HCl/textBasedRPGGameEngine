@@ -473,6 +473,17 @@
                   "type": "string",
                   "enum": ["normal", "hard", "extreme"]
                 },
+                "difficultyValue": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
                 "bonusDice": {
                   "anyOf": [
                     {
