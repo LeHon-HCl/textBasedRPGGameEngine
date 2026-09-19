@@ -1,4 +1,4 @@
-import type { EffectData, StatusInstance, TextKey } from '@game/shared';
+import type { StatusInstance, TextKey } from '@game/shared';
 
 /**
  * 战斗系统公共契约（detail-design §5.2，16 号；双人分工见 docs/plans/M2-stage2-battle-split.md）。
@@ -49,7 +49,10 @@ export interface SkillRef {
 
 /** AI 策略声明（§5.2 FR-CMBT-09；实现归 W4 damage/ai.ts） */
 export type AiPolicy =
-  | { kind: 'weighted'; entries: ReadonlyArray<{ weight: number; when?: string; action: AiActionSpec }> }
+  | {
+      kind: 'weighted';
+      entries: ReadonlyArray<{ weight: number; when?: string; action: AiActionSpec }>;
+    }
   | { kind: 'scripted'; sequence: ReadonlyArray<{ when?: string; action: AiActionSpec }> };
 
 /** AI 可选行动（与 PlayerAction 同形，供决策输出） */
