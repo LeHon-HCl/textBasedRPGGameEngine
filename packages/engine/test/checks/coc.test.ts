@@ -81,9 +81,58 @@ describe('coc 规则：普通阈值（15 号 commit 1）', () => {
     expect(result.outcome).toBe('fail');
   });
 
-  it('skill = 100 时 roll 100 仍成功（普通阈值不设大失败语义——随 commit 3 落地后复核）', () => {
+  it('skill = 100 时 roll 100 触发大失败（commit 3 升格语义后复核：成败 fail）', () => {
     const result = resolveWith(0, 0, { value: 100 });
+    expect(result.outcome).toBe('fail');
+    expect(result.level).toBe('fumble');
+  });
+});
+
+describe('coc 规则：大成功与大失败（15 号 commit 3）', () => {
+  it('roll ≤ max(1, ⌊skill/5⌋) → critical，普通难度下成败 success', () => {
+    const result = resolveWith(1, 0, { value: 50 }); // roll 10 = ⌊50/5⌋
+    expect(result.level).toBe('critical');
     expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({ thresholds: { critical: 10 } });
+  });
+
+  it('roll = ⌊skill/5⌋ + 1 → 降为 hard（§5.1 表格下 extreme 线与大成功线重合，extreme 等级被 critical 吸收）', () => {
+    const result = resolveWith(1, 1, { value: 50 }); // roll 11 > 10
+    expect(result.level).toBe('hard');
+  });
+
+  it('skill < 5：大成功阈值保底 1（roll = 1 仍可大成功）', () => {
+    const result = resolveWith(0, 1, { value: 4 }); // roll 1
+    expect(result.level).toBe('critical');
+    expect(result.outcome).toBe('success');
+  });
+
+  it('大成功无视请求难度档：请求 extreme 时 roll ≤ 大成功线仍 success', () => {
+    const result = resolveWith(1, 0, { value: 50, difficulty: 'extreme' }); // roll 10
+    expect(result.outcome).toBe('success');
+    expect(result.level).toBe('critical');
+  });
+
+  it('大失败：roll = 100（skill ≥ 50 亦然）', () => {
+    const result = resolveWith(0, 0, { value: 50 });
+    expect(result.level).toBe('fumble');
+    expect(result.outcome).toBe('fail');
+  });
+
+  it('大失败：skill < 50 且 roll ≥ 96', () => {
+    const result = resolveWith(9, 6, { value: 49 }); // roll 96
+    expect(result.level).toBe('fumble');
+  });
+
+  it('skill ≥ 50 时 roll 96–99 只是 fail，不是大失败', () => {
+    const result = resolveWith(9, 6, { value: 50 }); // roll 96
+    expect(result.level).toBe('fail');
+    expect(result.outcome).toBe('fail');
+  });
+
+  it('skill < 50 时 roll = 95 不触发大失败（≥ 96 才算）', () => {
+    const result = resolveWith(9, 5, { value: 49 }); // roll 95
+    expect(result.level).toBe('fail');
   });
 });
 
@@ -96,10 +145,10 @@ describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）',
     expect(result.detail).toMatchObject({ required: 25, margin: 0 });
   });
 
-  it('请求 hard 但 roll 落进极难区间：成败 success、等级如实报 extreme', () => {
+  it('请求 hard 但 roll 落进大成功区间：成败 success、等级报 critical（commit 3 升格后复核）', () => {
     const result = resolveWith(1, 0, { value: 50, difficulty: 'hard' }); // roll 10
     expect(result.outcome).toBe('success');
-    expect(result.level).toBe('extreme');
+    expect(result.level).toBe('critical');
   });
 
   it('请求 hard：roll 越过 ⌊skill/2⌋ 但 ≤ skill → 成败为 fail、等级仍 normal', () => {
@@ -109,10 +158,10 @@ describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）',
     expect(result.detail).toMatchObject({ margin: -5 });
   });
 
-  it('请求 extreme：roll ≤ ⌊skill/5⌋ → success / extreme', () => {
+  it('请求 extreme：roll ≤ ⌊skill/5⌋ → success（等级为 critical，见 commit 3 复核）', () => {
     const result = resolveWith(1, 0, { value: 50, difficulty: 'extreme' }); // roll 10
     expect(result.outcome).toBe('success');
-    expect(result.level).toBe('extreme');
+    expect(result.level).toBe('critical');
     expect(result.detail).toMatchObject({ required: 10 });
   });
 
@@ -132,9 +181,12 @@ describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）',
     expect(extremeMiss.outcome).toBe('fail');
   });
 
-  it('skill < 5：extreme 阈值 floor 到 0 → 极难成功不可能，普通/困难仍可用', () => {
-    const extreme = resolveWith(0, 1, { value: 4, difficulty: 'extreme' }); // roll 1
-    expect(extreme.outcome).toBe('fail');
+  it('skill < 5：extreme 阈值 floor 到 0，但大成功保底线 1 仍生效（commit 3 复核）；困难照常', () => {
+    const extreme = resolveWith(0, 1, { value: 4, difficulty: 'extreme' }); // roll 1 → 大成功
+    expect(extreme.outcome).toBe('success');
+    expect(extreme.level).toBe('critical');
+    const extremeMiss = resolveWith(0, 2, { value: 4, difficulty: 'extreme' }); // roll 2
+    expect(extremeMiss.outcome).toBe('fail');
     const hard = resolveWith(0, 2, { value: 4, difficulty: 'hard' }); // roll 2 ≤ 2
     expect(hard.outcome).toBe('success');
     expect(hard.level).toBe('hard');
