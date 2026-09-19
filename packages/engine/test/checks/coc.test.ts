@@ -198,3 +198,84 @@ describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）',
     expect(result.detail).toMatchObject({ difficulty: 'normal' });
   });
 });
+
+describe('coc 规则：奖励/惩罚骰池（15 号 commit 4，FR-CMBT-04）', () => {
+  it('奖励骰 1：十位骰池取最低 + 个位组合；rolls 报 [最终值, ...骰池, 个位]', () => {
+    // 骰池 [7, 2]（基础 + 1 枚奖励）取低 2，个位 5 → roll 25
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 1 },
+      queueRng([7, 2, 5]),
+    );
+    expect(result.rolls).toEqual([25, 7, 2, 5]);
+    expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({
+      roll: 25,
+      tensPool: [7, 2],
+      chosenTens: 2,
+      units: 5,
+      netBonusDice: 1,
+    });
+  });
+
+  it('惩罚骰 1：十位骰池取最高', () => {
+    // 骰池 [2, 8] 取高 8，个位 5 → roll 85
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, penaltyDice: 1 },
+      queueRng([2, 8, 5]),
+    );
+    expect(result.rolls).toEqual([85, 2, 8, 5]);
+    expect(result.outcome).toBe('fail');
+    expect(result.detail).toMatchObject({ chosenTens: 8, netBonusDice: -1 });
+  });
+
+  it('奖励骰链式 N 个：bonus 2 → 骰池 3 枚取最低', () => {
+    // 骰池 [6, 9, 3] 取低 3，个位 0 → roll 30
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 2 },
+      queueRng([6, 9, 3, 0]),
+    );
+    expect(result.rolls).toEqual([30, 6, 9, 3, 0]);
+    expect(result.detail).toMatchObject({ chosenTens: 3 });
+  });
+
+  it('奖励与惩罚两两抵消：bonus 2 − penalty 1 = 净奖励 1（池 2 枚取低）', () => {
+    // 骰池 [5, 9]（基础 + |2−1| 枚额外）取低 5，个位 3 → roll 53
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 2, penaltyDice: 1 },
+      queueRng([5, 9, 3]),
+    );
+    expect(result.detail).toMatchObject({ roll: 53, chosenTens: 5, netBonusDice: 1 });
+  });
+
+  it('完全抵消：bonus 1 + penalty 1 → 退化为普通单骰（rolls 只报最终值）', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 1, penaltyDice: 1 },
+      queueRng([7, 4]),
+    );
+    expect(result.rolls).toEqual([74]);
+    expect(result.detail).not.toHaveProperty('tensPool');
+  });
+
+  it('骰池组合出 00 → 100（大失败照常触发）', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 1 },
+      queueRng([9, 0, 0]),
+    );
+    expect(result.rolls[0]).toBe(100);
+    expect(result.level).toBe('fumble');
+  });
+
+  it('奖励骰把失败救回：基础十位 9 + 奖励十位 1 → roll 13 ≤ 50 转成功', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, bonusDice: 1 },
+      queueRng([9, 1, 3]),
+    );
+    expect(result.outcome).toBe('success');
+    expect(result.rolls[0]).toBe(13);
+  });
+
+  it('bonusDice 0 显式传入：等价无骰池', () => {
+    const result = cocRule.resolve({ rule: 'coc', value: 50, bonusDice: 0 }, queueRng([3, 7]));
+    expect(result.rolls).toEqual([37]);
+  });
+});
