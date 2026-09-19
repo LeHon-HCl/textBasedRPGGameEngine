@@ -11,16 +11,33 @@
 
 ## 任务清单
 
-- [ ] `BattleSession` 骨架 + 八相位状态机 + 全路径迁移测试
-- [ ] 单位模型（player/enemy/ally[P2 预留]）+ `turnQueue`（spd 降序、平局 Rng）
-- [ ] 玩家行动：skill / item / defend / flee（逃跑成功率 Rng 判定、可配置）
-- [ ] 结算管线：技能效果 = 战斗子集指令（伤害/治疗/状态）复用 EffectContext（source='battle'）
+- [x] `BattleSession` 骨架 + 八相位状态机 + 全路径迁移测试
+- [x] 单位模型（player/enemy/ally[P2 预留]）+ `turnQueue`（spd 降序、平局 Rng）
+- [x] 玩家行动：skill / item / defend / flee（逃跑成功率 Rng 判定、可配置）
+- [x] 结算管线：技能效果 = 战斗子集指令（伤害/治疗/状态）复用 EffectContext（source='battle'）
 - [x] 伤害公式可插拔预设（默认 atk*mult − def，作者可脚本注册覆盖）
 - [x] AI 策略：weighted（权重+when 过滤）与 scripted（表达式序列首中）；决策只用会话内状态
 - [x] 战斗内状态效果 round_end tick（复用 StatusInstance）+ 到期/叠层断言
-- [ ] 胜负路由：victory → rewards child 事务（chance 掉落 + 表达式金额）→ on_victory/on_defeat/on_escape 效果与跳转（战败≠终局）
+- [x] 胜负路由：victory → rewards child 事务（chance 掉落 + 表达式金额）→ on_victory/on_defeat/on_escape 效果与跳转（战败≠终局）
 - [x] 战斗日志：BattleLogEntry（i18n 键 + 数值，可回看）+ 全程 log/phase 序列断言
 - [ ] 敌方多人（目标选择）+ 遭遇模板参数化（FR-CMBT-12/13）
 
 ## 完成定义
 - [ ] 全部子任务勾选；会话级测试全绿（不依赖叙事模块，DD-11 验证）
+
+## 落地记录（2026-09-19，双人协作进行中）
+
+- **已合入**：W0 契约冻结 + 八相位状态机（#28，A）、W1 行动序/行动校验/防御态（#28，A）、
+  W2 结算执行器 + 附加效果缝 + 遭遇实例化 + 胜负路由数据面 + battle 指令接线层
+  （#31/#33，A）、W4 伤害公式预设 + AI 双策略（#27 起，B）、W5 状态 tick + 日志投影
+  （#30，B）、W6 第一片目标选择（#34，B）；数据域回填（#29，B）+ battle_start
+  宿主事件通道（#33，A）。
+- **设计偏差登记**（依约束 2 待人类审查 §5.2 是否修订）：
+  ① BattleSession 构造接受已实例化单位（BattleInit），EncounterDef → 单位实例化
+  拆为独立纯函数（DD-11 会话级测试不依赖叙事）；
+  ② 状态 tick 挂「新回合开始」每轮一次（§5.2「tick 在 round_end」按真回合边界
+  解释——round_end 相位是单次行动收敛点，逐行动 tick 会让高速单位双倍速衰减）；
+  ③ AI `when` 表达式的战斗内作用域桥接未定（接线层 evalCondition 缺省恒真，
+  W6 demo 数据暂不用 when 声明）。
+- **剩余**：子任务 10 的 demo 接入片（W6 第二片，B 主刀：mini-game 遭遇数据 +
+  game-host 接线 + 最小战斗页 + E2E 战斗流），完成后勾选完成定义。
