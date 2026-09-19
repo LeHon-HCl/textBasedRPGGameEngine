@@ -1,10 +1,14 @@
 desc: The slope steepens underfoot; looking back, you can see Old Town's roofs pressed under a lid of mist.
 wind: The morning wind flattens the grass, uncovering a narrow trodden path hidden within.
 quarry_hint: You recall the half-emblem on the embankment — the marks up here may share its source.
+marks_hint: Regular chisel marks notch the rubble along the slope — nothing nature would carve.
 notify:
   opened: You clear the fallen stones, and a narrow way up reveals itself.
+  marks_spotted: Following the chisel marks' line of travel, you spot a climbable stretch near the crest.
+  marks_missed: You stare at the rubble for a long while, but the waist-high weeds scramble your focus.
 choice:
   to_quarry: Go to the quarry
   to_shrine: Toward the ruined shrine
   open_quarry: Clear the stones on the path
+  read_marks: Read the chisel marks in the rubble
   back: Down the hill to the market

@@ -1,10 +1,14 @@
 desc: 坡道在脚下陡起来，回望能看见旧镇的屋顶压在一片雾里。
 wind: 晨风把草叶压向一边，露出藏在里面的一条踩出来的小径。
 quarry_hint: 你想起河堤上那半个徽记——山上的旧痕说不定同源。
+marks_hint: 坡道边的碎石上刻着几道规整的凿痕，不像天然形成。
 notify:
   opened: 你清开挡路的碎石，一条上山的窄道显了出来。
+  marks_spotted: 你顺着凿痕的走向望去——它们一路指向坡顶，那里果然藏着一段可攀的缓坡。
+  marks_missed: 你盯着碎石看了半天，视线却被齐腰的荒草搅乱了。
 choice:
   to_quarry: 去采石场
   to_shrine: 往废弃神龛
   open_quarry: 清开上山的碎石
+  read_marks: 辨认碎石上的凿痕
   back: 下山回集市
