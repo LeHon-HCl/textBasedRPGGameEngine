@@ -1,6 +1,6 @@
 import type { Rng } from '@game/shared';
 import { EngineError } from '@game/shared';
-import type { AiActionSpec, AiPolicy, BattleUnit } from './types.js';
+import type { AiActionSpec, BattleUnit } from './types.js';
 
 /**
  * AI 策略（detail-design §5.2，16 号 W4 子任务 6；FR-CMBT-09）。
