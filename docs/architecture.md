@@ -290,9 +290,27 @@ interface GameDefinition {
 | [`body/`](../packages/engine/src/body/) | 身体部位、临时变身回退、代词注入 | `createBodyRevertProvider` | 14 |
 | [`events/`](../packages/engine/src/events/) | 事件池四步评估（collect→prune→select→dispatch）+ 脏标记增量 | `EventPool` | 10 |
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
+| [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
+
+<details>
+<summary><b>checks/ — 判定系统</b>（设计 §5.1，15 号）</summary>
+
+- `coc.ts`：CoC 7 版规则——d100 双骰分解（00 → 100）、阈值 floor 除法
+  （hard = ⌊skill/2⌋ / extreme = ⌊skill/5⌋）、大成功（≤max(1, ⌊skill/5⌋)，无视
+  难度档）/大失败（=100 或 skill<50 且 ≥96）升格、奖惩骰净数两两抵消
+  （十位取低/高 + 个位组合，rolls 携带骰池原文）、对抗检定（等级序 →
+  同级低技能胜 → 再平守方胜；攻方须同时满足自身难度档）；
+- `generic.ts`：`roll + value ≥ difficultyValue`（难度数值由 check 指令的
+  `difficultyValue` 参数给出；缺失 → EFFECT_FAILED 显性化）；
+- `index.ts`：`createBuiltinCheckResolver()` 内置兜底——loader 管线步骤 6 合成
+  「脚本规则 → 宿主解析器 → 内置」解析链并注入效果注册表（`check` 指令开箱可用）；
+- 设计偏差：§5.1 表格下极难线与大成功线重合，`extreme` 等级单方检定不可达
+  （枚举保留为对抗/扩展留位，详见 tasks/15-checks.md 落地记录）。
+
+</details>
 
 <details>
 <summary><b>state/ — 状态树与事务底座</b>（设计 §3.1，04 号）</summary>
@@ -494,7 +512,7 @@ stateDiagram-v2
 
 ### 5.3 空占位子系统（M2+ 待实现）
 
-`achievements/`（18 号）、`battle/`（16 号）、`checks/`（15 号）、`economy/`（17 号）、
+`achievements/`（18 号）、`battle/`（16 号）、`economy/`（17 号）、
 `loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
 模块开工时填充。
 
