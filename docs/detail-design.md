@@ -800,6 +800,11 @@ export interface CheckRule {
 | 对抗 | 成功等级 critical > extreme > hard > normal > fail；同级 → 技能值低者胜；再平 → 守方胜 |
 
 - `generic` 规则：`roll = rng.int(1,100)`，success = `roll + value ≥ difficultyValue`（难度数值由调用方表达式给出）。
+
+> **extreme 等级口径（2026-09-19 人类审查追认）**：极难线与大成功线同为
+> ⌊skill/5⌋（CoC 7 原版语义：同一骰值区间、两种用途），故单人检定中
+> `extreme` 被 `critical` 吸收、不可达；等级枚举保留 `extreme` 为对抗比较
+> 与脚本规则扩展留位（实现见 `packages/engine/src/checks/`，15 号）。
 - 结果路由（FR-CMBT-05）：`check` 指令把 `level/outcome` 映射到作者声明的 `on_success/on_fail/on_critical/on_fumble` 子效果（child 事务，§3.3），未声明档位回退到 outcome 档。
 - 判定呈现数据：`CheckResult` 作为 `EngineEvent('check_result')` emit，UI 播放动画（NFR-26 可减弱）。
 
