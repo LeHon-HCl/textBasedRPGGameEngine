@@ -1,4 +1,3 @@
-import type { Rng } from '@game/shared';
 import { EngineError } from '@game/shared';
 import type { DamageFn, DamageInput, DamageResult } from './types.js';
 
