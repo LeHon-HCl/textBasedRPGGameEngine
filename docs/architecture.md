@@ -291,9 +291,24 @@ interface GameDefinition {
 | [`events/`](../packages/engine/src/events/) | 事件池四步评估（collect→prune→select→dispatch）+ 脏标记增量 | `EventPool` | 10 |
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
 | [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
+| [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
+
+<details>
+<summary><b>battle/ — 回合制战斗</b>（设计 §5.2，16 号，双人协作进行中）</summary>
+
+- `types.ts`：**冻结的公共契约**（W0）——八相位枚举 / BattleUnit / PlayerAction /
+  AiPolicy / DamageFn 签名 / BattleLogEntry / BattleInit；A/B 两线唯一协作面，
+  破坏性变更须另一位开发者 review（分工见 plans/M2-stage2-battle-split.md）；
+- `session.ts`：`BattleSession` 八相位状态机（W0 骨架）——round_end 为单次行动
+  收敛点、延续本轮行动序，本轮耗尽惰性开新一轮；行动序 spd 降序 + 平局组
+  Rng 洗牌；逃跑会话内裁决（escapeRate 可配置）；结算（executeAction）与
+  AI（aiResolve）为注入缝，待 W2（A 线）/ W4（B 线）装配；
+- DD-11：不依赖叙事模块，会话级测试全程桩驱动。
+
+</details>
 
 <details>
 <summary><b>checks/ — 判定系统</b>（设计 §5.1，15 号）</summary>
@@ -512,7 +527,7 @@ stateDiagram-v2
 
 ### 5.3 空占位子系统（M2+ 待实现）
 
-`achievements/`（18 号）、`battle/`（16 号）、`economy/`（17 号）、
+`achievements/`（18 号）、`economy/`（17 号）、
 `loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
 模块开工时填充。
 
