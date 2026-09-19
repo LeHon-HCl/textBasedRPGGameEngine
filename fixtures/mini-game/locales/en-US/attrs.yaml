@@ -5,3 +5,9 @@ stamina:
   name: Stamina
 insight:
   name: Insight
+atk:
+  name: Attack
+def:
+  name: Defense
+spd:
+  name: Speed

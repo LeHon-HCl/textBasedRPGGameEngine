@@ -20,10 +20,35 @@
 - [x] 战斗内状态效果 round_end tick（复用 StatusInstance）+ 到期/叠层断言
 - [x] 胜负路由：victory → rewards child 事务（chance 掉落 + 表达式金额）→ on_victory/on_defeat/on_escape 效果与跳转（战败≠终局）
 - [x] 战斗日志：BattleLogEntry（i18n 键 + 数值，可回看）+ 全程 log/phase 序列断言
-- [ ] 敌方多人（目标选择）+ 遭遇模板参数化（FR-CMBT-12/13）
+- [x] 敌方多人（目标选择）+ 遭遇模板参数化（FR-CMBT-12/13）
 
 ## 完成定义
-- [ ] 全部子任务勾选；会话级测试全绿（不依赖叙事模块，DD-11 验证）
+- [x] 全部子任务勾选；会话级测试全绿（不依赖叙事模块，DD-11 验证）
+
+## W6 收尾记录（2026-09-19，B 方）
+
+- **子任务 10**：`battle/targeting.ts`（selectTarget：simple 缺省/self 显式/
+  explicit 优先，确定性不消耗随机）+ resolution 回退接线（缺 targetUid 的
+  attack 回退对立面首个存活——#28 反馈的动态目标缺口闭环；A 方「无目标 = 自身
+  增益」语义零破坏）。
+- **FR-CMBT-13（P2）口径**：`instantiateEncounter` 即最小参数化面（遭遇模板 +
+  运行时状态 → 实例）；更丰富的模板库（倍率/等级缩放）按 P2 定位不提前发明
+  ——避免为完成清单而设计无消费面的 schema。
+- **JumpTarget.branches 提案撤回**：曾提议分支随 jump 携带，#33 落地为
+  `battle_start` 事件通道（宿主唯一参数通道），本方按事件契约实现并对齐。
+- **demo 接入（mini-game）**：attrs 增战斗三件套 atk/def/spd（双语显示名齐备，
+  C6 检通过）；`data/enemies.yaml`（岩鼠）+ `data/encounters.yaml`（两只同种 =
+  FR-CMBT-12 多敌人）；hillside_quarry 增战斗入口选项（showIf 清除后消失，
+  battle 指令携带 onVictory/onDefeat/onEscape 三分支）。
+- **battle-flow.test.ts**（唯一跨工作包用例，A 方改派 B 方）：真实管线全链——
+  mini-game 加载 → 场景选项触发 battle 指令 → battle_start 事件携带分支 →
+  createBattleController → 会话驱动至 victory → rewards（+10 town_silver）与
+  on_victory child 事务真实入账 → 幂等复验 → 路由 jumps 注回叙事；
+  另有防御拖延用例（战败≠终局）。
+- **AI when 桥接**：接线层 evalCondition 缺省恒真，demo 数据不使用 when 声明；
+  战斗内作用域桥接登记待 25B 战斗面板（原计划口径不变）。
+- **遗留登记**：E2E 战斗流用例依赖宿主战斗 UI（25B 战斗面板），登记为 25 号
+  B 组验收面——引擎级全链已由 battle-flow.test.ts 覆盖。
 
 ## 落地记录（2026-09-19，双人协作进行中）
 

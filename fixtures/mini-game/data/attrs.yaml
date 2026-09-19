@@ -15,5 +15,21 @@ numeric:
     max: 20
     init: 0
     show: true
+  # 战斗属性（16 号 W6 demo）：伤害公式 atk*mult − def，spd 驱动行动序
+  atk:
+    min: 0
+    max: 50
+    init: 10
+    show: true
+  def:
+    min: 0
+    max: 50
+    init: 3
+    show: true
+  spd:
+    min: 0
+    max: 20
+    init: 5
+    show: true
 level: {}
 derived: {}

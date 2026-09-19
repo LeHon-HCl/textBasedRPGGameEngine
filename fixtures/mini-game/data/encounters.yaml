@@ -1,0 +1,12 @@
+# 遭遇定义（EncounterDef，16 号战斗域；FR-CMBT-07/12）
+- id: enc_quarry_rats
+  enemies:
+    - rock_rat
+    - rock_rat
+  openingKey: encounters.enc_quarry_rats.opening
+  victoryKey: encounters.enc_quarry_rats.victory
+  defeatKey: encounters.enc_quarry_rats.defeat
+  escapeKey: encounters.enc_quarry_rats.escape
+  escapeRate: 0.5
+  rewards:
+    - money: { town_silver: 10 }
