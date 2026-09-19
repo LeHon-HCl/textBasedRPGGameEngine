@@ -1221,7 +1221,7 @@ export interface ValidationRule {
 | dup-id / dup-choice-id | ID 重复 | error |
 | expr-compile | 表达式编译失败 / pure 函数误用 | error |
 | **invalid-instruction-arg** | **效果指令参数语义非法**：`set`/`add` 的 key 形态、`favor`/`reputation` 目标实体不存在、`give`/`take`/`wear` 物品不存在或类型不匹配、`quest` 的 id/action 非法、`goto`/`ending`/`battle` 参数面目标悬空 | **error** |
-| **unreachable-content** | **内容无可达入口**：区域无入口 / 事件永不触发 / 任务无 `accept` 调用点 / 结局无触发点 / 商店无入口（develop.md 约束 7 的五检） | **error** |
+| **unreachable-content** | **内容无可达入口**（develop.md 约束 7 的十一检，2026-09-15/18 扩展）：五类基础可达（区域 / 事件 / 任务 accept / 结局 / 商店）+ 六类纵深可达（UI 约定文本键 / 事件场景出口 / 可失败选项守护 / flag 读写配对 / 地图导航入口 / 任务结算入口） | **error** |
 | lang-missing | 非主语言缺失键统计 | warning |
 | placeholder-mismatch | 译文插值占位符与主语言不一致 | warning |
 | tag-missing | 有 tags 机制但显式敏感内容未标注 | warning |
@@ -1238,6 +1238,9 @@ export interface ValidationRule {
 >
 > `unreachable-content`：补「反向可达性」。此前只查正向引用悬空（引用的目标是否存在），
 > 不查「内容本身是否有入口」——整块区域/任务/结局写了却永远走不到（对应约束 7）。
+> 2026-09-15/18 由 M1 收尾实测缺陷再扩展六检（约束 7 表格 6–11 行）：每检由一个
+> 「全检查全绿但玩家实际卡死/奖励发不出」的缺陷驱动，判定口径与实现见
+> `packages/engine/test/loader/content-graph.test.ts`（26 号校验中心复用同一规则集，DD-12）。
 >
 > **实现口径**：`invalid-instruction-arg` 的校验器**随指令注册表声明**——每条指令除
 > `schema`/`touch`/`execute` 外新增 `validateArg(arg, defs)` 钩子，保证校验规则与指令定义
