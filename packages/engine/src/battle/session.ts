@@ -55,7 +55,11 @@ export interface BattleSessionOptions {
   validation?: ActionValidationContext;
 }
 
-/** beginTurn 的返回：本回合行动方与相位（await_player = 等玩家输入） */
+/**
+ * beginTurn 的返回：本回合行动方与**行动来源方**（await_player = 等玩家输入）。
+ * 注意（W0 review P3 裁定）：敌方分支返回时内部相位已收敛（round_end/终局），
+ * `phase` 仅表示「本回合由哪一侧行动」，权威相位以 `session.phase()` 为准。
+ */
 export interface TurnStart {
   phase: Extract<BattlePhase, 'await_player' | 'resolving'>;
   actorUid: string;
