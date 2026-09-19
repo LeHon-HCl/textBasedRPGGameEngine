@@ -1,5 +1,6 @@
 import { EngineError, type Rng } from '@game/shared';
 import { actionError, validateAction, type ActionValidationContext } from './actions.js';
+import type { ActionExecutionContext } from './resolution.js';
 import { computeTurnOrder } from './turn-queue.js';
 import type {
   AiActionSpec,
@@ -31,8 +32,8 @@ import type {
 export interface ActionOutcome {
   /** 目标伤害（会话统一入账 HP 并判倒下；amount ≥ 0） */
   damage?: readonly { uid: string; amount: number }[];
-  /** 结算日志（会话按相位归位） */
-  log?: readonly BattleLogEntry[];
+  /** 结算日志（phase 由会话按当前相位盖章，执行器不填） */
+  log?: readonly Omit<BattleLogEntry, 'phase'>[];
 }
 
 /** 会话注入面（缝）：W0 测试桩 / W2 结算管线 / W4 AI 实现各自装配 */
@@ -41,8 +42,15 @@ export interface BattleSessionOptions {
   rng: Rng;
   /** 敌方行动解析：AI 决策只用会话内状态（§5.2，无隐藏信息） */
   aiResolve: (unit: BattleUnit) => AiActionSpec;
-  /** 行动结算管线（skill/item；defend/flee 由会话自理） */
-  executeAction: (action: PlayerAction | AiActionSpec, actor: BattleUnit) => ActionOutcome;
+  /**
+   * 行动结算管线（skill/item；defend/flee 由会话自理）。
+   * 交付 ActionExecutionContext（actor/单位表/rng）——W2 resolution.ts 装配
+   * createEffectExecutor，测试注入桩。
+   */
+  executeAction: (
+    action: PlayerAction | AiActionSpec,
+    ectx: ActionExecutionContext,
+  ) => ActionOutcome;
   /** 行动校验上下文（W1；物品持有缝等，缺省 = item 行动一律拒绝） */
   validation?: ActionValidationContext;
 }
@@ -171,7 +179,8 @@ export class BattleSession {
   // —— 内部：相位迁移 ——
 
   #resolveAndSettle(action: PlayerAction | AiActionSpec, actor: BattleUnit): void {
-    const outcome = this.#executeAction(action, actor);
+    const ectx: ActionExecutionContext = { actor, units: this.#units, rng: this.#rng };
+    const outcome = this.#executeAction(action, ectx);
     for (const entry of outcome.log ?? []) this.#log.push({ ...entry, phase: 'resolving' });
     for (const hit of outcome.damage ?? []) {
       const target = this.#units.get(hit.uid);

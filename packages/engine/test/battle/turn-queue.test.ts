@@ -188,7 +188,7 @@ describe('defend 语义与非法行动回归（会话集成，W1）', () => {
       {
         rng: seqRng([1, 1, 1, 1]),
         aiResolve: () => ({ kind: 'defend' }),
-        executeAction: () => ({}),
+        executeAction: () => ({}) as never,
       },
     );
   }

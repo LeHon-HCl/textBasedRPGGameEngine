@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EngineError, type Rng } from '@game/shared';
 import { BattleSession, type ActionOutcome } from '../../src/battle/session.js';
+import type { ActionExecutionContext } from '../../src/battle/resolution.js';
 import type { BattleUnit, PlayerAction } from '../../src/battle/types.js';
 
 /**
@@ -53,14 +54,13 @@ function queueRng(ints: number[] = [], chances: boolean[] = []): Rng {
   } as Rng;
 }
 
-/** 结算桩：按预设脚本返回伤害与日志（真实管线归 W2） */
+/** 结算桩：按预设脚本返回伤害与日志（真实管线 = W2 resolution.ts） */
 function stubExecutor(script: ActionOutcome[] = []) {
-  const calls: { action: PlayerAction | { kind: 'skill'; skillId: string }; actorUid: string }[] =
-    [];
+  const calls: { action: PlayerAction; actorUid: string }[] = [];
   return {
     calls,
-    execute: (action: PlayerAction, actor: BattleUnit): ActionOutcome => {
-      calls.push({ action, actorUid: actor.uid });
+    execute: (action: PlayerAction, ectx: ActionExecutionContext): ActionOutcome => {
+      calls.push({ action, actorUid: ectx.actor.uid });
       return script.shift() ?? {};
     },
   };
