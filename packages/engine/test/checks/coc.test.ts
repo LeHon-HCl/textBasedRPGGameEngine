@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rng } from '@game/shared';
+import type { CheckRequest } from '../../src/effects/index.js';
 import { cocRule } from '../../src/checks/coc.js';
 
 /**
@@ -42,12 +43,16 @@ function queueRng(intResults: number[]): Rng {
 }
 
 /** 以「十位, 个位」构造一次 d100（00 → 100），并断言 rolls 投影 */
-function resolveWith(tens: number, units: number, req: { value: number } & object = { value: 50 }) {
+function resolveWith(
+  tens: number,
+  units: number,
+  req: Partial<Omit<CheckRequest, 'rule'>> & { value: number },
+) {
   const result = cocRule.resolve({ rule: 'coc', ...req }, queueRng([tens, units]));
   return result;
 }
 
-describe('coc 规则：普通阈值（15 号 commit 1；困难/极难与升格随后续 commit）', () => {
+describe('coc 规则：普通阈值（15 号 commit 1）', () => {
   it('roll ≤ skill → success / normal，detail 含 skill、roll 与余量', () => {
     const result = resolveWith(3, 7, { value: 50 }); // roll 37
     expect(result.outcome).toBe('success');
@@ -79,5 +84,65 @@ describe('coc 规则：普通阈值（15 号 commit 1；困难/极难与升格�
   it('skill = 100 时 roll 100 仍成功（普通阈值不设大失败语义——随 commit 3 落地后复核）', () => {
     const result = resolveWith(0, 0, { value: 100 });
     expect(result.outcome).toBe('success');
+  });
+});
+
+describe('coc 规则：困难/极难阈值（15 号 commit 2，floor 除法）', () => {
+  it('请求 hard：roll ≤ ⌊skill/2⌋ → success / hard', () => {
+    // skill 50 → hard 25：roll 25 恰好压线（> extreme 10，故等级是 hard）
+    const result = resolveWith(2, 5, { value: 50, difficulty: 'hard' });
+    expect(result.outcome).toBe('success');
+    expect(result.level).toBe('hard');
+    expect(result.detail).toMatchObject({ required: 25, margin: 0 });
+  });
+
+  it('请求 hard 但 roll 落进极难区间：成败 success、等级如实报 extreme', () => {
+    const result = resolveWith(1, 0, { value: 50, difficulty: 'hard' }); // roll 10
+    expect(result.outcome).toBe('success');
+    expect(result.level).toBe('extreme');
+  });
+
+  it('请求 hard：roll 越过 ⌊skill/2⌋ 但 ≤ skill → 成败为 fail、等级仍 normal', () => {
+    const result = resolveWith(3, 0, { value: 50, difficulty: 'hard' }); // roll 30
+    expect(result.outcome).toBe('fail');
+    expect(result.level).toBe('normal');
+    expect(result.detail).toMatchObject({ margin: -5 });
+  });
+
+  it('请求 extreme：roll ≤ ⌊skill/5⌋ → success / extreme', () => {
+    const result = resolveWith(1, 0, { value: 50, difficulty: 'extreme' }); // roll 10
+    expect(result.outcome).toBe('success');
+    expect(result.level).toBe('extreme');
+    expect(result.detail).toMatchObject({ required: 10 });
+  });
+
+  it('请求 extreme：roll = ⌊skill/5⌋ + 1 → fail', () => {
+    const result = resolveWith(1, 1, { value: 50, difficulty: 'extreme' }); // roll 11
+    expect(result.outcome).toBe('fail');
+  });
+
+  it('floor 除法：skill 49 → hard 24 / extreme 9', () => {
+    const hard = resolveWith(2, 4, { value: 49, difficulty: 'hard' }); // roll 24 压线
+    expect(hard.outcome).toBe('success');
+    const hardMiss = resolveWith(2, 5, { value: 49, difficulty: 'hard' }); // roll 25
+    expect(hardMiss.outcome).toBe('fail');
+    const extreme = resolveWith(0, 9, { value: 49, difficulty: 'extreme' }); // roll 9 压线
+    expect(extreme.outcome).toBe('success');
+    const extremeMiss = resolveWith(1, 0, { value: 49, difficulty: 'extreme' }); // roll 10
+    expect(extremeMiss.outcome).toBe('fail');
+  });
+
+  it('skill < 5：extreme 阈值 floor 到 0 → 极难成功不可能，普通/困难仍可用', () => {
+    const extreme = resolveWith(0, 1, { value: 4, difficulty: 'extreme' }); // roll 1
+    expect(extreme.outcome).toBe('fail');
+    const hard = resolveWith(0, 2, { value: 4, difficulty: 'hard' }); // roll 2 ≤ 2
+    expect(hard.outcome).toBe('success');
+    expect(hard.level).toBe('hard');
+  });
+
+  it('缺省难度 = normal（roll ≤ skill）', () => {
+    const result = resolveWith(4, 0, { value: 40 }); // roll 40
+    expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({ difficulty: 'normal' });
   });
 });
