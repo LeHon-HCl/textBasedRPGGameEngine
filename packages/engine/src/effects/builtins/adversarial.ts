@@ -144,7 +144,18 @@ export function createAdversarialDefs(options: EffectRegistryOptions): ErasedEff
     id: 'battle',
     schema: effectParamSchemas.battle,
     touch: (): TouchReport => ({ reads: [], writes: [] }),
-    execute: () => {},
+    execute: (arg, ectx) => {
+      // battle jump 由 scene-runner「留待宿主消费」（§4.2 default 分支）——
+      // 宿主经 battle_start 事件获知并创建 BattleController（16 号接线层）。
+      // 分支参数随事件携带（宿主拿到它们的唯一通道，DD-06）。
+      ectx.emit({
+        type: 'battle_start',
+        encounter: arg.encounter,
+        ...(arg.onVictory !== undefined ? { onVictory: arg.onVictory } : {}),
+        ...(arg.onDefeat !== undefined ? { onDefeat: arg.onDefeat } : {}),
+        ...(arg.onEscape !== undefined ? { onEscape: arg.onEscape } : {}),
+      });
+    },
     jumps: (arg): readonly JumpTarget[] => [{ type: 'battle', battle: arg.encounter }],
   };
 
