@@ -7,6 +7,7 @@ import type {
   EffectRegistry,
   EffectRegistryOptions,
 } from '../effects/index.js';
+import { createBuiltinCheckResolver } from '../checks/index.js';
 import { createBuiltinFunctionRegistry } from '../expr-eval/index.js';
 import type { LoadGameOptions, PackageDomains } from './types.js';
 import type { PackageInventory } from './walk.js';
@@ -22,7 +23,8 @@ import type { PackageInventory } from './walk.js';
  *   违例 → SCRIPT_CONTRACT）；步骤 6 结束后整体冻结为最终注册表；
  * - ScriptModule.setup 逐模块执行：registerEffect 转发注册表（命名空间与
  *   DUP_ID 由 05 号注册表裁决）；registerCheckRule 收录脚本判定规则
- *   （§5.1），与宿主级 checkResolver 合成解析器；
+ *   （§5.1），合成「脚本规则 → 宿主解析器 → 内置 coc/generic 兜底」解析链并
+ *   注入效果注册表（15 号）；
  * - 步骤末尾完成 x.* 悬空校验（FR-SCR-04）：
  *   ① call 指令的 `x.*` fn 必须已注册（缺失 → SCRIPT_CONTRACT）；
  *   ② 表达式引用的 `x.*` 函数必须已注册（缺失 → SCRIPT_CONTRACT）；
@@ -56,8 +58,13 @@ export interface ScriptStepResult {
   readonly effectRegistry: EffectRegistry;
   /** 冻结后的最终表达式函数注册表（内置 20 函数 + 脚本 x.* 扩展） */
   readonly functionRegistry: ReadonlyMap<string, ExprFunctionDef>;
-  /** 判定规则解析器（脚本规则优先，回退宿主级解析器；两者皆无 = undefined） */
-  readonly checkResolver: CheckRuleResolver | undefined;
+  /**
+   * 判定规则解析链（15 号）：脚本规则 → 宿主解析器 → 内置 coc/generic 兜底。
+   * 同一实例已注入效果注册表（check 指令的运行期解析面）——脚本规则在 setup
+   * 期间注册，而 check 只在运行期 resolve，故以「可变 Map + 稳定引用」承接，
+   * 无需注册表重建。
+   */
+  readonly checkResolver: CheckRuleResolver;
 }
 
 /** scripts 步骤入口（管线步骤 6）：注册 → x.* 悬空校验 → 冻结 */
@@ -69,6 +76,17 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
   const functionRegistry = new Map<string, ExprFunctionDef>(createBuiltinFunctionRegistry());
   const scriptRules = new Map<string, CheckRule>();
 
+  // 判定解析链（15 号）：脚本规则（setup 期间写入 scriptRules）→ 宿主解析器 →
+  // 内置 coc/generic 兜底。合成实例先于注册表构造交付（check 指令在构造期捕获
+  // options.checkResolver 引用），运行期经同一引用读到 setup 后期注册的脚本规则。
+  const builtinResolver = createBuiltinCheckResolver();
+  const hostResolver = options.checkResolver;
+  const checkResolver: CheckRuleResolver = {
+    resolve(ruleId: string) {
+      return scriptRules.get(ruleId) ?? hostResolver?.resolve(ruleId) ?? builtinResolver.resolve(ruleId);
+    },
+  };
+
   const registryOptions: EffectRegistryOptions = {
     functionRegistry,
     items: domains.items,
@@ -76,7 +94,7 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
     factions: domains.factions,
     quests: domains.quests,
     bodyDefs: domains.body,
-    ...(options.checkResolver !== undefined ? { checkResolver: options.checkResolver } : {}),
+    checkResolver,
   };
   const effectRegistry = createBuiltinEffectRegistry(registryOptions);
 
@@ -128,16 +146,6 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
 
   // —— 注册表冻结（§3.4 步骤 6 完成的分界） ——
   effectRegistry.freeze();
-
-  const hostResolver = options.checkResolver;
-  const checkResolver: CheckRuleResolver | undefined =
-    scriptRules.size > 0 || hostResolver !== undefined
-      ? {
-          resolve(ruleId: string): CheckRule | undefined {
-            return scriptRules.get(ruleId) ?? hostResolver?.resolve(ruleId);
-          },
-        }
-      : undefined;
 
   return { effectRegistry, functionRegistry, checkResolver };
 }

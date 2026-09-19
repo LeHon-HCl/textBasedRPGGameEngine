@@ -154,7 +154,11 @@ export interface EffectRegistryOptions {
   quests?: ReadonlyMap<string, QuestDef>;
   /** 背包容量上限（FR-ITEM-02 可选启用，按物品种类数计；缺省 = 不限容量） */
   bagCapacity?: number;
-  /** 判定规则解析器（check 指令；缺省 = check 报 EFFECT_FAILED，15 号注入 coc/generic） */
+  /**
+   * 判定规则解析器（check 指令的运行期解析面）。loader 管线步骤 6 始终注入
+   * 合成解析链（脚本规则 → 宿主解析器 → checks/ 内置 coc/generic，15 号）；
+   * 仅当绕过 loader 直接构造注册表且未注入时，check 报 EFFECT_FAILED（显性化）。
+   */
   checkResolver?: CheckRuleResolver;
   /**
    * 事件池（`__events.eval` 内部指令的评估面，10 号；缺省 = 该指令未装配）。
