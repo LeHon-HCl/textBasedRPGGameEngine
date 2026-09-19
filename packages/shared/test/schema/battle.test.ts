@@ -28,6 +28,17 @@ describe('skillRefSchema：技能引用（§5.2 SkillRef 形态落地）', () =>
     );
   });
 
+  it('附加效果（effects）可选声明：战斗子集指令序列（裁定 2026-09-19）', () => {
+    expect(
+      skillRefSchema.safeParse({
+        id: 'heal_pulse',
+        effects: [{ money: { currency: 'silver', amount: 1 } }],
+      }).success,
+    ).toBe(true);
+    // effects 非数组 → 拒绝
+    expect(skillRefSchema.safeParse({ id: 'x', effects: 'nope' }).success).toBe(false);
+  });
+
   it('缺 id 或未知字段 → 拒绝', () => {
     expect(skillRefSchema.safeParse({}).success).toBe(false);
     expect(skillRefSchema.safeParse({ id: 'bite', extra: 1 }).success).toBe(false);
