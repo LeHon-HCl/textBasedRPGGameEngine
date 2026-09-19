@@ -7,6 +7,7 @@ import type {
   AiActionSpec,
   SkillRef,
 } from './types.js';
+import { selectTarget } from './targeting.js';
 import type { ActionOutcome } from './session.js';
 
 /**
@@ -107,8 +108,14 @@ export function createEffectExecutor(
       };
     }
     // —— attack 技能：经 DamageFn 结算（目标面板 + 防御态 + rng 浮动） ——
-    const targetUid = action.targetUid;
-    const target = targetUid !== undefined ? ectx.units.get(targetUid) : undefined;
+    // 目标解析（W6 targeting 回退，B 方接线走本 PR review）：数据面显式
+    // targetUid 优先；缺省回退对立面首个存活者（FR-CMBT-12 单敌方显然正确，
+    // 多敌方由作者显式指定或后续细化）。回退仍 null（无对立面存活）→ 自身
+    // 增益面（附加效果仍经 applyAttached 执行；攻击类应显式声明 targetUid）。
+    const target =
+      action.targetUid !== undefined
+        ? ectx.units.get(action.targetUid)
+        : (selectTarget(ectx.actor.uid, { units: [...ectx.units.values()] }) ?? undefined);
     if (target === undefined) {
       // 无目标技能：附加效果（自身增益）仍执行；无伤害
       const skill = ectx.actor.skills.find((entry) => entry.id === action.skillId);
