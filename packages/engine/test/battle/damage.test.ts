@@ -47,6 +47,22 @@ describe('createDefaultDamageFn：内置公式 atk*mult − def', () => {
     ).toBe(0);
   });
 
+  it('defending=true → 最终伤害减半（向下取整；W1 置位 → W2 传递 → 本公式消费）', () => {
+    const fn = createDefaultDamageFn();
+    // 10*2 − 2 = 18 → 防御 9
+    expect(
+      fn({ attacker: { atk: 10 }, defender: { def: 2 }, mult: 2, defending: true }, createRng(1)),
+    ).toEqual({ amount: 9 });
+    // 奇数向下取整：10*1 − 1 = 9 → 4
+    expect(
+      fn({ attacker: { atk: 10 }, defender: { def: 1 }, mult: 1, defending: true }, createRng(1)),
+    ).toEqual({ amount: 4 });
+    // 原本为 0 的伤害防御后仍 0（不变负）
+    expect(
+      fn({ attacker: { atk: 1 }, defender: { def: 9 }, mult: 1, defending: true }, createRng(1)),
+    ).toEqual({ amount: 0 });
+  });
+
   it('确定性：同输入同输出（默认公式不消耗随机序列，DD-09 面上无隐藏随机）', () => {
     const fn = createDefaultDamageFn();
     const a = fn(input(), createRng(7));

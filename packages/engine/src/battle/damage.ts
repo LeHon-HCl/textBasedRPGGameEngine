@@ -17,12 +17,20 @@ import type { DamageFn, DamageInput, DamageResult } from './types.js';
  * 无任何模块级可变状态。
  */
 
-/** 内置默认公式：`atk*mult − def`，下限 0 */
+/**
+ * 内置默认公式：`atk*mult − def`，下限 0；守方防御态（`input.defending`，
+ * W1 置位 → W2 传递）= **最终伤害减半（向下取整）**——对作者最可预测的口径
+ * （「防御 = 伤害减半」），且与 def 的乘法交互最小。types.ts 原注释「调用方
+ * 折算进 def」随 W2 的旗标传递实现演进为本公式消费（宁加不改的 additive 演进，
+ * 已在 #28 向 B 方说明——本实现即该说明的落地）。
+ */
 export function createDefaultDamageFn(): DamageFn {
   return (input: DamageInput): DamageResult => {
     const atk = input.attacker['atk'] ?? 0;
     const def = input.defender['def'] ?? 0;
-    return { amount: Math.max(0, atk * input.mult - def) };
+    const raw = Math.max(0, atk * input.mult - def);
+    const amount = input.defending === true ? Math.floor(raw / 2) : raw;
+    return { amount };
   };
 }
 
