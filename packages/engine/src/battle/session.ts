@@ -1,4 +1,5 @@
 import { EngineError, type Rng } from '@game/shared';
+import { computeTurnOrder } from './turn-queue.js';
 import type {
   AiActionSpec,
   BattleInit,
@@ -206,26 +207,9 @@ export class BattleSession {
     this.#result = { outcome };
   }
 
-  /** 回合开始：按存活单位重算行动序（spd 降序，平局组 Rng 洗牌，DD-09） */
+  /** 回合开始：重算行动序（计算归 turn-queue.ts 纯函数） */
   #enterTurnOrder(): void {
-    const alive = [...this.#units.values()].filter((unit) => unit.hp > 0);
-    const bySpd = new Map<number, BattleUnit[]>();
-    for (const unit of alive) {
-      const spd = unit.attrs['spd'] ?? 0;
-      const group = bySpd.get(spd) ?? [];
-      group.push(unit);
-      bySpd.set(spd, group);
-    }
-    const order: string[] = [];
-    for (const spd of [...bySpd.keys()].sort((a, b) => b - a)) {
-      const group = bySpd.get(spd) as BattleUnit[];
-      // 平局组 Fisher–Yates 洗牌：随机只经注入 Rng（DD-09 确定性可复现）
-      for (let i = group.length - 1; i > 0; i--) {
-        const j = this.#rng.int(0, i);
-        [group[i], group[j]] = [group[j] as BattleUnit, group[i] as BattleUnit];
-      }
-      order.push(...group.map((unit) => unit.uid));
-    }
+    const order = computeTurnOrder([...this.#units.values()], this.#rng);
     this.#order.length = 0;
     this.#order.push(...order);
     this.#phase = 'turn_order';
