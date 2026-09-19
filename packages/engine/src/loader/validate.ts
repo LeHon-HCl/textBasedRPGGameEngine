@@ -5,6 +5,8 @@ import {
   attrDefsSchema,
   bodyDefSchema,
   contentTagsDefSchema,
+  encounterDefSchema,
+  enemyDefSchema,
   endingDefSchema,
   eventDefSchema,
   factionDefSchema,
@@ -25,6 +27,8 @@ import type {
   AttrDefs,
   BodyDef,
   ContentTagsDef,
+  EncounterDef,
+  EnemyDef,
   EndingDef,
   EventDef,
   FactionDef,
@@ -84,6 +88,8 @@ const SINGLE_FILE_DOMAINS = {
 
 /** 单文件数组域：data/<name>.yaml → 定义对象数组（域内重复 id 检测） */
 const ARRAY_FILE_DOMAINS = {
+  'data/enemies.yaml': enemyDefSchema,
+  'data/encounters.yaml': encounterDefSchema,
   'data/events.yaml': eventDefSchema,
   'data/factions.yaml': factionDefSchema,
   'data/shops.yaml': shopDefSchema,
@@ -373,6 +379,8 @@ export function validatePackage(
   const npcs = new Map<GameId, NpcDef>();
   const items = new Map<GameId, ItemDef>();
   const shops = new Map<GameId, ShopDef>();
+  const enemies = new Map<GameId, EnemyDef>();
+  const encounters = new Map<GameId, EncounterDef>();
   const achievements = new Map<GameId, AchievementDef>();
   const perks = new Map<GameId, PerkDef>();
   const endings = new Map<GameId, EndingDef>();
@@ -414,6 +422,10 @@ export function validatePackage(
         collectArrayDomain(path, kind, itemSchema as z.ZodType, doc, factions, diagnostics);
       } else if (path === 'data/shops.yaml') {
         collectArrayDomain(path, kind, itemSchema as z.ZodType, doc, shops, diagnostics);
+      } else if (path === 'data/enemies.yaml') {
+        collectArrayDomain(path, kind, itemSchema as z.ZodType, doc, enemies, diagnostics);
+      } else if (path === 'data/encounters.yaml') {
+        collectArrayDomain(path, kind, itemSchema as z.ZodType, doc, encounters, diagnostics);
       } else if (path === 'data/achievements.yaml') {
         collectArrayDomain(path, kind, itemSchema as z.ZodType, doc, achievements, diagnostics);
       } else if (path === 'data/perks.yaml') {
@@ -539,6 +551,8 @@ export function validatePackage(
     npcs,
     items,
     shops,
+    enemies,
+    encounters,
     achievements,
     perks,
     endings,

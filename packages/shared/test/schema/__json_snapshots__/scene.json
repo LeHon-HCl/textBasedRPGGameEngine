@@ -640,7 +640,7 @@
               "properties": {
                 "encounter": {
                   "type": "string",
-                  "minLength": 1
+                  "refKind": "encounter"
                 },
                 "onVictory": {
                   "type": "array",

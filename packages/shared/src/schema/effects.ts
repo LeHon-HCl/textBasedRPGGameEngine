@@ -210,7 +210,8 @@ const checkParams = z.strictObject({
 });
 
 const battleParams = z.strictObject({
-  encounter: z.string().min(1),
+  /** 遭遇引用（RefKind 'encounter'，16 号回填：遭遇域落地，悬空在加载期 crossRef 拦截） */
+  encounter: refId('encounter'),
   onVictory: subEffectListSchema.optional(),
   onDefeat: subEffectListSchema.optional(),
   onEscape: subEffectListSchema.optional(),

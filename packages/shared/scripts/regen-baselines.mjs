@@ -23,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   achievementDefSchema, areaDefSchema, attrDefsSchema, bodyDefSchema,
-  contentTagsDefSchema, effectDataSchema, endingDefSchema, eventDefSchema,
+  contentTagsDefSchema, effectDataSchema, endingDefSchema, enemyDefSchema,
+  encounterDefSchema, eventDefSchema,
   factionDefSchema, itemDefSchema, loopConfigSchema, manifestSchema,
   npcDefSchema, perkDefSchema, profileSchema, questDefSchema, saveBlobSchema,
   sceneDefSchema, serializedStateSchema, shopDefSchema, statsPageDefSchema,
@@ -54,6 +55,8 @@ const CASES = {
   'save-blob': saveBlobSchema,
   profile: profileSchema,
   time: timeConfigSchema,
+  enemy: enemyDefSchema,
+  encounter: encounterDefSchema,
 };
 
 const snapshotDir = join(dirname(fileURLToPath(import.meta.url)), '../test/schema/__json_snapshots__');

@@ -34,7 +34,9 @@ export type RefKind =
   | 'area'
   | 'location'
   | 'media'
-  | 'text';
+  | 'text'
+  | 'enemy'
+  | 'encounter';
 
 /**
  * GameId 命名规则：小写字母开头，后接小写字母/数字/下划线。

@@ -593,7 +593,7 @@ location, textOf, updateSettings, lastError }`。要点：
 | `shared/src/errors.ts` | `EngineError`（code/where/messageKey 三元组）、`ErrCode` | 全库唯一异常类型 |
 | `shared/src/expr.ts` | 表达式语言规格类型（`ExprNode` / `CompiledExpr` / `EvalContext` 等） | engine/expr-eval 按此实现 |
 | `shared/src/rng.ts` | `createRng` / `Rng`（状态可序列化） | 注入式随机，回放一致性根基 |
-| `shared/src/schema/` | 23 个数据域的 Zod schema | 兼作 JSON Schema 快照基线 |
+| `shared/src/schema/` | 24 个数据域的 Zod schema（24 号战斗域回填：enemy/encounter） | 兼作 JSON Schema 快照基线（24 份，快照守护测试同步计数） |
 | `shared/src/validation/` | 跨域校验辅助 | |
 | `apps/player-demo` | M0 验收页（vanilla TS） | 接线参考：glob 读包 → 加载 → 运行时 → 渲染 |
 | `fixtures/mini-game` | 正例游戏包（1 区域 / 5 场景 / 2 事件 / 1 任务 / 2 NPC） | 全部测试共享 |

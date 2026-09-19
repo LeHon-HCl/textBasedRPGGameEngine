@@ -61,6 +61,8 @@ const EMPTY_DOMAINS: PackageDomains = {
   perks: new Map(),
   endings: new Map(),
   factions: new Map(),
+  enemies: new Map(),
+  encounters: new Map(),
 };
 
 const EMPTY_INVENTORY: PackageInventory = { refs: [], exprs: [], calls: [], effects: [] };

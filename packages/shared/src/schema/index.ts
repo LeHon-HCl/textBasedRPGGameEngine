@@ -70,6 +70,20 @@ export type {
   SpriteDecl,
   SpriteVariantDef,
 } from './npc.js';
+export {
+  aiActionSpecSchema,
+  aiPolicySchema,
+  encounterDefSchema,
+  enemyDefSchema,
+  skillRefSchema,
+} from './battle.js';
+export type {
+  AiActionSpecDef,
+  AiPolicyDef,
+  EnemyDef,
+  EncounterDef,
+  SkillRefDef,
+} from './battle.js';
 export { factionDefSchema, factionThresholdSchema } from './faction.js';
 export type { FactionDef, FactionThreshold } from './faction.js';
 

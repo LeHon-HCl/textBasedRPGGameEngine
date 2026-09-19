@@ -70,6 +70,8 @@ export function buildGameDefinition(deps: {
     items: domains.items,
     quests: domains.quests,
     shops: domains.shops,
+    enemies: domains.enemies,
+    encounters: domains.encounters,
     achievements: domains.achievements,
     perks: domains.perks,
     endings: domains.endings,

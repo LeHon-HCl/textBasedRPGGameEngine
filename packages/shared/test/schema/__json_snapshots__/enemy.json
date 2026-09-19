@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "nameKey": {
+      "type": "string",
+      "minLength": 1,
+      "refKind": "text"
+    },
+    "hp": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "attrs": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "skills": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    "ai": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "weighted"
+            },
+            "entries": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "weight": {
+                    "type": "number"
+                  },
+                  "when": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "skill"
+                          },
+                          "skillId": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "targetUid": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "skillId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "item"
+                          },
+                          "itemId": {
+                            "type": "string",
+                            "refKind": "item"
+                          },
+                          "targetUid": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "itemId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "defend"
+                          }
+                        },
+                        "required": ["kind"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": ["weight", "action"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["kind", "entries"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "scripted"
+            },
+            "sequence": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "when": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "skill"
+                          },
+                          "skillId": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "targetUid": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "skillId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "item"
+                          },
+                          "itemId": {
+                            "type": "string",
+                            "refKind": "item"
+                          },
+                          "targetUid": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "itemId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "defend"
+                          }
+                        },
+                        "required": ["kind"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": ["action"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["kind", "sequence"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sprite": {
+      "type": "string",
+      "refKind": "media"
+    }
+  },
+  "required": ["id", "nameKey", "hp", "attrs", "skills"],
+  "additionalProperties": false
+}
