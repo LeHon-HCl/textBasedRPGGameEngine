@@ -38,6 +38,11 @@ export interface BattleUnit {
   ai?: AiPolicy;
   /** 表现层立绘（DD-05；engine 只透传，不接触图像） */
   sprite?: string;
+  /**
+   * 防御态（W1，FR-CMBT-08）：defend 行动置位，下一轮行动序重算时清除。
+   * 减免幅度由 DamageFn 实现消费（B 线 damage.ts），会话不硬编码减免公式。
+   */
+  defending?: boolean;
 }
 
 /** 技能引用（EncounterDef/单位声明面；结算语义归 W2，§5.2 结算管线） */
@@ -87,6 +92,8 @@ export interface DamageInput {
   defender: Readonly<Record<string, number>>;
   /** 技能倍率（SkillRef.params.mult 或作者表达式求值结果） */
   mult: number;
+  /** 守方处于防御态（W1 additive；DamageFn 实现据此计算减免） */
+  defending?: boolean;
 }
 
 export interface DamageResult {

@@ -1,4 +1,5 @@
 import { EngineError, type Rng } from '@game/shared';
+import { actionError, validateAction, type ActionValidationContext } from './actions.js';
 import { computeTurnOrder } from './turn-queue.js';
 import type {
   AiActionSpec,
@@ -40,8 +41,10 @@ export interface BattleSessionOptions {
   rng: Rng;
   /** 敌方行动解析：AI 决策只用会话内状态（§5.2，无隐藏信息） */
   aiResolve: (unit: BattleUnit) => AiActionSpec;
-  /** 行动结算管线（skill/item/defend；flee 由会话自理） */
+  /** 行动结算管线（skill/item；defend/flee 由会话自理） */
   executeAction: (action: PlayerAction | AiActionSpec, actor: BattleUnit) => ActionOutcome;
+  /** 行动校验上下文（W1；物品持有缝等，缺省 = item 行动一律拒绝） */
+  validation?: ActionValidationContext;
 }
 
 /** beginTurn 的返回：本回合行动方与相位（await_player = 等玩家输入） */
@@ -61,6 +64,7 @@ export class BattleSession {
   readonly #aiResolve: BattleSessionOptions['aiResolve'];
   readonly #executeAction: BattleSessionOptions['executeAction'];
   readonly #escapeRate: number;
+  readonly #validation: ActionValidationContext;
   /** 本回合 fleeing 标记（round_end 收敛 escaped 的依据） */
   #fledThisTurn = false;
   #result: BattleResult | null = null;
@@ -70,6 +74,7 @@ export class BattleSession {
     this.#aiResolve = options.aiResolve;
     this.#executeAction = options.executeAction;
     this.#escapeRate = init.escapeRate ?? ESCAPE_RATE_DEFAULT;
+    this.#validation = options.validation ?? {};
     if (init.escapeRate !== undefined && (init.escapeRate < 0 || init.escapeRate > 1)) {
       throw new EngineError({
         code: 'EFFECT_FAILED',
@@ -142,14 +147,21 @@ export class BattleSession {
   /** await_player → resolving：结算玩家行动（§5.2 playerAction） */
   playerAction(action: PlayerAction): void {
     this.#assertPhase('await_player', 'playerAction');
-    this.#phase = 'resolving';
     const player = this.#playerUnit();
+    // 合法性在消耗回合之前判定（W1）：非法 → EFFECT_FAILED，相位不变
+    const rejection = validateAction(action, player, this.units(), this.#validation);
+    if (rejection !== undefined) throw actionError(rejection);
+    this.#phase = 'resolving';
     if (action.kind === 'flee') {
       // 逃跑由会话裁决：成功率 escapeRate 经 Rng（§5.2 可配置）
       this.#fledThisTurn = this.#rng.chance(this.#escapeRate);
       this.#pushLog(this.#fledThisTurn ? 'battle.log.escape_success' : 'battle.log.escape_fail', {
         actor: player.nameKey,
       });
+    } else if (action.kind === 'defend') {
+      // 防御：会话内置语义（W1）——置位持续到下一轮开始，减免归 DamageFn（B 线）
+      player.defending = true;
+      this.#pushLog('battle.log.defend', { actor: player.nameKey });
     } else {
       this.#resolveAndSettle(action, player);
     }
@@ -207,8 +219,10 @@ export class BattleSession {
     this.#result = { outcome };
   }
 
-  /** 回合开始：重算行动序（计算归 turn-queue.ts 纯函数） */
+  /** 回合开始：重算行动序（计算归 turn-queue.ts 纯函数）并清理上一轮防御态 */
   #enterTurnOrder(): void {
+    // 防御只持续到下一轮开始（FR-CMBT-08 回合制语义）
+    for (const unit of this.#units.values()) unit.defending = false;
     const order = computeTurnOrder([...this.#units.values()], this.#rng);
     this.#order.length = 0;
     this.#order.push(...order);
