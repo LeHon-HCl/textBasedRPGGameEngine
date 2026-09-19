@@ -1,6 +1,7 @@
 import { EngineError, type Rng } from '@game/shared';
 import { actionError, validateAction, type ActionValidationContext } from './actions.js';
 import type { ActionExecutionContext } from './resolution.js';
+import { tickStatuses } from './status-tick.js';
 import { computeTurnOrder } from './turn-queue.js';
 import type {
   AiActionSpec,
@@ -151,7 +152,11 @@ export class BattleSession {
       this.#phase = 'await_player';
       return { phase: 'await_player', actorUid: uid };
     }
-    // 空队列（全员倒下应已被终局收敛拦截；防御性兜底回新回合）
+    // 空队列 = 本轮行动序耗尽 → **新回合开始**：状态 tick（W5，裁定 2026-09-19：
+    // 每轮一次挂重开处，逐行动 tick 会让高速单位双倍速衰减）→ 重算行动序。
+    // 到期日志按当前相位（turn_order）入账；第一轮不经此分支（构造直入
+    // #enterTurnOrder，初始状态完整持续一轮）。
+    this.#log.push(...tickStatuses([...this.#units.values()]));
     this.#enterTurnOrder();
     return this.beginTurn();
   }

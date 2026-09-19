@@ -22,11 +22,20 @@ import { exprOrNumberSchema } from './common.js';
  * crossRef（敌人引用缺失 = 内容断裂 = error 级）。
  */
 
-/** 技能引用（§5.2 SkillRef）：id + 结算参数（W2 消费；mult 等由作者自定义） */
+/** 技能引用（§5.2 SkillRef）：id + 结算参数 + 可选附加效果（W2 消费） */
 export const skillRefSchema = z.strictObject({
   id: gameIdSchema,
   /** 结算参数（伤害倍率 mult、目标提示等；值可为表达式或数值字面量，§3.3 宽松语义） */
   params: z.record(z.string(), exprOrNumberSchema).optional(),
+  /**
+   * 附加效果序列（裁定 2026-09-19，#28）：攻击技能经 DamageFn 结算无需声明；
+   * 非攻击附加效果（治疗/状态/增益）在此声明战斗子集指令，由 battle 指令
+   * 接线层的 applyEffects 缝经 runtime.exec({source:'battle'}) 执行（会话与
+   * 执行器不持 GameRuntime——DD-11 不破坏）。缺省未注入缝且声明了 effects →
+   * 日志显性化（与 consumeItem 同口径）。engine types.ts 的同名字段归 A 方
+   * W2 下个 commit（宁加不改，两侧口径一致）。
+   */
+  effects: effectListSchema.optional(),
 });
 
 export type SkillRefDef = z.infer<typeof skillRefSchema>;
