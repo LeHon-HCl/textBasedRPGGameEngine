@@ -75,12 +75,14 @@ DD-06 不适用于包内）；但依赖方向必须单向：`actions/resolution 
 
 | 工作包 | 认领人 | 认领时间 | draft PR | 状态 |
 |---|---|---|---|---|
-| W0 接口冻结 + 状态机 | A 方（2026-09-19 认领） | 2026-09-19 | [PR #28](https://github.com/LeHon-HCl/textBasedRPGGameEngine/pull/28) | 进行中 |
-| W1 行动序与玩家行动 | A 方 | 2026-09-19 | 本 PR（W0 合入后开工） | 已认领 |
-| W2 结算主线 | A 方 | 2026-09-19 | 本 PR（W0 合入后开工） | 已认领 |
-| W4 伤害与 AI | 待认领 | — | — | 待认领 |
-| W5 状态 tick + 日志 | 待认领 | — | — | 待认领 |
-| W6 收口（多人/遭遇/demo/集成） | 待认领 | — | — | 待认领 |
+| 工作包 | 认领人 | 认领时间 | draft PR | 状态 |
+|---|---|---|---|---|
+| W0 接口冻结 + 状态机 | A 方 | 2026-09-19 | [PR #28](https://github.com/LeHon-HCl/textBasedRPGGameEngine/pull/28) | 进行中 |
+| W1 行动序与玩家行动 | A 方 | 2026-09-19 | PR #28 | 已认领 |
+| W2 结算主线 | A 方 | 2026-09-19 | PR #28 | 已认领 |
+| W4 伤害与 AI | B 方（CelestNya） | 2026-09-19 | [PR #27](https://github.com/LeHon-HCl/textBasedRPGGameEngine/pull/27)（stacked 于 #28 的 types 冻结之上） | 已认领，W4 预写中 |
+| W5 状态 tick + 日志 | 待认领（B 方续接，W4 收尾时正式认领） | — | — | 待认领 |
+| W6 收口（多人/遭遇/demo/集成） | 待认领（B 方主刀，W5 后正式认领） | — | — | 待认领 |
 
 ## 5. 协作与验收约定
 
