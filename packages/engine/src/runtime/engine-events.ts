@@ -166,8 +166,23 @@ export interface BodyRevertedEvent {
   restored: string;
 }
 
+/**
+ * battle 指令进入事件（16 号 W2 接线，DD-06 事件通道）：battle jump 由
+ * scene-runner「留待宿主消费」（default 分支）——宿主经本事件获知战斗开始
+ * 并创建 BattleController（wiring.ts）。分支参数随事件携带（它们是 battle
+ * 指令的参数面，事件是宿主唯一能拿到它们的通道）。
+ */
+export interface BattleStartEvent {
+  type: 'battle_start';
+  encounter: string;
+  onVictory?: import('@game/shared').EffectData[];
+  onDefeat?: import('@game/shared').EffectData[];
+  onEscape?: import('@game/shared').EffectData[];
+}
+
 export type EngineEvent =
   | StatChangedEvent
+  | BattleStartEvent
   | NotifyEvent
   | UnlockEvent
   | CheckResultEvent

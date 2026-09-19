@@ -44,6 +44,11 @@ export interface BattleOutcome {
   outcome: 'victory' | 'defeat' | 'escaped';
   /** 已执行的终局效果序列（rewards + 对应分支；表现层展示用） */
   effects: readonly EffectData[];
+  /**
+   * 路由效果产出的流程跳转（goto/back/ending…）：宿主**必须**注回叙事会话
+   * （runner.applyFlowJumps）——on_victory 的场景跳转由此回流（FR-CMBT-11）。
+   */
+  jumps: readonly import('../runtime/index.js').JumpTarget[];
 }
 
 export interface BattleController {
@@ -107,11 +112,13 @@ export function createBattleController(input: BattleWiringInput): BattleControll
       if (result === null || settled) return null;
       settled = true;
       const effects = buildOutcomeEffects(result, encounter, input.branches);
+      let jumps: readonly import('../runtime/index.js').JumpTarget[] = [];
       if (effects.length > 0) {
         // 一批 child 事务（原子）：奖励入账/flag/跳转意图一次提交，失败整体回滚
-        input.runtime.exec(effects, baseCtx(input.rng));
+        const outcome = input.runtime.exec(effects, baseCtx(input.rng));
+        jumps = outcome.jumps;
       }
-      return { outcome: result.outcome, effects };
+      return { outcome: result.outcome, effects, jumps };
     },
   };
 }
