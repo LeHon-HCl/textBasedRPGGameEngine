@@ -274,6 +274,23 @@ function resolvePath(segments: string[], ctx: EvalContext, source: string): unkn
     case 'loop': {
       return strictValue(state.loop, path, 'loop', source);
     }
+    case 'battle': {
+      // 战斗表达式域（16 号偏差③；封闭域语义）：作用域缺席 = 求值上下文不在
+      // 战斗 AI 中（显性化 EVAL_ERROR，不静默）
+      const view = state.battle;
+      if (view === undefined) throw missingKey(path, first as string, source);
+      if (first === 'round') return strictValue(view.round, path, 'round', source);
+      if (first === 'self') {
+        const field = second as string;
+        if (field === 'hp') return view.self.hp;
+        if (field === 'maxHp') return view.self.maxHp;
+        // 面板属性（开放集合）：未声明的 attr 缺席 → EVAL_ERROR（封闭域）
+        return strictValue(view.self.attrs[field], path, field as string, source);
+      }
+      if (first === 'enemies' && second === 'alive') return view.enemiesAlive;
+      if (first === 'allies' && second === 'alive') return view.alliesAlive;
+      throw missingKey(path, first as string, source);
+    }
     case 'meta': {
       if (first === 'perk') {
         // 渐进域：未购买 → false

@@ -23,6 +23,7 @@ export const EXPR_ROOTS: readonly string[] = [
   'meta',
   'quest',
   'wallet',
+  'battle',
 ];
 
 /** time 域合法字段（求值视图 ExprTimeView 的键，04 号模块从 Clock 投影） */
@@ -82,6 +83,18 @@ export function pathShapeError(root: string, rest: readonly string[]): string | 
       return 'quest 路径应为 quest.<id> 或 quest.<id>.<state|stage>';
     case 'wallet':
       return rest.length === 1 ? null : 'wallet 路径应为 wallet.<currency>';
+    case 'battle':
+      // battle.round 标量；battle.self.<hp|maxHp|attr>；battle.<enemies|allies>.alive
+      if (rest.length === 1 && rest[0] === 'round') return null;
+      if (rest.length === 2 && rest[0] === 'self') return null;
+      if (
+        rest.length === 2 &&
+        (rest[0] === 'enemies' || rest[0] === 'allies') &&
+        rest[1] === 'alive'
+      ) {
+        return null;
+      }
+      return 'battle 路径应为 battle.round / battle.self.<hp|maxHp|attr> / battle.<enemies|allies>.alive';
     default:
       return null; // 未知 root 由调用方先行校验
   }

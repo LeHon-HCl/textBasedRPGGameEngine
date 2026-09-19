@@ -103,6 +103,27 @@ export interface ExprTimeView {
  *   缺席值（flag → undefined、计数 → 0、flag → undefined、穿戴位 → null、
  *   stage → undefined、perk → false），供顶层条件真值化（DD-01）。
  */
+/**
+ * 战斗表达式域（battle.*，16 号偏差③立项落地，2026-09-19 人类确认清单）：
+ * AI `when` 条件引用**会话内状态**（§5.2「决策只用会话内状态」，DD-11）。
+ * v1 明确不做：target.*（when 判定在目标选择之前）、随机量（DD-09：AI 决策
+ * 不消耗骰序列）、叙事域快照。
+ */
+export interface BattleExprScope {
+  /** 行动者当前/最大 HP 与面板属性（battle.self.*） */
+  readonly self: {
+    readonly hp: number;
+    readonly maxHp: number;
+    readonly attrs: Readonly<Record<string, number>>;
+  };
+  /** 行动者对立面存活数（battle.enemies.alive；不含行动者自身） */
+  readonly enemiesAlive: number;
+  /** 行动者同侧存活数（battle.allies.alive；**含行动者自身**） */
+  readonly alliesAlive: number;
+  /** 当前回合序号（从 1 起；battle.round） */
+  readonly round: number;
+}
+
 export interface ExprScope {
   readonly player: {
     readonly attrs: Readonly<Record<string, number>>;
@@ -127,6 +148,8 @@ export interface ExprScope {
   readonly factions: Readonly<Record<string, number>>;
   readonly quests: Readonly<Record<string, QuestState>>;
   readonly loop: number;
+  /** 战斗表达式域（16 号；仅战斗 AI 求值上下文提供，其余上下文缺席 = battle.* 引用 EVAL_ERROR） */
+  readonly battle?: BattleExprScope;
   /** Profile 只读投影（§2.3 白名单表 meta 行：points / perk） */
   readonly meta: Readonly<Pick<Profile, 'points' | 'purchasedPerks'>>;
 }
