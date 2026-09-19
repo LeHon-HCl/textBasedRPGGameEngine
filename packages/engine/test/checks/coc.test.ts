@@ -279,3 +279,78 @@ describe('coc 规则：奖励/惩罚骰池（15 号 commit 4，FR-CMBT-04）', (
     expect(result.rolls).toEqual([37]);
   });
 });
+
+describe('coc 规则：对抗检定（15 号 commit 5，FR-CMBT-03）', () => {
+  /** 对抗用例：攻方骰（带骰池时 [十位..., 个位]）+ 守方骰 [十位, 个位] */
+  function opposed(attackQueue: number[], defenderTens: number, defenderUnits: number) {
+    return cocRule.resolve(
+      { rule: 'coc', value: 50, opposedValue: 50 },
+      queueRng([...attackQueue, defenderTens, defenderUnits]),
+    );
+  }
+
+  it('等级序高者胜：攻方 normal（37）对守方 fail（80）→ 攻方胜', () => {
+    const result = opposed([3, 7], 8, 0); // 守方 roll 80 > 50 → fail
+    expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({
+      opposed: { defenderRoll: 80, attackerLevel: 'normal', defenderLevel: 'fail', winner: 'attacker' },
+    });
+  });
+
+  it('守方等级更高时守方胜：攻方 normal（37）对守方 hard（20）', () => {
+    const result = opposed([3, 7], 2, 0); // 守方 roll 20 ≤ 25 → hard
+    expect(result.outcome).toBe('fail');
+    expect(result.detail).toMatchObject({
+      opposed: { defenderLevel: 'hard', winner: 'defender' },
+    });
+  });
+
+  it('同级「技能值低者胜」：双方 normal，守方技能 30 < 攻方 50 → 守方胜', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, opposedValue: 30 },
+      queueRng([3, 7, 3, 0]), // 攻 37 normal，守 30 恰好 normal（≤ 30）
+    );
+    expect(result.outcome).toBe('fail');
+    expect(result.detail).toMatchObject({ opposed: { winner: 'defender', defenderLevel: 'normal' } });
+  });
+
+  it('同级「技能值低者胜」：守方技能更高 → 攻方胜', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 30, opposedValue: 80 },
+      queueRng([2, 0, 5, 0]), // 攻 20 normal，守 50 normal（≤ 80）
+    );
+    expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({ opposed: { winner: 'attacker' } });
+  });
+
+  it('同级同技能 → 守方胜（再平守方胜）', () => {
+    const result = opposed([3, 7], 3, 0); // 攻 37 normal，守 30 normal，双方技能 50
+    expect(result.outcome).toBe('fail');
+    expect(result.detail).toMatchObject({ opposed: { winner: 'defender' } });
+  });
+
+  it('攻方大成功压过守方困难成功', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, opposedValue: 50 },
+      queueRng([1, 0, 2, 0]), // 攻 10 = critical，守 20 = hard
+    );
+    expect(result.outcome).toBe('success');
+    expect(result.detail).toMatchObject({
+      opposed: { attackerLevel: 'critical', defenderLevel: 'hard', winner: 'attacker' },
+    });
+  });
+
+  it('攻方赢了对抗但不满足自身请求难度档 → 仍判失败', () => {
+    const result = cocRule.resolve(
+      { rule: 'coc', value: 50, difficulty: 'extreme', opposedValue: 50 },
+      queueRng([3, 7, 9, 9]), // 攻 37 normal（未达 extreme 10），守 99 fail
+    );
+    expect(result.outcome).toBe('fail');
+    expect(result.detail).toMatchObject({ opposed: { winner: 'attacker' } });
+  });
+
+  it('rolls 报 [攻方骰, 守方骰]', () => {
+    const result = opposed([3, 7], 4, 2);
+    expect(result.rolls).toEqual([37, 42]);
+  });
+});
