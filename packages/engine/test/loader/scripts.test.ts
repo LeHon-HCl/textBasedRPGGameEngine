@@ -303,7 +303,7 @@ describe('scripts 步骤（管线步骤 6，06 任务 B3）', () => {
     expect(error.code).toBe('DUP_ID');
   });
 
-  it('脚本判定规则进解析器：脚本规则优先，回退宿主级解析器（§5.1）', () => {
+  it('脚本判定规则进解析链：脚本规则优先，宿主级解析器次之（§5.1，15 号）', () => {
     const customRule: CheckRule = {
       id: 'x.rules.custom',
       resolve: () => ({ rolls: [1], level: 'normal', outcome: 'success', detail: {} }),
@@ -328,20 +328,23 @@ describe('scripts 步骤（管线步骤 6，06 任务 B3）', () => {
         checkResolver: { resolve: (ruleId) => (ruleId === 'coc' ? hostCoc : undefined) },
       },
     });
-    expect(result.checkResolver?.resolve('x.rules.custom')).toBe(customRule);
-    expect(result.checkResolver?.resolve('coc')).toBe(hostCoc);
-    expect(result.checkResolver?.resolve('generic')).toBeUndefined();
+    expect(result.checkResolver.resolve('x.rules.custom')).toBe(customRule);
+    // 宿主权威：宿主对 'coc' 的实现覆盖内置 coc（解析链中段）
+    expect(result.checkResolver.resolve('coc')).toBe(hostCoc);
+    // 宿主未覆盖的内置规则（generic）由 checks/ 兜底提供（15 号 commit 6）
+    expect(result.checkResolver.resolve('generic')).toBeDefined();
     expect(result.effectRegistry.frozen).toBe(true);
   });
 
-  it('脚本规则与宿主解析器皆缺省：checkResolver 为 undefined', () => {
+  it('脚本与宿主皆缺省：解析链仍可用（内置 coc 兜底，15 号），未知 id 返回 undefined', () => {
     const result = runScriptStep({
       domains: EMPTY_DOMAINS,
       deferredXRefs: [],
       inventory: EMPTY_INVENTORY,
       options: {},
     });
-    expect(result.checkResolver).toBeUndefined();
+    expect(result.checkResolver.resolve('coc')).toBeDefined();
+    expect(result.checkResolver.resolve('x.nobody.registered')).toBeUndefined();
     expect(result.effectRegistry.frozen).toBe(true);
   });
 

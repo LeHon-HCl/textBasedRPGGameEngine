@@ -102,11 +102,16 @@ export function createAdversarialDefs(options: EffectRegistryOptions): ErasedEff
         arg.opposedValue !== undefined
           ? evalNumberParam(ectx, 'check', 'opposedValue', arg.opposedValue)
           : undefined;
+      const difficultyValue =
+        arg.difficultyValue !== undefined
+          ? evalNumberParam(ectx, 'check', 'difficultyValue', arg.difficultyValue)
+          : undefined;
       const result = rule.resolve(
         {
           rule: ruleId,
           value,
           ...(arg.difficulty !== undefined ? { difficulty: arg.difficulty } : {}),
+          ...(difficultyValue !== undefined ? { difficultyValue } : {}),
           ...(bonusDice !== undefined ? { bonusDice } : {}),
           ...(penaltyDice !== undefined ? { penaltyDice } : {}),
           ...(opposedValue !== undefined ? { opposedValue } : {}),

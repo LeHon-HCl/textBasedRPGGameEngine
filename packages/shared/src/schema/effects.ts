@@ -171,6 +171,8 @@ export interface CheckEffectParams {
   rule?: string;
   value: string;
   difficulty?: 'normal' | 'hard' | 'extreme';
+  /** generic 规则难度数值（roll + value ≥ difficultyValue）；coc 忽略 */
+  difficultyValue?: number | string;
   bonusDice?: number | string;
   penaltyDice?: number | string;
   opposedValue?: number | string;
@@ -195,6 +197,9 @@ const checkParams = z.strictObject({
   rule: z.string().min(1).optional(),
   value: exprSchema,
   difficulty: z.enum(['normal', 'hard', 'extreme']).optional(),
+  // generic 规则的难度数值（§5.1「roll + value ≥ difficultyValue」，由调用方
+  // 表达式给出；coc 规则忽略此字段）。15 号 additive 扩展。
+  difficultyValue: exprOrNumberSchema.optional(),
   bonusDice: exprOrNumberSchema.optional(),
   penaltyDice: exprOrNumberSchema.optional(),
   opposedValue: exprOrNumberSchema.optional(),

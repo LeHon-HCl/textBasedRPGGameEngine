@@ -7,6 +7,8 @@ segments:
     showIf: "time.slot == 'morning'"
   - key: scenes.hillside_trailhead.quarry_hint
     showIf: 'flag.embankment_found'
+  - key: scenes.hillside_trailhead.marks_hint
+    showIf: 'attr.insight >= 3'
 choices:
   - id: to_quarry
     textKey: scenes.hillside_trailhead.choice.to_quarry
@@ -23,6 +25,21 @@ choices:
     effects:
       - set: { key: 'flag.quarry_open', value: true }
       - notify: { textKey: 'scenes.hillside_trailhead.notify.opened' }
+  # 检定入口（15 号，M2 阶段一）：洞察 × 5 折算 CoC 技能值（insight 0..20 → 0..100），
+  # 成功 = 直接看出上山的旧痕（与 open_quarry 平行的第二条采石场解锁路径）。
+  # once: true 守护（C8 同款口径：检定可失败，但选项不应可反复点击）。
+  - id: read_marks
+    textKey: scenes.hillside_trailhead.choice.read_marks
+    showIf: 'attr.insight >= 1'
+    once: true
+    effects:
+      - check:
+          value: 'attr.insight * 5'
+          onSuccess:
+            - set: { key: 'flag.quarry_open', value: true }
+            - notify: { textKey: 'scenes.hillside_trailhead.notify.marks_spotted' }
+          onFail:
+            - notify: { textKey: 'scenes.hillside_trailhead.notify.marks_missed' }
   - id: back_town
     textKey: scenes.hillside_trailhead.choice.back
     goto: market_street

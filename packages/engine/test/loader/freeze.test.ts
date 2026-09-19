@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EngineError, manifestSchema } from '@game/shared';
 import { createBuiltinEffectRegistry } from '../../src/effects/index.js';
+import { createBuiltinCheckResolver } from '../../src/checks/index.js';
 import { buildGameDefinition, deepFreeze } from '../../src/loader/freeze.js';
 import { loadFixture } from './fixtures.js';
 import type { Diagnostic, GameDefinition } from '../../src/loader/types.js';
@@ -286,6 +287,6 @@ function minimalScriptResult(): ScriptStepResult {
       quests: new Map(),
     }),
     functionRegistry: new Map(),
-    checkResolver: undefined,
+    checkResolver: createBuiltinCheckResolver(),
   };
 }

@@ -272,7 +272,10 @@ export interface LoadGameOptions {
   readonly lang?: Lang;
   /** 宿主注入的作者脚本模块（管线步骤 6；缺省 = 无脚本，FR-SCR-06） */
   readonly scripts?: readonly ScriptModule[];
-  /** 宿主级判定规则解析器（脚本规则之外的基础规则，15 号注入 coc/generic） */
+  /**
+   * 宿主级判定规则解析器（15 号）：位于解析链中段——脚本规则优先于它，
+   * 内置 coc/generic（checks/）兜底于它。缺省 = 仅内置规则可用。
+   */
   readonly checkResolver?: CheckRuleResolver;
 }
 
