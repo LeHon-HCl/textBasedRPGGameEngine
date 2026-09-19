@@ -29,10 +29,10 @@
   解析链「脚本规则 → 宿主解析器 → 内置 coc/generic」在 loader 管线步骤 6 合成并
   注入效果注册表——修复了此前 `ScriptStepResult.checkResolver` 返回后无人消费的
   断缝，`check` 指令开箱可用。
-- **设计偏差登记（依约束 2 待人类审查确认 §5.1 是否修订）**：§5.1 表格下极难线
-  与大成功线同为 ⌊skill/5⌋，故 `extreme` 等级被 `critical` 吸收、单方检定实际
-  不可达；实现照表，等级枚举保留 `extreme` 为对抗比较与脚本规则扩展留位。
-  若希望 extreme 可达（例如大成功线改 ⌊skill/10⌋ 或另设判据），须先改 §5.1。
+- **设计偏差裁定（2026-09-19 人类审查通过，方案 A，约束 2 闭环）**：§5.1 表格下
+  极难线与大成功线同为 ⌊skill/5⌋（与 CoC 7 原版一致——同一骰值区间两种用途），
+  `extreme` 等级被 `critical` 吸收、单方检定实际不可达；实现照表，等级枚举保留
+  `extreme` 为对抗比较与脚本规则扩展留位。detail-design §5.1 已补追认注记。
 - **additive 扩展**：check 指令新增可选参数 `difficultyValue`（表达式或数字字面量，
   generic 规则的难度数值；coc 忽略）——§5.1「难度数值由调用方表达式给出」的
   参数化落地；shared JSON Schema 基线已随 `schema:baselines` 再生成。

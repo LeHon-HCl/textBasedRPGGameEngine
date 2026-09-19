@@ -32,12 +32,30 @@
   （#31/#33，A）、W4 伤害公式预设 + AI 双策略（#27 起，B）、W5 状态 tick + 日志投影
   （#30，B）、W6 第一片目标选择（#34，B）；数据域回填（#29，B）+ battle_start
   宿主事件通道（#33，A）。
-- **设计偏差登记**（依约束 2 待人类审查 §5.2 是否修订）：
+- **设计偏差裁定（2026-09-19 人类审查通过，约束 2 闭环）**：
   ① BattleSession 构造接受已实例化单位（BattleInit），EncounterDef → 单位实例化
   拆为独立纯函数（DD-11 会话级测试不依赖叙事）；
   ② 状态 tick 挂「新回合开始」每轮一次（§5.2「tick 在 round_end」按真回合边界
   解释——round_end 相位是单次行动收敛点，逐行动 tick 会让高速单位双倍速衰减）；
-  ③ AI `when` 表达式的战斗内作用域桥接未定（接线层 evalCondition 缺省恒真，
-  W6 demo 数据暂不用 when 声明）。
+  ③ AI `when` 表达式的战斗内作用域桥接：**已立项**（2026-09-19 人类批准）——
+  变量清单草案见下，清单经人类确认后接线（随 W6 第二片或阶段六，约半天）；
+  落地前 demo 数据不写 `when`（接线层 evalCondition 缺省恒真）。
+
+### 战斗表达式域草案（偏差③，待人类确认清单）
+
+目的：AI `when` 条件引用**会话内状态**（§5.2「决策只用会话内状态」）。
+v1 最小集（域名 `battle.`，进 03 号表达式白名单）：
+
+| 变量 | 语义 |
+|---|---|
+| `battle.self.hp` / `battle.self.maxHp` | 行动者当前/最大 HP |
+| `battle.self.<attr>` | 行动者战斗面板属性（atk/def/spd 等，Attrs 快照） |
+| `battle.enemies.alive` | 行动者对立面存活数（敌方视角 = 玩家侧人数） |
+| `battle.allies.alive` | 行动者同侧存活数 |
+| `battle.round` | 当前回合序号（从 1 起） |
+
+明确排除（v1 不做）：target.*（when 阶段目标未选，目标选择在条件之后）、
+随机量（DD-09：AI 决策不消耗骰序列）、叙事域（DD-11 隔离）。
+写法示例：`when: 'battle.self.hp < battle.self.maxHp * 0.3'`。
 - **剩余**：子任务 10 的 demo 接入片（W6 第二片，B 主刀：mini-game 遭遇数据 +
   game-host 接线 + 最小战斗页 + E2E 战斗流），完成后勾选完成定义。
