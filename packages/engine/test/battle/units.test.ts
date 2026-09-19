@@ -41,8 +41,13 @@ describe('instantiateEncounter（W2：EncounterDef → BattleInit）', () => {
     expect(init.enemies.map((unit) => unit.uid)).toEqual(['slime', 'slime#2', 'bat']);
     expect(init.enemies.map((unit) => unit.hp)).toEqual([20, 20, 8]);
     // 面板隔离：各实例独立快照，改一只不影响另一只
-    init.enemies[0]!.attrs['atk'] = 99;
-    expect(init.enemies[1]!.attrs['atk']).toBe(3);
+    const [first, second] = init.enemies;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    if (first !== undefined && second !== undefined) {
+      first.attrs['atk'] = 99;
+      expect(second.attrs['atk']).toBe(3);
+    }
     expect(init.escapeRate).toBe(0.7);
   });
 
