@@ -19,14 +19,17 @@ export interface BattleLogView {
 export function projectBattleLog(log: readonly BattleLogEntry[]): readonly BattleLogView[] {
   const groups: BattleLogView[] = [];
   const indexOf = new Map<BattlePhase, number>();
+  // 组内缓冲用可变数组装配，出口以 readonly 视图交付（投影只读语义）
+  const buffers: BattleLogEntry[][] = [];
   for (const entry of log) {
     let index = indexOf.get(entry.phase);
     if (index === undefined) {
       index = groups.length;
       indexOf.set(entry.phase, index);
       groups.push({ phase: entry.phase, entries: [] });
+      buffers.push([]);
     }
-    groups[index]!.entries.push(entry);
+    buffers[index]?.push(entry);
   }
-  return groups;
+  return groups.map((group, i) => ({ phase: group.phase, entries: buffers[i] ?? [] }));
 }

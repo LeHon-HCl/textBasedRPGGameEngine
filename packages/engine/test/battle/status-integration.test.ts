@@ -122,7 +122,9 @@ describe('W5 会话集成：tick 挂新回合开始（裁定案 A）', () => {
     const slime = enemy(50);
     const session = sessionOf({ player: hero, enemies: [slime] });
     const phases: string[] = [];
-    const push = (): void => phases.push(session.phase() ?? '');
+    const push = (): void => {
+      phases.push(session.phase());
+    };
 
     session.beginTurn(); // 敌方先动 → resolving 收敛回 turn_order
     session.beginTurn(); // 轮到玩家 → await_player

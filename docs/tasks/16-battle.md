@@ -17,9 +17,9 @@
 - [ ] 结算管线：技能效果 = 战斗子集指令（伤害/治疗/状态）复用 EffectContext（source='battle'）
 - [x] 伤害公式可插拔预设（默认 atk*mult − def，作者可脚本注册覆盖）
 - [x] AI 策略：weighted（权重+when 过滤）与 scripted（表达式序列首中）；决策只用会话内状态
-- [ ] 战斗内状态效果 round_end tick（复用 StatusInstance）+ 到期/叠层断言
+- [x] 战斗内状态效果 round_end tick（复用 StatusInstance）+ 到期/叠层断言
 - [ ] 胜负路由：victory → rewards child 事务（chance 掉落 + 表达式金额）→ on_victory/on_defeat/on_escape 效果与跳转（战败≠终局）
-- [ ] 战斗日志：BattleLogEntry（i18n 键 + 数值，可回看）+ 全程 log/phase 序列断言
+- [x] 战斗日志：BattleLogEntry（i18n 键 + 数值，可回看）+ 全程 log/phase 序列断言
 - [ ] 敌方多人（目标选择）+ 遭遇模板参数化（FR-CMBT-12/13）
 
 ## 完成定义
