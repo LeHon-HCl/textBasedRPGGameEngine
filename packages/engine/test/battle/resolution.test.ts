@@ -108,6 +108,41 @@ describe('createEffectExecutor（W2 子任务 4：结算管线）', () => {
     );
   });
 
+  it('SkillRef.effects：有 applyEffects 缝 → 执行；缺缝 → effects_unwired 显性化日志', () => {
+    const hero = unit('hero', 'player', {
+      skills: [
+        { id: 'slash', params: { mult: 1 } },
+        { id: 'mend', effects: [{ add: { key: 'attr.hp', amount: 10 } }] },
+      ],
+    } as never);
+    const applied: string[][] = [];
+    const wired = createEffectExecutor({
+      damageFn: () => ({ amount: 0 }),
+      applyEffects: (effects) => {
+        applied.push(effects.map((entry) => Object.keys(entry)[0] as string));
+      },
+    });
+    const outcome = wired(
+      { kind: 'skill', skillId: 'mend' },
+      { actor: hero, units: new Map([[hero.uid, hero]]), rng: rngStub },
+    );
+    expect(applied).toEqual([['add']]);
+    expect(outcome.damage).toBeUndefined();
+
+    // 缺缝：显性化日志（consumeItem 同口径），不静默丢弃
+    const unwired = createEffectExecutor({ damageFn: () => ({ amount: 0 }) });
+    const outcome2 = unwired(
+      { kind: 'skill', skillId: 'mend' },
+      { actor: hero, units: new Map([[hero.uid, hero]]), rng: rngStub },
+    );
+    expect(outcome2.log).toContainEqual(
+      expect.objectContaining({
+        key: 'battle.log.effects_unwired',
+        vars: expect.objectContaining({ skill: 'mend' }),
+      }),
+    );
+  });
+
   it('item：consumeItem 缝先扣再记日志；缺省只记日志（显性化）', () => {
     const hero = unit('hero', 'player');
     const consumed: string[] = [];

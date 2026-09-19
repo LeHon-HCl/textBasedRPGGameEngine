@@ -1,5 +1,12 @@
-import type { Rng } from '@game/shared';
-import type { DamageFn, DamageInput, BattleUnit, PlayerAction, AiActionSpec } from './types.js';
+import type { EffectData, Rng } from '@game/shared';
+import type {
+  DamageFn,
+  DamageInput,
+  BattleUnit,
+  PlayerAction,
+  AiActionSpec,
+  SkillRef,
+} from './types.js';
 import type { ActionOutcome } from './session.js';
 
 /**
@@ -13,8 +20,9 @@ import type { ActionOutcome } from './session.js';
  *   含守方面板与 defending 态传递，随机只经 ectx.rng，DD-09）；
  * - 物品消耗 = 注入的 `consumeItem` 缝（绑定 GameState 背包的适配层在
  *   battle 指令接线时装配）；消耗语义显性化：结算前先扣；
- * - 技能附加效果（治疗/状态等战斗子集）的 EffectContext 复用口径待与
- *   B 方对齐后接入（登记 tasks/16-battle.md，W2 后续 commit）。
+ * - 技能附加效果（W2 裁定，PR #28 review P1 闭环）= 注入的 `applyEffects` 缝：
+ *   执行 SkillRef.effects 声明的战斗子集指令（治疗/状态/增益），会话与执行器
+ *   不持 GameRuntime（DD-11）；缺省未注入且声明了 effects → 日志显性化。
  */
 
 /** 会话交付给执行器的行动上下文 */
@@ -31,6 +39,15 @@ export interface ResolutionOptions {
   damageFn: DamageFn;
   /** 物品消耗缝（可选；缺省 = 只记日志不扣包，适配层装配前显性化） */
   consumeItem?: (itemId: string) => void;
+  /**
+   * 技能附加效果缝：执行 SkillRef.effects 的战斗子集指令。由 battle 指令
+   * 接线层装配（runtime.exec source='battle' 实现）。
+   */
+  applyEffects?: (
+    effects: readonly EffectData[],
+    actor: BattleUnit,
+    ectx: ActionExecutionContext,
+  ) => void;
 }
 
 /** 技能倍率：SkillRef.params.mult 缺省 1 */
@@ -38,6 +55,31 @@ function skillMult(actor: BattleUnit, skillId: string): number {
   const skill = actor.skills.find((entry) => entry.id === skillId);
   const mult = skill?.params?.['mult'];
   return typeof mult === 'number' ? mult : 1;
+}
+
+/** 附加效果执行出口：有缝执行；无缝声明 → 显性化日志（W2 裁定口径） */
+function applyAttached(
+  options: ResolutionOptions,
+  skill: SkillRef | undefined,
+  ectx: ActionExecutionContext,
+  outcome: ActionOutcome,
+): ActionOutcome {
+  const effects = skill?.effects;
+  if (effects === undefined || effects.length === 0) return outcome;
+  if (options.applyEffects === undefined) {
+    return {
+      ...outcome,
+      log: [
+        ...(outcome.log ?? []),
+        {
+          key: 'battle.log.effects_unwired',
+          vars: { actor: ectx.actor.nameKey, skill: skill?.id ?? '' },
+        },
+      ],
+    };
+  }
+  options.applyEffects(effects, ectx.actor, ectx);
+  return outcome;
 }
 
 /**
@@ -59,6 +101,7 @@ export function createEffectExecutor(
     }
     if (action.kind === 'item') {
       options.consumeItem?.(action.itemId);
+      // 物品的附加效果面（治疗药剂等）由数据侧另行扩展；本层处理技能声明面
       return {
         log: [{ key: 'battle.log.item', vars: { actor: ectx.actor.nameKey, item: action.itemId } }],
       };
@@ -67,15 +110,16 @@ export function createEffectExecutor(
     const targetUid = action.targetUid;
     const target = targetUid !== undefined ? ectx.units.get(targetUid) : undefined;
     if (target === undefined) {
-      // 无目标技能（自身增益面待接）：只记日志，无伤害
-      return {
+      // 无目标技能：附加效果（自身增益）仍执行；无伤害
+      const skill = ectx.actor.skills.find((entry) => entry.id === action.skillId);
+      return applyAttached(options, skill, ectx, {
         log: [
           {
             key: 'battle.log.skill_nontarget',
             vars: { actor: ectx.actor.nameKey, skill: action.skillId },
           },
         ],
-      };
+      });
     }
     const input: DamageInput = {
       attacker: ectx.actor.attrs,
@@ -84,7 +128,8 @@ export function createEffectExecutor(
       ...(target.defending ? { defending: true } : {}),
     };
     const result = options.damageFn(input, ectx.rng);
-    return {
+    const skill = ectx.actor.skills.find((entry) => entry.id === action.skillId);
+    return applyAttached(options, skill, ectx, {
       ...(result.amount > 0 ? { damage: [{ uid: target.uid, amount: result.amount }] } : {}),
       log: [
         {
@@ -97,6 +142,6 @@ export function createEffectExecutor(
           },
         },
       ],
-    };
+    });
   };
 }

@@ -50,6 +50,13 @@ export interface SkillRef {
   id: string;
   /** 结算时传给效果子集的参数（伤害倍率、目标选择提示等；作者自定义） */
   params?: Readonly<Record<string, unknown>>;
+  /**
+   * 技能附加效果（W2 裁定，PR #28 review P1 闭环）：非攻击面（治疗/状态/增益）
+   * 的战斗子集指令序列——attack 语义（mult → DamageFn）内建于结算器，
+   * 附加效果经 ResolutionOptions.applyEffects 注入缝执行（会话不持
+   * GameRuntime，DD-11 保持）；缺省未注入缝且声明了 effects → 日志显性化。
+   */
+  effects?: readonly import('@game/shared').EffectData[];
 }
 
 /** AI 策略声明（§5.2 FR-CMBT-09；实现归 W4 damage/ai.ts） */
