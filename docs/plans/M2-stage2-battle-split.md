@@ -81,7 +81,7 @@ DD-06 不适用于包内）；但依赖方向必须单向：`actions/resolution 
 | W1 行动序与玩家行动 | A 方 | 2026-09-19 | PR #28 | 已认领 |
 | W2 结算主线 | A 方 | 2026-09-19 | PR #28 | 已认领 |
 | W4 伤害与 AI | B 方（CelestNya） | 2026-09-19 | [PR #27](https://github.com/LeHon-HCl/textBasedRPGGameEngine/pull/27)（stacked 于 #28 的 types 冻结之上） | 已认领，W4 预写中 |
-| W5 状态 tick + 日志 | 待认领（B 方续接，W4 收尾时正式认领） | — | — | 待认领 |
+| W5 状态 tick + 日志 | B 方（CelestNya） | 2026-09-19 | [PR 见 feat/battle-w5-status-log]（stacked main） | 已认领，W4 已合入后开工 |
 | W6 收口（多人/遭遇/demo/集成） | 待认领（B 方主刀，W5 后正式认领） | — | — | 待认领 |
 
 ## 5. 协作与验收约定
