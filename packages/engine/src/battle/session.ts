@@ -81,6 +81,8 @@ export class BattleSession {
   /** 本回合 fleeing 标记（round_end 收敛 escaped 的依据） */
   #fledThisTurn = false;
   #result: BattleResult | null = null;
+  /** 当前回合序号（从 1 起；#enterTurnOrder 每次调用递增，battle.round 变量源） */
+  #round = 0;
 
   constructor(init: BattleInit, options: BattleSessionOptions) {
     this.#rng = options.rng;
@@ -127,6 +129,11 @@ export class BattleSession {
 
   result(): BattleResult | null {
     return this.#result;
+  }
+
+  /** 当前回合序号（从 1 起；battle.round 表达式变量源，16 号偏差③） */
+  round(): number {
+    return this.#round;
   }
 
   // —— 相位驱动 ——
@@ -239,6 +246,7 @@ export class BattleSession {
 
   /** 回合开始：重算行动序（计算归 turn-queue.ts 纯函数）并清理上一轮防御态 */
   #enterTurnOrder(): void {
+    this.#round += 1; // 首次调用 = 第 1 回合开始
     // 防御只持续到下一轮开始（FR-CMBT-08 回合制语义）
     for (const unit of this.#units.values()) unit.defending = false;
     const order = computeTurnOrder([...this.#units.values()], this.#rng);

@@ -63,6 +63,12 @@ function makeFiles(): Record<string, string> {
       '    - id: tackle',
       '      params: { mult: 1 }',
       '      effects: [{ add: { key: "attr.hp", amount: 1 } }]', // 敌方自愈面（applyEffects 缝验证）
+      '  ai:',
+      '    kind: scripted',
+      '    sequence:',
+      '      - when: "battle.round >= 2 && battle.allies.alive >= 1"',
+      '        action: { kind: skill, skillId: tackle }',
+      '      - action: { kind: defend }',
     ].join('\n'),
     'data/encounters.yaml': [
       '- id: slime_encounter',
@@ -141,6 +147,35 @@ describe('createBattleController（W2 接线层：battle jump 消费全链）', 
     // 敌方回合 tackle：附加效果 add hp +1 经缝执行（敌人在战斗内自愈不落主状态，
     // 故此处只断言会话存活、缝未抛错）；战斗继续
     expect(['turn_order', 'victory', 'defeat']).toContain(controller.session.phase());
+  });
+
+  it('AI when 条件真实生效：battle.round / battle.allies.alive 驱动 scripted 决策', async () => {
+    const { definition, runtime } = await makeRuntime();
+    const controller = createBattleController({
+      definition,
+      runtime,
+      encounterId: 'slime_encounter',
+      branches: {},
+      // 玩家伤害调低（mult 0.1），战斗拖到第 2 回合验证 round 变量
+      playerSkills: [{ id: 'poke', params: { mult: 0.1 } }],
+      rng: rngStub(),
+    });
+    // 第 1 回合：battle.round >= 2 不满足 → 兜底 defend
+    controller.session.beginTurn(); // hero 先手（spd 12 > 3）
+    controller.session.playerAction({ kind: 'skill', skillId: 'poke', targetUid: 'slime' });
+    const enemyTurn1 = controller.session.beginTurn(); // slime
+    expect(enemyTurn1.phase).toBe('resolving');
+    expect(controller.session.phase()).toBe('turn_order'); // 防御消耗回合
+    // 第 2 回合：条件满足（round=2 且 allies.alive=1 含自身）→ tackle
+    controller.session.beginTurn(); // 新一轮：hero
+    controller.session.playerAction({ kind: 'skill', skillId: 'poke', targetUid: 'slime' });
+    const enemyTurn2 = controller.session.beginTurn();
+    expect(enemyTurn2.phase).toBe('resolving');
+    // 脚本选择生效的直接证据：第 2 回合敌方日志含 battle.log.skill（tackle），
+    // 第 1 回合只有 battle.log.defend——若 when 不生效则两回合都是 defend
+    const keys = controller.session.log().map((entry) => entry.key);
+    expect(keys).toContain('battle.log.skill');
+    expect(keys).toContain('battle.log.defend');
   });
 
   it('遭遇 id 不存在 → DANGLING_REF（crossRef 之外的防御性再报）', async () => {

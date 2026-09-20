@@ -2,12 +2,14 @@ import type { EffectData, EncounterDef, GameId, Rng } from '@game/shared';
 import { EngineError } from '@game/shared';
 import type { GameDefinition } from '../loader/types.js';
 import type { ExecContext, GameRuntime } from '../runtime/index.js';
+import { compileExpr, evalExpr, truthy } from '../expr-eval/index.js';
+import { buildExprScope } from '../state/index.js';
 import { createAiResolver } from './ai.js';
 import { createDefaultDamageFn } from './damage.js';
 import { buildOutcomeEffects, type OutcomeBranches } from './outcome.js';
 import { createEffectExecutor } from './resolution.js';
 import { BattleSession } from './session.js';
-import type { SkillRef } from './types.js';
+import type { AiActionSpec, BattleUnit, SkillRef } from './types.js';
 import { instantiateEncounter, playerUnitFromState } from './units.js';
 
 /**
@@ -88,17 +90,62 @@ export function createBattleController(input: BattleWiringInput): BattleControll
       input.runtime.exec(effects, baseCtx(ectx.rng));
     },
   });
+  // —— AI when 条件的战斗表达式域（16 号偏差③，battle.* v1 清单已获人类确认）——
+  // 行动者上下文经「行动前登记」传递（aiResolve 与 when 求值在同一同步调用链内）；
+  // 求值作用域 = 叙事基座（供 x.* 脚本函数取参）+ battle 视图覆盖。
+  const compiledCache = new Map<string, ReturnType<typeof compileExpr>>();
+  let currentActor: BattleUnit | undefined;
+  const battleEvalCondition = (source: string): boolean => {
+    const actor = currentActor;
+    if (actor === undefined) {
+      throw new EngineError({
+        code: 'EFFECT_FAILED',
+        where: { op: 'battle.ai', detail: 'when 求值时无行动者上下文（装配缺陷）' },
+        messageKey: 'error.effects.instructionFailed',
+      });
+    }
+    let compiled = compiledCache.get(source);
+    if (compiled === undefined) {
+      compiled = compileExpr(source, input.definition.functionRegistry);
+      compiledCache.set(source, compiled);
+    }
+    const units = session.units();
+    const opposing: ReadonlyArray<BattleUnit['side']> =
+      actor.side === 'enemy' ? ['player', 'ally'] : ['enemy'];
+    const allies: ReadonlyArray<BattleUnit['side']> =
+      actor.side === 'enemy' ? ['enemy'] : ['player', 'ally'];
+    const scope = {
+      ...buildExprScope(input.runtime.state),
+      battle: {
+        self: { hp: actor.hp, maxHp: actor.maxHp, attrs: actor.attrs },
+        enemiesAlive: units.filter((u) => u.hp > 0 && opposing.includes(u.side)).length,
+        alliesAlive: units.filter((u) => u.hp > 0 && allies.includes(u.side)).length,
+        round: session.round(),
+      },
+    };
+    return truthy(
+      evalExpr(compiled, {
+        state: scope,
+        rng: input.rng,
+        registry: input.definition.functionRegistry,
+      }),
+    );
+  };
   const aiResolve = createAiResolver({
     rng: input.rng,
-    evalCondition: input.evalCondition ?? (() => true),
+    evalCondition: input.evalCondition ?? battleEvalCondition,
   });
+  const resolveWithActor = (unit: BattleUnit): AiActionSpec => {
+    currentActor = unit;
+    return aiResolve(unit);
+  };
 
   const player = playerUnitFromState(input.runtime.state, { skills: input.playerSkills });
   const session = new BattleSession(
     instantiateEncounter(encounter, input.definition.enemies, player),
     {
       rng: input.rng,
-      aiResolve,
+      aiResolve: resolveWithActor,
       executeAction: executor,
     },
   );
