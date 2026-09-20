@@ -8,6 +8,22 @@ segments:
   - key: scenes.hillside_quarry.surveyed
     showIf: 'flag.quarry_surveyed'
 choices:
+  # W6 demo：战斗遭遇入口（FR-CMBT-07 从选项效果 battle 指令进入）
+  - id: fight_rats
+    textKey: scenes.hillside_quarry.choice.fight_rats
+    showIf: '!flag.quarry_rats_cleared'
+    effects:
+      - battle:
+          encounter: enc_quarry_rats
+          onVictory:
+            - set: { key: 'flag.quarry_rats_cleared', value: true }
+            - notify: { textKey: 'scenes.hillside_quarry.notify.rats_cleared' }
+            - goto: hillside_quarry
+          onDefeat:
+            - notify: { textKey: 'scenes.hillside_quarry.notify.rats_defeat' }
+            - goto: hillside_trailhead
+          onEscape:
+            - notify: { textKey: 'scenes.hillside_quarry.notify.rats_escaped' }
   - id: survey
     textKey: scenes.hillside_quarry.choice.survey
     showIf: '!flag.quarry_surveyed'

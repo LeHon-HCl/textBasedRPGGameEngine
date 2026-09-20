@@ -1,0 +1,13 @@
+# 敌人定义（EnemyDef，16 号战斗域；FR-CMBT-07）
+# 采石场岩鼠：W6 demo 敌人（encounters 中两只同种 = FR-CMBT-12 多敌人演示）
+- id: rock_rat
+  nameKey: enemies.rock_rat.name
+  hp: 6
+  attrs:
+    atk: 4
+    def: 1
+    spd: 4
+  skills:
+    - id: gnaw
+      params:
+        mult: 1

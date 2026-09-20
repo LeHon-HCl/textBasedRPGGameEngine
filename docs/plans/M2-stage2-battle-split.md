@@ -82,7 +82,7 @@ DD-06 不适用于包内）；但依赖方向必须单向：`actions/resolution 
 | W2 结算主线 | A 方 | 2026-09-19 | PR #28 | 已认领 |
 | W4 伤害与 AI | B 方（CelestNya） | 2026-09-19 | [PR #27](https://github.com/LeHon-HCl/textBasedRPGGameEngine/pull/27)（stacked 于 #28 的 types 冻结之上） | 已认领，W4 预写中 |
 | W5 状态 tick + 日志 | B 方（CelestNya） | 2026-09-19 | PR #30 | 已交付，待 A 方 review |
-| W6 收口（多人/遭遇/demo/集成） | B 方（CelestNya） | 2026-09-19 | PR 见 feat/battle-w6-targeting-demo | 已认领（W2 后半已合入，battle-flow 串联测试归 A 配合） |
+| W6 收口（多人/遭遇/demo/集成） | B 方（CelestNya） | 2026-09-19 | PR 见 feat/battle-w6-targeting-demo | 已交付（16 号收口） |
 
 ## 5. 协作与验收约定
 
