@@ -99,12 +99,20 @@ const CATEGORY_ACCESSORS: Record<LoopCategory, CategoryAccessor> = {
     },
   },
   items: {
-    read: (state) => ({ bag: state.player.bag }),
+    // items 类别含背包与**多货币钱包**（钱包无独立类别，FR-ECON-01 属财产面）；
+    // keepRatio 对 wallet 子面（数值映射）有效——「保留金币 10%」由此表达
+    read: (state) => ({ bag: state.player.bag, wallet: state.player.wallet }),
     write: (state, value) => {
-      state.player.bag = (value as { bag: GameState['player']['bag'] }).bag;
+      const v = value as {
+        bag: GameState['player']['bag'];
+        wallet?: GameState['player']['wallet'];
+      };
+      state.player.bag = v.bag;
+      if (v.wallet !== undefined) state.player.wallet = v.wallet;
     },
     reset: (state, baseline) => {
       state.player.bag = clone(baseline.player.bag);
+      state.player.wallet = clone(baseline.player.wallet);
     },
   },
   outfit: {
@@ -449,7 +457,7 @@ function mergeByKeys(
 /** 复合形态类别的主映射子键（白名单/黑名单的作用面） */
 const PRIMARY_MAP_KEYS: Partial<Record<LoopCategory, readonly string[]>> = {
   flags: ['flags'],
-  items: ['bag'],
+  items: ['bag', 'wallet'],
   outfit: ['equip', 'outfit'],
   body: ['body'],
   seen: ['scenes'],

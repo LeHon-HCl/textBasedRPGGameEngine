@@ -54,8 +54,8 @@
 - [x] [15 判定系统](15-checks.md)（M2 阶段一 2026-09-18 完成：coc/generic 内置规则 + 解析链接缝打通 + demo 检定入口；extreme 等级不可达的设计偏差见该文件落地记录，待人类审查）
 - [x] [16 回合制战斗](16-battle.md)（M2 阶段二 2026-09-19 完成：双人分工 W0-W6 全交付——八相位状态机/结算/AI/tick/日志/目标选择/接线层 + demo 遭遇可玩；battle-flow 全链串联测试真实入账）
 - [x] [17 经济与商店](17-economy.md)（M2 阶段三 2026-09-21 完成：ShopService 全量 + shop/meet 指令 + C5 豁免清账 + demo 商店；三处设计缺口登记待人类裁定）
-- [ ] [18 成就与元进度](18-achievements.md)
-- [ ] [19 周目系统](19-loop.md)
+- [x] [18 成就与元进度](18-achievements.md)（M2 阶段四 2026-09-21：评估器/ProfileStore/两步协议/bootstrap/resetPoints + demo 11 成就 4 Perk）
+- [x] [19 周目系统](19-loop.md)（M2 阶段四 2026-09-21：applyLoopTransition 五形态策略 + replaceState 强制重建；周目继承验收用例通过）
 - [ ] [23 作者脚本宿主](23-script-host.md)（API 冻结，OQ-11 复核）
 - [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（QoL/调试 B 组）
 

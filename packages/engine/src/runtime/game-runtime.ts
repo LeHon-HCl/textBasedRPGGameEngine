@@ -170,6 +170,35 @@ export class GameRuntime {
   }
 
   /**
+   * **整体替换状态树**（周目切换专用装配面，§5.5；19 号）。
+   *
+   * 与 `exec` 的区别：exec 是增量事务（可回滚、产补丁）；本方法是**全量替换**
+   * ——周目切换本身不可回滚（设计意图：开新周目不是可撤销操作），且替换后
+   * 必须强制重算派生属性（attrs 策略可能改变基础值，派生缓存须同步）。
+   *
+   * 不变式：
+   * - 替换后清空回滚栈（`checkpoints` 与栈内快照针对旧周目，跨周目无意义）；
+   * - 派生重算在替换后的状态上执行（`recomputeDerived` 就地写入）；
+   * - 不产生 EngineEvent（周目切换的呈现由宿主经摘要数据自行编排）。
+   *
+   * @param next 新状态（`applyLoopTransition` 产物；调用方负责其合法性）
+   * @param touchedRoots 触碰域（驱动派生重算；周目切换恒传全量触发域）
+   */
+  replaceState(next: GameState, touchedRoots: readonly string[] = ['player.attrs']): void {
+    const attrDefs = this.#attrDefs;
+    if (attrDefs !== undefined) {
+      // 派生重算须在替换后的状态上进行（函数就地写入 derived 缓存）
+      recomputeDerived(next as GameState, touchedRoots, attrDefs, { registry: this.#registry });
+    }
+    this.#state = next;
+    // 跨周目回滚无意义（设计意图：切换不可撤销）——清空快照栈与状态树标记
+    this.#snapshots.length = 0;
+    this.#state = produce(this.#state, (draft) => {
+      draft.checkpoints.length = 0;
+    });
+  }
+
+  /**
    * 原子执行一批效果（§3.1 时序图）：全部成功或全部回滚。
    *
    * - 逐指令 produce：指令 i 的定位 where = {...ctx.where, instruction: i}；
