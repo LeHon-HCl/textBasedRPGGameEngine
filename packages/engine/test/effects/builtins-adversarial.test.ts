@@ -49,11 +49,14 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
       '__outfit.save_preset',
       '__items.tick',
       '__body.revert',
+      '__shop.restock',
+      '__shop.set_stock',
       '__npc.resolve',
       '__events.eval',
     ]);
-    // 17 号新增 shop + meet（作者可见指令 27 = 25 固定 + 2 新增；内部 7）
-    expect(ids).toHaveLength(34);
+    // 17 号新增 shop + meet（作者可见指令 27 = 25 固定 + 2 新增）；
+    // 内部指令 9（+__shop.restock 补货 / +__shop.set_stock 交易记账）
+    expect(ids).toHaveLength(36);
   });
 });
 

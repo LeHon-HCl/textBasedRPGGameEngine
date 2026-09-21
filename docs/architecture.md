@@ -291,21 +291,27 @@ interface GameDefinition {
 | [`events/`](../packages/engine/src/events/) | 事件池四步评估（collect→prune→select→dispatch）+ 脏标记增量 | `EventPool` | 10 |
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
 | [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
-| [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易（S0 契约冻结，17 号进行中） | `ShopService` | 17 |
+| [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易事务 / 库存补货 | `ShopService` / `createShopService` | 17 |
 | [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
 
 <details>
-<summary><b>economy/ — 经济与商店</b>（设计 §5.3，17 号，进行中）</summary>
+<summary><b>economy/ — 经济与商店</b>（设计 §5.3，17 号，已完结）</summary>
 
-- `types.ts`：**冻结的契约面**（S0）——`ShopEntryView`（条目投影：价格已求值 +
-  库存，无 stock = 无限）、`ShopService`（entries/priceOf/buy/sell）与 `ShopPrice`；
-- 配套指令：`shop`（jump 类，emit `shop_open` 事件——宿主经事件打开商店界面，
-  与 `battle_start` 同款通道）、`meet`（`npc.<id>.met` 写入口，M1 遗留闭合）；
-- 实现（条目投影/定价/交易事务）归 S1/S2 工作包，见
-  `docs/plans/M2-stage3-economy-plan.md`。
+- `types.ts`：契约面——`ShopEntryView`（价格已求值 + 库存，无 stock = 无限）、
+  `ShopPrice` / `ShopService`（entries/priceOf/buy/sell）；
+- `shop-service.ts`：投影与定价（showIf 过滤、编译缓存、`buildExprScope` 作用域、
+  `timeView` 注入缝供命名时段条件）；
+- `trade.ts`：交易事务——buy/sell 翻译为效果指令批次交 `GameRuntime.exec`
+  （钱/物/库存/后置效果同批原子）；回购登记以时间片（同天同时段）界定
+  「当次交易」，一次性消费；
+- `restock.ts`：库存读写（存储面 `world.shopStock`，键 `<shopId>/<itemId>`）
+  与跨天补货钩子；写入口为内部指令 `__shop.restock`（补货）/
+  `__shop.set_stock`（交易记账）；
+- 配套指令：`shop`（jump 类，emit `shop_open`——宿主经事件打开商店界面，与
+  `battle_start` 同款通道）、`meet`（`npc.<id>.met` 写入口，M1 遗留闭合）。
 
 </details>
 

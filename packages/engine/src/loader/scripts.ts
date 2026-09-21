@@ -95,6 +95,7 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
     npcs: domains.npcs,
     factions: domains.factions,
     quests: domains.quests,
+    shops: domains.shops,
     bodyDefs: domains.body,
     checkResolver,
   };

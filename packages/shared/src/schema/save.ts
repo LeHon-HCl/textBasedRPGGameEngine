@@ -122,6 +122,11 @@ const worldStateSchema = z.strictObject({
       fired: z.number().int().min(0),
     }),
   ),
+  /**
+   * 商店库存（17 号；键 `<shopId>/<itemId>`，仅有限库存条目登记）。
+   * 缺省 = 空（旧档兼容：无商店交易史的存档天然无此域）。
+   */
+  shopStock: z.record(z.string(), z.number().int().min(0)).optional(),
 });
 
 /** NPC 运行时状态（设计 §2.4 / §3.1）：好感、阶段、是否已遇、记忆 flag */

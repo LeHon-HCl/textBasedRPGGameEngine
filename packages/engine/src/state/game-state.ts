@@ -124,6 +124,13 @@ export interface GameState {
     npcLocationCache: Record<GameId, GameId>;
     /** 事件冷却（§4.4 prune，随档持久） */
     eventCooldowns: Record<GameId, { lastDay: number; fired: number }>;
+    /**
+     * 商店库存（17 号 S4；§5.3「stock 计数 + restock 周期性补货」的持久面）。
+     * 键 = `<shopId>/<itemId>`；仅登记**有限库存**条目——未登记 = 无限库存
+     * （与 ShopEntry.stock 省略同语义）。补货经管线 day_rollover 钩子重置为
+     * ShopDef 声明的初始 stock。
+     */
+    shopStock: Record<string, number>;
   };
   npcs: Record<GameId, NpcState>;
   factions: Record<GameId, number>;

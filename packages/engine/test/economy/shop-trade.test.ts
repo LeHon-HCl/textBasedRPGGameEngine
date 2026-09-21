@@ -56,10 +56,13 @@ function makeWorld(init?: {
     rng: createRng(7),
     effectExecutor: createBuiltinEffectRegistry({
       items: ITEMS,
+      shops: SHOPS,
       functionRegistry: createBuiltinFunctionRegistry(),
     }),
   });
-  let stock = init?.stock ?? 10;
+  // 库存读数：状态树登记优先，未登记回落初始库存（与生产 readStock 同口径）
+  const initialStock = init?.stock ?? 10;
+  const stockOf = () => runtime.state.world.shopStock['shop_market/warm_bun'] ?? initialStock;
   const service = createShopService({
     runtime,
     state: () => runtime.state,
@@ -67,12 +70,9 @@ function makeWorld(init?: {
     functionRegistry: createBuiltinFunctionRegistry(),
     rng: createRng(7),
     items: ITEMS,
-    stockOf: () => stock,
-    setStock: (_shopId, _itemId, next) => {
-      stock = next;
-    },
+    stockOf,
   });
-  return { runtime, service, stockNow: () => stock };
+  return { runtime, service, stockNow: stockOf };
 }
 
 /** 背包中某物品总数（断言辅助） */

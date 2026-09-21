@@ -328,6 +328,17 @@
             "required": ["lastDay", "fired"],
             "additionalProperties": false
           }
+        },
+        "shopStock": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
         }
       },
       "required": ["time", "unlockedAreas", "flags", "counters", "eventCooldowns"],

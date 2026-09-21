@@ -44,8 +44,11 @@ export interface ShopServiceDeps extends ShopServiceOptions {
   readonly items?: ReadonlyMap<GameId, ItemDef>;
   /** 库存读取缝（同投影层；S4 接存档域） */
   readonly stockOf?: (shopId: GameId, itemId: GameId) => number | undefined;
-  /** 库存写入缝（交易后扣减/回补；缺省 = 不记账，无限库存） */
-  readonly setStock?: (shopId: GameId, itemId: GameId, next: number) => void;
+  /**
+   * 库存记账（缺省 = 启用内置 `__shop.set_stock` 内部指令，随交易事务原子执行）。
+   * 置 false 关闭记账（纯投影场景）。
+   */
+  readonly stockAccounting?: boolean;
   /** 交易后效果（作者声明，FR-ECON-04）：交易成功时追加执行 */
   readonly onTrade?: (
     shopId: GameId,
@@ -136,6 +139,12 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
     mode: 'buy' | 'sell',
   ): readonly EffectData[] => [...(deps.onTrade?.(shopId, itemId, mode) ?? [])];
 
+  /** 库存记账效果（内置内部指令；stockAccounting: false 时关闭） */
+  const stockEffects = (shopId: GameId, itemId: GameId, delta: number): readonly EffectData[] =>
+    deps.stockAccounting === false
+      ? []
+      : [{ '__shop.set_stock': { shop: shopId, item: itemId, delta } } as unknown as EffectData];
+
   return {
     entries: (shopId) => projection.entries(shopId),
     priceOf: (shopId, itemId, mode) => projection.priceOf(shopId, itemId, mode),
@@ -166,6 +175,8 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
       const effects: EffectData[] = [
         { money: { [price.currency]: -price.amount * count } },
         { give: { item: itemId, count } },
+        // 库存记账进同一事务（原子：钱/物/库存一致，失败一并回滚）
+        ...stockEffects(shopId, itemId, -count),
         ...tradeEffects(shopId, itemId, 'buy'),
       ];
       const outcome = deps.runtime.exec(effects, {
@@ -173,10 +184,6 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
         where: { scene: 'shop', shop: shopId },
         rng: deps.rng,
       });
-      // 事务成功后才记账（失败已在 exec 内整体回滚）
-      if (stock !== undefined && deps.setStock !== undefined) {
-        deps.setStock(shopId, itemId, stock - count);
-      }
       if (record !== undefined) sellRecords.delete(keyOf(shopId, itemId)); // 回购完成即消费登记
       outcome.events.push({
         type: 'trade',
@@ -193,7 +200,7 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
     sell(shopId: GameId, itemId: GameId, count: number): ExecOutcome {
       requirePositiveCount(count, shopId, itemId);
       const shop = requireShop(shopId);
-      const entry = requireEntry(shop, itemId);
+      requireEntry(shop, itemId); // 条目存在性自检（悬空条目显性化）
       const held = deps.runtime.state.player.bag
         .filter((bagEntry) => bagEntry.itemId === itemId)
         .reduce((sum, bagEntry) => sum + bagEntry.count, 0);
@@ -213,6 +220,7 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
       const effects: EffectData[] = [
         { money: { [price.currency]: price.amount * count } },
         { take: { item: itemId, count } },
+        ...stockEffects(shopId, itemId, count),
         ...tradeEffects(shopId, itemId, 'sell'),
       ];
       const outcome = deps.runtime.exec(effects, {
@@ -228,10 +236,6 @@ export function createShopService(deps: ShopServiceDeps): ShopService {
         day,
         slotIndex,
       });
-      const stock = deps.stockOf?.(shopId, itemId) ?? entry.stock;
-      if (stock !== undefined && deps.setStock !== undefined) {
-        deps.setStock(shopId, itemId, stock + count);
-      }
       outcome.events.push({
         type: 'trade',
         shop: shopId,

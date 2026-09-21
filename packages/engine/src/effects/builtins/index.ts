@@ -3,6 +3,7 @@ import type { BuiltinDefContext, EffectRegistryOptions, ErasedEffectDef } from '
 import { createFlowDefs } from './flow.js';
 import { createAdversarialDefs } from './adversarial.js';
 import { createShopDefs } from './shop.js';
+import { createShopInternalDefs } from './shop-internal.js';
 import { createItemDefs } from './items.js';
 import { createNpcDefs } from './npcs.js';
 import { createRelationDefs } from './relations.js';
@@ -36,6 +37,7 @@ export function createBuiltinEffectDefs(ctx: BuiltinDefContext): ErasedEffectDef
     ...createFlowDefs(),
     ...createAdversarialDefs(ctx.options),
     ...createShopDefs(),
+    ...createShopInternalDefs(ctx.options),
     ...createNpcDefs(ctx.options),
     ...createEventDefs(ctx.options),
   ];
