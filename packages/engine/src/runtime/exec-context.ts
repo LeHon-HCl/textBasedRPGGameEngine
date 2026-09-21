@@ -30,6 +30,8 @@ export interface ExecContext {
     instruction?: number;
     /** 时间管线定位（§4.3 编排器事务；09 号） */
     pipeline?: string;
+    /** 商店交易定位（17 号：ShopService 交易事务的 where 面） */
+    shop?: string;
   };
   /** 事务随机源（DD-09：指令内表达式与效果的随机消耗走同一序列） */
   rng: Rng;

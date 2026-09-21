@@ -195,11 +195,27 @@ export interface ShopOpenEvent {
   shop: string;
 }
 
+/**
+ * 交易完成事件（17 号 ShopService 交易事务；FR-ECON-04）：买/卖成功后由
+ * 交易层 emit——UI 刷新钱包/背包，订阅方（成就/任务钩子）可据此推进。
+ */
+export interface TradeEvent {
+  type: 'trade';
+  shop: string;
+  item: string;
+  mode: 'buy' | 'sell';
+  count: number;
+  /** 成交总额（单价 × 数量） */
+  amount: number;
+  currency: string;
+}
+
 export type EngineEvent =
   | StatChangedEvent
   | BattleStartEvent
   | NpcMetEvent
   | ShopOpenEvent
+  | TradeEvent
   | NotifyEvent
   | UnlockEvent
   | CheckResultEvent
