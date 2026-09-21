@@ -129,6 +129,8 @@ demo 接入至少一场战斗遭遇。
 
 ## 3. 阶段 3 —— 经济与商店（17 号）
 
+> 实施计划（工作包拆解 / 接口草案 / M1 遗留清账）：`docs/plans/M2-stage3-economy-plan.md`（2026-09-21 人类裁定：阶段三全单线）。
+
 ### 开发目标
 
 多货币钱包已有（05 号 money 指令），本阶段补 ShopService：entries 投影（show_if 过滤 +
