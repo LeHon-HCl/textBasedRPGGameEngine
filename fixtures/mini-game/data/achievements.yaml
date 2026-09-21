@@ -13,3 +13,60 @@
   progressExpr: 'attr.insight'
   goal: 20
   group: exploration
+
+- id: wall_reader
+  nameKey: achievements.wall_reader.name
+  when: 'flag.wall_rubbing_taken'
+  points: 8
+  type: normal
+  group: story
+- id: quest_complete
+  nameKey: achievements.quest_complete.name
+  when: 'quest.wall_rubbing.state == "done"'
+  points: 15
+  type: normal
+  group: story
+- id: hillside_pioneer
+  nameKey: achievements.hillside_pioneer.name
+  when: 'flag.quarry_surveyed'
+  points: 12
+  type: normal
+  group: exploration
+- id: shrine_marked
+  nameKey: achievements.shrine_marked.name
+  when: 'flag.shrine_marked'
+  points: 12
+  type: normal
+  group: exploration
+- id: rat_slayer
+  nameKey: achievements.rat_slayer.name
+  when: 'flag.quarry_rats_cleared'
+  points: 10
+  type: normal
+  group: combat
+- id: wealthy
+  nameKey: achievements.wealthy.name
+  when: 'wallet.town_silver >= 100'
+  points: 20
+  type: progress
+  progressExpr: 'wallet.town_silver'
+  goal: 100
+  group: economy
+- id: shopper
+  nameKey: achievements.shopper.name
+  when: 'flag.bought_bread'
+  points: 5
+  type: normal
+  group: economy
+- id: ferryman_friend
+  nameKey: achievements.ferryman_friend.name
+  when: 'npc.ferryman.favor >= 20'
+  points: 10
+  type: normal
+  group: social
+- id: secret_wanderer
+  nameKey: achievements.secret_wanderer.name
+  when: 'flag.night_lantern_seen'
+  points: 30
+  type: hidden
+  group: secret

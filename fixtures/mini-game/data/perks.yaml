@@ -6,3 +6,27 @@
   effects:
     - add: { key: 'attr.insight', amount: 2 }
   repeatable: false
+- id: sturdy_frame
+  nameKey: perks.sturdy_frame.name
+  descKey: perks.sturdy_frame.desc
+  cost: 5
+  effects:
+    - add: { key: 'attr.hp', amount: 20 }
+  repeatable: false
+- id: silver_purse
+  nameKey: perks.silver_purse.name
+  descKey: perks.silver_purse.desc
+  cost: 4
+  effects:
+    - money: { town_silver: 50 }
+  requires: [street_smart]
+  repeatable: false
+- id: keen_senses
+  nameKey: perks.keen_senses.name
+  descKey: perks.keen_senses.desc
+  cost: 6
+  effects:
+    - add: { key: 'attr.insight', amount: 3 }
+    - flag: { name: 'keen_senses_taken' }
+  conflicts: [street_smart]
+  repeatable: false
