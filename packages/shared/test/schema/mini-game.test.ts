@@ -154,14 +154,24 @@ describe('fixtures/mini-game × schema 全域正例（02 任务 C1，FR-L10N-02/
     expect(shops[0]?.entries).toHaveLength(2);
   });
 
-  it('data/achievements.yaml 通过 achievementDefSchema（normal + progress）', () => {
+  it('data/achievements.yaml 通过 achievementDefSchema（M2 验收：10+ 成就、三型齐备）', () => {
     const achievements = parseArray(achievementDefSchema, `${ROOT}/data/achievements.yaml`);
-    expect(achievements.map((a) => a.type)).toEqual(['normal', 'progress']);
+    // 规模下界（内容会继续扩充，精确计数是负资产）+ 结构断言（三型至少各一）
+    expect(achievements.length).toBeGreaterThanOrEqual(10);
+    const types = new Set(achievements.map((a) => a.type));
+    expect([...types].sort()).toEqual(['hidden', 'normal', 'progress']);
+    // progress 型的 progressExpr/goal 齐备（schema refine 已保证，此处结构锚点）
+    const progress = achievements.find((a) => a.type === 'progress');
+    expect(progress?.goal).toBeGreaterThan(0);
   });
 
-  it('data/perks.yaml 通过 perkDefSchema', () => {
+  it('data/perks.yaml 通过 perkDefSchema（M2 验收：3+ Perk，含 requires/conflicts 示例）', () => {
     const perks = parseArray(perkDefSchema, `${ROOT}/data/perks.yaml`);
-    expect(perks[0]?.effects.length).toBeGreaterThan(0);
+    expect(perks.length).toBeGreaterThanOrEqual(3);
+    for (const perk of perks) expect(perk.effects.length).toBeGreaterThan(0);
+    // 关系面锚点：requires/conflicts 各有示例（Perk 购买校验的两条分支有真数据可测）
+    expect(perks.some((p) => (p.requires ?? []).length > 0)).toBe(true);
+    expect(perks.some((p) => (p.conflicts ?? []).length > 0)).toBe(true);
   });
 
   it('data/endings.yaml 通过 endingDefSchema（nextLoop + galleryInfo）', () => {
@@ -169,10 +179,13 @@ describe('fixtures/mini-game × schema 全域正例（02 任务 C1，FR-L10N-02/
     expect(endings[0]?.nextLoop).toBe(true);
   });
 
-  it('data/loops.yaml 通过 loopConfigSchema（policy 五形态抽检）', () => {
+  it('data/loops.yaml 通过 loopConfigSchema（policy 形态抽检：inherit/keepRatio/whitelist/reset）', () => {
     const loop = loopConfigSchema.parse(parsed.get(`${ROOT}/data/loops.yaml`));
+    expect(loop.openingScene).toBe('arrival');
+    expect(loop.inherit?.attrs).toBe('inherit');
+    expect(loop.inherit?.factions).toEqual({ keepRatio: '0.5' });
     expect(loop.inherit?.flags).toEqual({ whitelist: ['heard_rumor', 'wall_rubbing_taken'] });
-    expect(loop.inherit?.items).toEqual({ keepRatio: 'wallet.town_silver * 0.1' });
+    expect(loop.inherit?.items).toBe('reset');
     expect(loop.reset?.body).toBe('reset');
   });
 

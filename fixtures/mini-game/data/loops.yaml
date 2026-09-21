@@ -1,9 +1,18 @@
 # 周目继承/重置清单（LoopConfig，设计 §2.4 / FR-LOOP-04）：先整体 reset，再逐类 apply inherit
 openingScene: arrival
 inherit:
+  # 数值类：全继承（属性成长跨周目保留——demo 的「继承清单生效」直观证据）
   attrs: inherit
+  skills: inherit
+  # 好感继承（NPC 关系跨周目延续）
   favor: inherit
+  # 阵营声望保留 50%（keepRatio 表达式在 inherit 表内声明）
+  factions: { keepRatio: '0.5' }
+  # flag 白名单：只带走过剧情锚点
   flags: { whitelist: [heard_rumor, wall_rubbing_taken] }
-  items: { keepRatio: 'wallet.town_silver * 0.1' }
+  # 背包与穿戴：不继承（周目重来应从头收集）
+  items: reset
+  outfit: reset
 reset:
+  # body 显式重置（与缺省同效，此处示范 reset 表的声明形态）
   body: reset

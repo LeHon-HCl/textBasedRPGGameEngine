@@ -292,10 +292,27 @@ interface GameDefinition {
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
 | [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
 | [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易事务 / 库存补货 | `ShopService` / `createShopService` | 17 |
+| [`achievements/`](../packages/engine/src/achievements/) | 成就评估 / ProfileStore / Perk 两步协议 | `AchievementEvaluator` / `createMemoryProfileStore` | 18 |
+| [`loop/`](../packages/engine/src/loop/) | 周目切换：继承策略执行器 / 强制重建 / 次序断言 | `applyLoopTransition` / `runLoopTransition` | 19 |
 | [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
+
+<details>
+<summary><b>achievements/ + loop/ — 成就与周目</b>（设计 §5.4/§5.5，18/19 号，已完结）</summary>
+
+- `achievements/`：`evaluator.ts`（refs 脏标记增量 + 每时段兜底全量 + progress/gallery
+  投影）、`profile.ts`（内存 ProfileStore：乐观锁串行队列 + 购买校验 + 两步协议
+  charge/compensate + resetPoints + 入账幂等）、`perks.ts`（bootstrap 效果 +
+  purchasePerk 失败序补偿）；DD-04 边界：引擎不写 IO，Dexie 实现归 25 号；
+- `loop/`：`transition.ts`（**纯函数**五形态策略：inherit/reset/keepRatio/whitelist/
+  blacklist；类别→状态域唯一映射，items 含多货币钱包）、`controller.ts`
+  （runLoopTransition：变换 + 强制重建 + 状态替换；assertLoadOrder 固化 DD-10
+  读档次序）；
+- `GameRuntime.replaceState`：周目切换的全量替换装配面（派生重算 + 回滚栈清空）。
+
+</details>
 
 <details>
 <summary><b>economy/ — 经济与商店</b>（设计 §5.3，17 号，已完结）</summary>
@@ -546,7 +563,7 @@ stateDiagram-v2
 
 ### 5.3 空占位子系统（M2+ 待实现）
 
-`achievements/`（18 号）、
+
 `loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
 模块开工时填充。
 
