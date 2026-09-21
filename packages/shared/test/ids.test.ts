@@ -6,7 +6,8 @@ import type { ExprSource, GameId, Lang, RefKind, TextKey } from '../src/index.js
 /**
  * RefKind 设计 §2.1 的全集（顺序即设计文档声明顺序）。
  * enemy/encounter 为 16 号战斗域回填新增（设计 §5.2 引用了 EncounterDef 但
- * §2.1/§2.4 清单漏列，回填见 shared/schema/battle.ts）。
+ * §2.1/§2.4 清单漏列，回填见 shared/schema/battle.ts）；
+ * shop 为 17 号经济模块新增（shop 指令引用商店定义，ShopDef 本体 M1 已建）。
  */
 const ALL_REF_KINDS: readonly RefKind[] = [
   'scene',
@@ -21,6 +22,7 @@ const ALL_REF_KINDS: readonly RefKind[] = [
   'text',
   'enemy',
   'encounter',
+  'shop',
 ];
 
 describe('ID 与基础类型（设计 §2.1）', () => {
@@ -31,7 +33,7 @@ describe('ID 与基础类型（设计 §2.1）', () => {
     expectTypeOf<ExprSource>().toBeString();
   });
 
-  it('RefKind 为设计 §2.1 的 12 值联合（含 16 号战斗域回填的 enemy/encounter）', () => {
+  it('RefKind 为设计 §2.1 全集（含 16 号 enemy/encounter、17 号 shop）', () => {
     expectTypeOf<RefKind>().toEqualTypeOf<
       | 'scene'
       | 'item'
@@ -45,6 +47,7 @@ describe('ID 与基础类型（设计 §2.1）', () => {
       | 'text'
       | 'enemy'
       | 'encounter'
+      | 'shop'
     >();
   });
 });

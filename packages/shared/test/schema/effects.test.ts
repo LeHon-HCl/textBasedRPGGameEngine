@@ -4,7 +4,7 @@ import { effectDataSchema, effectParamSchemas, effectSchemas } from '../../src/i
 import type { EffectData } from '../../src/index.js';
 
 /**
- * 25 个内置指令各 1 条最小正例（§3.3 注册表清单顺序），外加
+ * 27 个内置指令各 1 条最小正例（§3.3 注册表清单顺序 + 17 号 meet/shop），外加
  * 结构/递归/引用元数据的负例与抽检。参数级校验归 05 号注册表，
  * 本层只守护「指令键 + 宽松参数结构 + refId 元数据」。
  */
@@ -49,10 +49,12 @@ const SAMPLES: readonly EffectData[] = [
   { media: { type: 'bgm', assetId: 'bgm_rain' } },
   { notify: { textKey: 'ui.toast.levelup', vars: { level: 3 } } },
   { call: { fn: 'x.festival.calendar', with: { day: 'time.day' } } },
+  { meet: { npc: 'npc_ferryman' } },
+  { shop: { shop: 'shop_market' } },
 ];
 
 describe('effectDataSchema（设计 §3.3 内置指令联合，02 任务 A2）', () => {
-  it('25 个内置指令键各有参数 schema 且与设计清单一致', () => {
+  it('27 个内置指令键各有参数 schema 且与设计清单一致（17 号 +meet/shop）', () => {
     expect(Object.keys(effectParamSchemas)).toEqual([
       'set',
       'add',
@@ -66,6 +68,8 @@ describe('effectDataSchema（设计 §3.3 内置指令联合，02 任务 A2）',
       'remove',
       'set_body',
       'favor',
+      'meet',
+      'shop',
       'reputation',
       'advance_time',
       'quest',
@@ -80,7 +84,7 @@ describe('effectDataSchema（设计 §3.3 内置指令联合，02 任务 A2）',
       'notify',
       'call',
     ]);
-    expect(effectSchemas).toHaveLength(25);
+    expect(effectSchemas).toHaveLength(27);
   });
 
   it('每个内置指令的最小正例均可解析', () => {

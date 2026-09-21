@@ -40,6 +40,8 @@ export type JumpTarget =
   | { type: 'scene'; scene: GameId }
   | { type: 'ending'; ending: GameId }
   | { type: 'battle'; battle: string }
+  /** 商店开启意图（§3.3 shop 指令产出，17 号；宿主经 shop_open 事件消费） */
+  | { type: 'shop'; shop: string }
   | { type: 'back' }
   | { type: 'loopTransition' }
   /**

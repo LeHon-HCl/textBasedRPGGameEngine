@@ -291,13 +291,26 @@ interface GameDefinition {
 | [`events/`](../packages/engine/src/events/) | 事件池四步评估（collect→prune→select→dispatch）+ 脏标记增量 | `EventPool` | 10 |
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
 | [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
+| [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易（S0 契约冻结，17 号进行中） | `ShopService` | 17 |
 | [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
 
 <details>
-<summary><b>battle/ — 回合制战斗</b>（设计 §5.2，16 号，双人协作进行中）</summary>
+<summary><b>economy/ — 经济与商店</b>（设计 §5.3，17 号，进行中）</summary>
+
+- `types.ts`：**冻结的契约面**（S0）——`ShopEntryView`（条目投影：价格已求值 +
+  库存，无 stock = 无限）、`ShopService`（entries/priceOf/buy/sell）与 `ShopPrice`；
+- 配套指令：`shop`（jump 类，emit `shop_open` 事件——宿主经事件打开商店界面，
+  与 `battle_start` 同款通道）、`meet`（`npc.<id>.met` 写入口，M1 遗留闭合）；
+- 实现（条目投影/定价/交易事务）归 S1/S2 工作包，见
+  `docs/plans/M2-stage3-economy-plan.md`。
+
+</details>
+
+<details>
+<summary><b>battle/ — 回合制战斗</b>（设计 §5.2，16 号，已完结）</summary>
 
 - `types.ts`：**冻结的公共契约**（W0）——八相位枚举 / BattleUnit / PlayerAction /
   AiPolicy / DamageFn 签名 / BattleLogEntry / BattleInit；A/B 两线唯一协作面，
@@ -527,7 +540,7 @@ stateDiagram-v2
 
 ### 5.3 空占位子系统（M2+ 待实现）
 
-`achievements/`（18 号）、`economy/`（17 号）、
+`achievements/`（18 号）、
 `loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
 模块开工时填充。
 

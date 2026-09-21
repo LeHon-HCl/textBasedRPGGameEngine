@@ -180,9 +180,26 @@ export interface BattleStartEvent {
   onEscape?: import('@game/shared').EffectData[];
 }
 
+/** NPC 相识标记事件（meet 指令，2026-09-21）：幂等指令首次写入 met 时 emit。 */
+export interface NpcMetEvent {
+  type: 'npc_met';
+  npc: string;
+}
+
+/**
+ * 商店开启事件（17 号 shop 指令，与 battle_start 同款宿主通道）：宿主经本事件
+ * 打开商店界面并调用 ShopService（§5.3）。
+ */
+export interface ShopOpenEvent {
+  type: 'shop_open';
+  shop: string;
+}
+
 export type EngineEvent =
   | StatChangedEvent
   | BattleStartEvent
+  | NpcMetEvent
+  | ShopOpenEvent
   | NotifyEvent
   | UnlockEvent
   | CheckResultEvent

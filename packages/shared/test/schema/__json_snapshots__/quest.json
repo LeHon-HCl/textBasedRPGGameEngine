@@ -395,6 +395,42 @@
         {
           "type": "object",
           "properties": {
+            "meet": {
+              "type": "object",
+              "properties": {
+                "npc": {
+                  "type": "string",
+                  "refKind": "npc"
+                }
+              },
+              "required": ["npc"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["meet"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "shop": {
+              "type": "object",
+              "properties": {
+                "shop": {
+                  "type": "string",
+                  "refKind": "shop"
+                }
+              },
+              "required": ["shop"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["shop"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "reputation": {
               "type": "object",
               "properties": {

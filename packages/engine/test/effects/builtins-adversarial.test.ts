@@ -52,7 +52,8 @@ describe('05-B6 内置指令矩阵：全量 25 个固定 id + 内部指令注册
       '__npc.resolve',
       '__events.eval',
     ]);
-    expect(ids).toHaveLength(32);
+    // 17 号新增 shop + meet（作者可见指令 27 = 25 固定 + 2 新增；内部 7）
+    expect(ids).toHaveLength(34);
   });
 });
 
