@@ -113,7 +113,7 @@ describe('fixtures/mini-game 端到端加载（06 任务 C2）', () => {
       'flag.wall_rubbing_taken',
     ]);
     // 商店买价的带默认值条件表达式同样入缓存（FR-ECON-02 动态定价）
-    expect(definition.exprCache.has('faction.town >= 10 ? 8 : 10')).toBe(true);
+    expect(definition.exprCache.has('faction.town >= 5 ? 9 : 10')).toBe(true);
     // 区域地点解锁条件入缓存（FR-XPLR-02）
     expect(definition.exprCache.has('attr.insight >= 2')).toBe(true);
   });

@@ -12,6 +12,12 @@ choices:
       - add: { key: 'attr.insight', amount: 2 }
       - flag: { name: heard_rumor }
     goto: town_gate
+  # 商店入口（17 号）：shop 指令为 jump 类——emit shop_open 事件后停留本场景
+  # （不 goto：商店是叠加界面，关闭后回到叙事，§5.3）
+  - id: open_stall
+    textKey: scenes.market_street.choice.open_stall
+    effects:
+      - shop: { shop: shop_market_stall }
   - id: back_arrival
     textKey: scenes.market_street.choice.back_arrival
     goto: arrival

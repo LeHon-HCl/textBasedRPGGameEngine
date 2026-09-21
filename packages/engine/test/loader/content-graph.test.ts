@@ -172,23 +172,19 @@ describe('内容连通性（约束 7 五检）', () => {
 
   it('C5 商店可进入：每个商店在场景中存在 shop 入口引用', async () => {
     const definition = await definitionPromise;
-    // **范围豁免（2026-09-15 登记）**：`shop` 效果指令属 17 号（经济与商店）——
-    // 引擎侧尚无该指令（效果指令表 25 条中无 shop），ShopService 亦未实现。
-    // 因此本检在 17 号落地前**无可用入口语义**，判定为「依赖未实现模块」而非
-    // 内容缺陷。17 号实现后必须移除本豁免（其 PR 自审清单中注明）。
-    const shopInstructionAvailable = false; // ← 17 号落地后改 true 并删豁免
-    if (!shopInstructionAvailable) {
-      console.log('C5_SKIPPED：shop 指令属 17 号（经济与商店）未实现，豁免本检');
-      expect(true).toBe(true);
-      return;
-    }
+    // **豁免已于 2026-09-21 移除**（17 号 S3 清账）：`shop` 指令随经济模块落地，
+    // 本检测恢复实判。豁免存续期（2026-09-15 → 2026-09-21）的登记与清除理由见
+    // docs/tasks/17-economy.md 落地记录。
     const referenced = new Set<string>();
     for (const scene of definition.scenes.values()) {
       for (const choice of scene.def.choices as SceneChoice[]) {
         for (const effect of choice.effects ?? []) {
           if (typeof effect !== 'object' || effect === null) continue;
+          // 指令形态：{ shop: { shop: '<id>' } }（与 battle.encounter 同款参数对象）
           const shop = (effect as Record<string, unknown>)['shop'];
-          if (typeof shop === 'string') referenced.add(shop);
+          if (typeof shop !== 'object' || shop === null) continue;
+          const shopId = (shop as Record<string, unknown>)['shop'];
+          if (typeof shopId === 'string') referenced.add(shopId);
         }
       }
     }
