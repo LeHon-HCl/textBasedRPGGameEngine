@@ -292,10 +292,24 @@ interface GameDefinition {
 | [`media/`](../packages/engine/src/media/) | 媒体意图解析与资源存在性核对（零图像/音频依赖） | `MediaResolver` | 24 |
 | [`checks/`](../packages/engine/src/checks/) | 检定规则：coc 7 版（阈值/升格/骰池/对抗）+ generic + 内置兜底解析器 | `createBuiltinCheckResolver` | 15 |
 | [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易事务 / 库存补货 | `ShopService` / `createShopService` | 17 |
+| [`achievements/`](../packages/engine/src/achievements/) | 成就评估 / Profile 契约 / Perk 协议（P0 契约冻结，18 号进行中） | `AchievementEvaluator` / `ProfileStore` | 18 |
+| [`loop/`](../packages/engine/src/loop/) | 周目切换：继承策略执行器 / 转场摘要（P0 契约冻结，19 号进行中） | `applyLoopTransition` | 19 |
 | [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
+
+<details>
+<summary><b>achievements/ + loop/ — 成就与周目</b>（设计 §5.4/§5.5，18/19 号，进行中）</summary>
+
+- `achievements/types.ts`：**P0 冻结契约**——`AchievementUnlocked`（评估器产出、
+  宿主入 Profile 的事件面）、`ProfileStore`（DD-04：接口在 engine、实现归宿主）、
+  `PerkPurchaseOutcome`（两步协议裁决面）、`AchievementProgress`（进度投影）；
+- `loop/types.ts`：**P0 冻结契约**——`LoopSummary`（转场摘要）与
+  `LoopTransitionResult`（applyLoopTransition 返回面）；
+- 实现工作包见 `docs/plans/M2-stage4-achievements-loop-plan.md`（A/B/C 三线并行）。
+
+</details>
 
 <details>
 <summary><b>economy/ — 经济与商店</b>（设计 §5.3，17 号，已完结）</summary>
@@ -546,7 +560,7 @@ stateDiagram-v2
 
 ### 5.3 空占位子系统（M2+ 待实现）
 
-`achievements/`（18 号）、
+
 `loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
 模块开工时填充。
 
