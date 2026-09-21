@@ -152,6 +152,8 @@ export interface EffectRegistryOptions {
   bodyDefs?: BodyDef;
   /** 任务定义（quest 阶段序校验与缺省阶段推导；缺省 = stage 必须显式给出） */
   quests?: ReadonlyMap<string, QuestDef>;
+  /** 商店定义（17 号：`__shop.restock` 的补货依据；缺省 = 无补货面） */
+  shops?: ReadonlyMap<string, import('@game/shared').ShopDef>;
   /** 背包容量上限（FR-ITEM-02 可选启用，按物品种类数计；缺省 = 不限容量） */
   bagCapacity?: number;
   /**

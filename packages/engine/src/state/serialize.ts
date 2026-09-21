@@ -86,7 +86,8 @@ export function restoreState(blob: SaveBlob): GameState {
       bodyTemp: snapshot.player.bodyTemp ?? {},
       bodyProgress: snapshot.player.bodyProgress ?? {},
     },
-    world: { ...snapshot.world, npcLocationCache: {} },
+    // 17 号 shopStock：schema 可选（旧档无商店交易史 → 空缺省空对象，只增不改）
+    world: { ...snapshot.world, npcLocationCache: {}, shopStock: snapshot.world.shopStock ?? {} },
     npcs: snapshot.npcs,
     factions: snapshot.factions,
     quests: snapshot.quests,

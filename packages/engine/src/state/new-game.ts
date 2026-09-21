@@ -138,6 +138,7 @@ export function newGameState(bootstrap: NewGameBootstrap, rng: Rng): GameState {
       counters: { ...bootstrap.counters },
       npcLocationCache: {},
       eventCooldowns: {},
+      shopStock: {},
     },
     npcs: buildNpcs(bootstrap.npcs),
     factions: { ...bootstrap.factions },

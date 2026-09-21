@@ -180,9 +180,42 @@ export interface BattleStartEvent {
   onEscape?: import('@game/shared').EffectData[];
 }
 
+/** NPC 相识标记事件（meet 指令，2026-09-21）：幂等指令首次写入 met 时 emit。 */
+export interface NpcMetEvent {
+  type: 'npc_met';
+  npc: string;
+}
+
+/**
+ * 商店开启事件（17 号 shop 指令，与 battle_start 同款宿主通道）：宿主经本事件
+ * 打开商店界面并调用 ShopService（§5.3）。
+ */
+export interface ShopOpenEvent {
+  type: 'shop_open';
+  shop: string;
+}
+
+/**
+ * 交易完成事件（17 号 ShopService 交易事务；FR-ECON-04）：买/卖成功后由
+ * 交易层 emit——UI 刷新钱包/背包，订阅方（成就/任务钩子）可据此推进。
+ */
+export interface TradeEvent {
+  type: 'trade';
+  shop: string;
+  item: string;
+  mode: 'buy' | 'sell';
+  count: number;
+  /** 成交总额（单价 × 数量） */
+  amount: number;
+  currency: string;
+}
+
 export type EngineEvent =
   | StatChangedEvent
   | BattleStartEvent
+  | NpcMetEvent
+  | ShopOpenEvent
+  | TradeEvent
   | NotifyEvent
   | UnlockEvent
   | CheckResultEvent

@@ -78,5 +78,29 @@ export function createRelationDefs(options: EffectRegistryOptions): ErasedEffect
     },
   };
 
-  return [eraseDef(favorDef), eraseDef(reputationDef)];
+  /**
+   * `meet`：NPC 相识标记写入口（2026-09-21 人类裁定，独立指令形态）。
+   * 语义要点：
+   * - 幂等：已 met 再 meet 无副作用、不 emit（重复走同一场景不应刷事件）；
+   * - 自动建档：与 favor 同款——未建档 NPC 先建 `{favor:0, met:false, flags:{}}`；
+   * - 与 favor 的边界：favor 改好感不动 met（保持既有语义）；本指令只动 met。
+   */
+  const meetDef: EffectInstructionDef<{ npc: string }> = {
+    id: 'meet',
+    schema: effectParamSchemas.meet,
+    touch: (): TouchReport => ({ reads: [], writes: ['npcs'] }),
+    execute: (arg, ectx) => {
+      const draft = ectx.draft;
+      let record = draft.npcs[arg.npc];
+      if (record === undefined) {
+        record = { favor: 0, met: false, flags: {} };
+        draft.npcs[arg.npc] = record;
+      }
+      if (record.met) return; // 幂等：已相识不重复 emit
+      record.met = true;
+      ectx.emit({ type: 'npc_met', npc: arg.npc });
+    },
+  };
+
+  return [eraseDef(favorDef), eraseDef(reputationDef), eraseDef(meetDef)];
 }

@@ -3,3 +3,4 @@ stall: 旧书摊上摊着半页手抄的镇志，纸角被雨气洇软。
 choice:
   listen_rumor: 凑近听摊贩的低语
   back_arrival: 回石板路口
+  open_stall: 逛杂货铺

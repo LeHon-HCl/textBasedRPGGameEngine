@@ -57,6 +57,15 @@ const setBodyParams = z.strictObject({
 
 const favorParams = z.strictObject({ npc: refId('npc'), amount: exprOrNumberSchema });
 
+/**
+ * NPC 相识标记（FR-NPCR-01 的写入口；2026-09-21 人类裁定：独立指令形态）。
+ * `npc.<id>.met` 此前只读不写（M1 遗留），本指令补上写入口。
+ */
+const meetParams = z.strictObject({ npc: refId('npc') });
+
+/** 商店开启（FR-ECON-02/03）：battle 同款 jump 类——宿主经 `shop_open` 事件消费。 */
+const shopParams = z.strictObject({ shop: refId('shop') });
+
 const reputationParams = z.strictObject({
   faction: refId('faction'),
   amount: exprOrNumberSchema,
@@ -235,6 +244,8 @@ export const effectParamSchemas = {
   remove: removeParams,
   set_body: setBodyParams,
   favor: favorParams,
+  meet: meetParams,
+  shop: shopParams,
   reputation: reputationParams,
   advance_time: advanceTimeParams,
   quest: questParams,
@@ -272,6 +283,8 @@ export const effectSchemas = [
   z.strictObject({ remove: removeParams }),
   z.strictObject({ set_body: setBodyParams }),
   z.strictObject({ favor: favorParams }),
+  z.strictObject({ meet: meetParams }),
+  z.strictObject({ shop: shopParams }),
   z.strictObject({ reputation: reputationParams }),
   z.strictObject({ advance_time: advanceTimeParams }),
   z.strictObject({ quest: questParams }),

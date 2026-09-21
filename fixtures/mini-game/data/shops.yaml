@@ -1,9 +1,16 @@
-# 商店（ShopDef，设计 §2.4 / FR-ECON-02）：买价表达式引用声望实现动态定价
-- id: market_stall
-  nameKey: shops.market_stall.name
+# 集市杂货铺（ShopDef，设计 §2.4 / §5.3；17 号经济模块 demo）
+#
+# 定价表达式引用声望（FR-ECON-02「可引用声望、时段、周目、好感」的 demo 演示）：
+# 声望 ≥ 5 时杂货九折；卖价为买价半价（floor）。
+# 库存：warm_bun 有库存 5（补货归管线 day_rollover，S4 接线）；guard_coat 无限库存。
+- id: shop_market_stall
+  nameKey: shops.shop_market_stall.name
   entries:
-    - { item: warm_bun, stock: 5, restock: 2 }
-    - { item: guard_coat, showIf: 'faction.town >= 0' }
-  priceBuy: 'faction.town >= 10 ? 8 : 10'
+    - item: warm_bun
+      stock: 5
+      restock: 4
+    - item: guard_coat
+      showIf: 'flag.wall_rubbing_taken'
+  priceBuy: 'faction.town >= 5 ? 9 : 10'
   priceSell: '4'
   currency: town_silver

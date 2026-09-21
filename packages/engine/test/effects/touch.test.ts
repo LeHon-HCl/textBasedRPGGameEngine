@@ -45,6 +45,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'world.counters',
   'world.eventCooldowns',
   'world.npcLocationCache',
+  'world.shopStock',
   'npcs',
   'factions',
   'quests',
@@ -71,6 +72,8 @@ const TOUCH_ARGS: Record<string, unknown> = {
   set_body: { part: 'build', value: 'sturdy' },
   favor: { npc: 'npc_x', amount: 1 },
   reputation: { faction: 'faction_x', amount: 1 },
+  meet: { npc: 'npc_x' },
+  shop: { shop: 'shop_x' },
   advance_time: { cost: 1 },
   quest: { id: 'quest_x', action: 'accept' },
   check: { value: '10' },
@@ -87,6 +90,9 @@ const TOUCH_ARGS: Record<string, unknown> = {
   '__time.advance': { slots: 1 },
   // 12 号内部指令（日程缓存重建载体；作者包内不可达）
   '__npc.resolve': {},
+  // 17 号内部指令（跨天补货载体；作者包内不可达）
+  '__shop.restock': {},
+  '__shop.set_stock': { shop: 'shop_x', item: 'item_x', delta: -1 },
 };
 
 interface MatrixEntry {
@@ -212,9 +218,9 @@ function writtenDomains(patches: readonly Patch[]): Set<string> {
 }
 
 describe('05-C1 touch 声明（三方复用：迁移登记面）', () => {
-  it('全部 32 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
+  it('全部 36 个内置指令可产出 TouchReport，writes 落在已知状态域清单内', () => {
     const registry = createBuiltinEffectRegistry();
-    expect(registry.ids().length).toBe(32);
+    expect(registry.ids().length).toBe(36);
     for (const id of registry.ids()) {
       const def = registry.lookup(id);
       expect(def, `指令 ${id} 应已注册`).toBeDefined();

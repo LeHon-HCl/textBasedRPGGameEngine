@@ -34,6 +34,8 @@ export interface RefRegistries {
   readonly enemies: ReadonlySet<string>;
   /** 遭遇 id 集（battle 指令 encounter 参数的核对集，约束 8 加载期完整性） */
   readonly encounters: ReadonlySet<string>;
+  /** 商店 id 集（shop 指令 shop 参数的核对集，17 号——C5 检的加载期对应面） */
+  readonly shops: ReadonlySet<string>;
   readonly mediaIds: ReadonlySet<string>;
   readonly mainLangKeys: ReadonlySet<string>;
 }
@@ -65,6 +67,7 @@ export function buildRefRegistries(
     factions: new Set(domains.factions.keys()),
     enemies,
     encounters,
+    shops: new Set(domains.shops.keys()),
     locationsByArea,
     locationsAll,
     mediaIds: new Set(mediaIds),
@@ -93,6 +96,8 @@ function refExists(site: RefSite, registries: RefRegistries): boolean {
       return registries.enemies.has(site.value);
     case 'encounter':
       return registries.encounters.has(site.value);
+    case 'shop':
+      return registries.shops.has(site.value);
     case 'media':
       return registries.mediaIds.has(site.value);
     case 'text':
