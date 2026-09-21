@@ -5,7 +5,7 @@ import { buildExprScope } from '../state/index.js';
 import { buildStatePrefixIndex, touchedMatchesPrefix } from '../state/ref-paths.js';
 import type { GameState } from '../state/index.js';
 import type { ExprFunctionRegistry, Rng } from '@game/shared';
-import type { AchievementProgress, AchievementUnlocked } from './types.js';
+import type { AchievementGalleryEntry, AchievementProgress, AchievementUnlocked } from './types.js';
 
 /**
  * 成就评估器（detail-design §5.4，18 号 A 线；FR-ACHV-01/02/04）。
@@ -192,17 +192,4 @@ export class AchievementEvaluator {
     this.#compiled.set(source, compiled);
     return compiled;
   }
-}
-
-/** 图鉴条目（FR-ACHV-04；UI 成就图鉴的展示面） */
-export interface AchievementGalleryEntry {
-  readonly id: GameId;
-  /** 隐藏型未解锁 = true（仅此信息可见） */
-  readonly hidden: boolean;
-  readonly unlocked: boolean;
-  readonly points: number;
-  /** hidden 且未解锁时不下发 */
-  readonly nameKey?: string;
-  readonly group?: string;
-  readonly progress?: AchievementProgress;
 }

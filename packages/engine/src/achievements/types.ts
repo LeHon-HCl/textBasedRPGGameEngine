@@ -47,6 +47,19 @@ export interface PerkPurchaseOutcome {
   readonly rejection?: 'insufficient_points' | 'requires_missing' | 'conflicts' | 'not_repeatable';
 }
 
+/** 图鉴条目（FR-ACHV-04；UI 成就图鉴的展示面） */
+export interface AchievementGalleryEntry {
+  readonly id: GameId;
+  /** 隐藏型未解锁 = true（仅此信息可见） */
+  readonly hidden: boolean;
+  readonly unlocked: boolean;
+  readonly points: number;
+  /** hidden 且未解锁时不下发 */
+  readonly nameKey?: string;
+  readonly group?: string;
+  readonly progress?: AchievementProgress;
+}
+
 /** 成就进度投影（FR-ACHV-01 progress 型；UI 进度条数据源） */
 export interface AchievementProgress {
   readonly id: GameId;
