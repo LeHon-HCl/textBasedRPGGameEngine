@@ -330,6 +330,41 @@ export type {
   LoopRunResult,
 } from './loop/index.js';
 
+// ---- battle（§5.2 回合制战斗：会话 / 结算 / AI / 目标选择 / 接线，16 号） ----
+export {
+  BattleSession,
+  computeTurnOrder,
+  createAiResolver,
+  createBattleController,
+  createDefaultDamageFn,
+  createEffectExecutor,
+  instantiateEncounter,
+  playerUnitFromState,
+  selectTarget,
+  validateAction,
+  buildOutcomeEffects,
+} from './battle/index.js';
+export type {
+  ActionExecutionContext,
+  ActionOutcome,
+  ActionValidationContext,
+  AiActionSpec,
+  AiPolicy,
+  BattleController,
+  BattleInit,
+  BattleLogEntry,
+  BattleOutcome,
+  BattlePhase,
+  BattleResult,
+  BattleUnit,
+  BattleWiringInput,
+  DamageFn,
+  DamageInput,
+  DamageResult,
+  PlayerAction,
+  SkillRef,
+} from './battle/index.js';
+
 // ---- media（§5.10 媒体解析引擎侧：意图解析 / 存在性核对 / 缺失占位，24 号） --
 
 export { MediaResolver } from './media/index.js';

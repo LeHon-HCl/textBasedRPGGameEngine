@@ -34,3 +34,17 @@ export type {
   AchievementGalleryLabels,
   AchievementGalleryPanelProps,
 } from './AchievementGalleryPanel.js';
+export { CheckResultPanel, checkResultFromEvent } from './CheckResultPanel.js';
+export type {
+  CheckResultLabels,
+  CheckResultPanelProps,
+  CheckResultView,
+} from './CheckResultPanel.js';
+export { BattlePanel } from './BattlePanel.js';
+export type {
+  BattleActionOption,
+  BattlePanelLabels,
+  BattlePanelProps,
+  BattlePanelState,
+  BattleUnitView,
+} from './BattlePanel.js';
