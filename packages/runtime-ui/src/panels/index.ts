@@ -48,3 +48,10 @@ export type {
   BattlePanelState,
   BattleUnitView,
 } from './BattlePanel.js';
+export { DebugPanel } from './DebugPanel.js';
+export type {
+  DebugEventEntry,
+  DebugPanelLabels,
+  DebugPanelProps,
+  DebugWatchEntry,
+} from './DebugPanel.js';
