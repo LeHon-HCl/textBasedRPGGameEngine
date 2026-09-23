@@ -61,6 +61,9 @@
     "credits": {
       "type": "string",
       "minLength": 1
+    },
+    "debug": {
+      "type": "boolean"
     }
   },
   "required": [

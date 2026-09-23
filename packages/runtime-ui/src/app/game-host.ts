@@ -52,6 +52,7 @@ import { createUiStore } from './store.js';
 import type { SessionView, UiStoreApi } from './types.js';
 import { projectAreaViews } from '../panels/map-projection.js';
 import { projectStatusPanel } from '../panels/types.js';
+import { projectHistory } from '../panels/history-projection.js';
 
 /**
  * 游戏宿主（设计 §6.1/§6.2 的集成层，25 号 A 组的可运行载体）。
@@ -130,8 +131,15 @@ export interface GameHost {
   advance(): void;
   /** 选择选项（内部先打 checkpoint；FR-READ-03） */
   choose(choiceId: string): void;
-  /** 回退一步（rollback + 会话重建，FR-READ-03） */
-  rollback(): void;
+  /**
+   * 回退 N 步（rollback + 会话重建，FR-READ-03；M2 验收第 4 条）。
+   * 口径甲（2026-09-23 人类裁定）：状态精确还原；叙事位置按设计 §6.3
+   * 重建会话至入口场景（叙事位置不保证）。
+   * @param steps 回退的选择步数（缺省 1）
+   */
+  rollback(steps?: number): void;
+  /** 历史回看投影（FR-READ-04；数据源 = SceneRunner.history 环形缓冲） */
+  history(): ReturnType<typeof projectHistory>;
   /** 移动地点（时间消耗经推进管线，FR-XPLR-02） */
   moveTo(target: { readonly area: GameId; readonly location: GameId }): void;
   /** 当前日历投影（ClockBadge 数据源） */
@@ -590,21 +598,36 @@ export function createGameHost(options: GameHostOptions): GameHost {
           }
         });
       }),
-    rollback: () =>
+    rollback: (steps = 1) =>
       guard(() => {
         const rt = requireRuntime();
-        const result = rt.rollback(1);
+        // 步数前置校验（显性化）：引擎 rollback 会把超深步数 clamp 到可用快照数
+        // ——那会让「回退 5 步」在只剩 2 个快照时静默只退 2 步。宿主按状态树的
+        // checkpoints 镜像（与内部栈同步维护）先判可用性，不足即报错不改状态。
+        const available = rt.state.checkpoints.length;
+        if (steps > available) {
+          lastError = {
+            code: 'NO_CHECKPOINT',
+            messageKey: 'ui.error.no_checkpoint',
+            detail: `回滚栈仅有 ${String(available)} 步，请求 ${String(steps)} 步`,
+          };
+          return;
+        }
+        const result = rt.rollback(steps);
         if (!result.ok) {
           lastError = {
             code: 'NO_CHECKPOINT',
             messageKey: 'ui.error.no_checkpoint',
-            detail: '回滚栈为空',
+            detail: `回滚栈不足 ${String(steps)} 步`,
           };
           return;
         }
-        // 会话重建：回滚只还原状态，叙事位置须重开会话（§6.3「重建 session」）
+        // 会话重建：回滚只还原状态，叙事位置须重开会话（§6.3「重建 session」；
+        // M2 验收口径甲 2026-09-23：仅状态一致，叙事位置回入口场景）
         session = createRunnerSession(runnerRuntime(), definition.manifest.entryScene);
       }),
+
+    history: () => projectHistory(session?.history() ?? []),
     moveTo: (target) =>
       guard(() => {
         const area = definition.areas.get(target.area);

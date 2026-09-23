@@ -50,3 +50,5 @@ export type { AppShellProps } from './AppShell.js';
 export { formatSaveSummary, saveDisplayName, TitleScreen, TITLE_ACTIONS } from './TitleScreen.js';
 export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './TitleScreen.js';
 export type { SaveSlotSummary, SaveVersions } from '../persistence/types.js';
+export { KEY_BINDING_DOCS, useKeyboardShortcuts } from './keyboard.js';
+export type { KeyActionHandlers, KeyboardShortcutsOptions } from './keyboard.js';

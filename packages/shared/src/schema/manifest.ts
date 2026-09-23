@@ -12,7 +12,8 @@ import { gameIdSchema, semverSchema, textKeySchema } from './common.js';
  * - contentWarning：首启内容向导的警告页文案键（FR-CGRD-04；§2.4 字段表漏列，
  *   2026-09-14 勘误补齐——§6.5 首启向导明确引用该键）；
  * - redirects：旧 ID → 新 ID 映射（FR-MIGR-05），迁移器按 refId(kind) 元数据定向改写（§5.7）；
- * - credits：署名与许可声明（FR-MEDIA-07）。
+ * - credits：署名与许可声明（FR-MEDIA-07）；
+ * - debug：调试模式开关（FR-DEBG-01，25 号 Q3；缺省 false = 不启用调试面板）。
  */
 export const manifestSchema = z
   .strictObject({
@@ -41,6 +42,12 @@ export const manifestSchema = z
     redirects: z.record(gameIdSchema, gameIdSchema),
     /** 署名与许可声明（FR-MEDIA-07） */
     credits: z.string().min(1),
+    /**
+     * 调试模式开关（FR-DEBG-01，25 号 Q3；additive 2026-09-23）：
+     * `true` 时玩家端启用调试面板（变量监视/跳转/时间快进/表达式控制台/评估日志）。
+     * 缺省 false（正式发行包不应开启）；作者在开发期包内显式声明。
+     */
+    debug: z.boolean().optional(),
   })
   .refine((m) => m.langs.includes(m.mainLang), {
     message: 'mainLang 必须包含在 langs 中（FR-L10N-02 主语言即回退语言）',
