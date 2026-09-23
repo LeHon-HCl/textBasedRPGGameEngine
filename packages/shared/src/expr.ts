@@ -144,6 +144,12 @@ export interface ExprScope {
   };
   /** 物品计数投影（player.bag 的 itemId → count；item root 语法糖与 has/count 的数据源） */
   readonly bagCounts: Readonly<Record<string, number>>;
+  /**
+   * 物品基准价投影（itemId → ItemDef.price；`item.<id>.price` 的数据源，17 号
+   * 缺口③方案 A）。**缺省缺席**时 `item.<id>.price` 引用 → EVAL_ERROR；
+   * 宿主/经济服务提供目录时填充（定价表达式「按基准价打折」的表达面）。
+   */
+  readonly itemPrices?: Readonly<Record<string, number>>;
   readonly npcs: Readonly<Record<string, NpcState>>;
   readonly factions: Readonly<Record<string, number>>;
   readonly quests: Readonly<Record<string, QuestState>>;

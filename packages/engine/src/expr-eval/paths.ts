@@ -50,7 +50,12 @@ export function pathShapeError(root: string, rest: readonly string[]): string | 
     case 'flag':
       return rest.length === 1 ? null : 'flag 路径应为 flag.<name>';
     case 'item':
-      return rest.length === 2 && rest[1] === 'count' ? null : 'item 路径应为 item.<id>.count';
+      if (rest.length !== 2) return 'item 路径应为 item.<id>.count 或 item.<id>.price';
+      // count = 随身数量（渐进域，未持有 → 0）；price = 基准价（17 号缺口③，
+      // 缺省作用域不含目录时求值期 EVAL_ERROR）
+      return rest[1] === 'count' || rest[1] === 'price'
+        ? null
+        : 'item 路径应为 item.<id>.count 或 item.<id>.price';
     case 'outfit':
       // 层键为内容约定的标识符（开放集合，缺席 = 未穿戴 → null）；
       // 数值层（garment.layer 1..3）经 worn(part, layer) 函数查询。

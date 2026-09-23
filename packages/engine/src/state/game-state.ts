@@ -131,6 +131,13 @@ export interface GameState {
      * ShopDef 声明的初始 stock。
      */
     shopStock: Record<string, number>;
+    /**
+     * 商店补货计时（17 号缺口②：条目级补货调度；键同 `shopStock`）。
+     * 值 = 上次补货的游戏时间总时段数（`day × 每日时段数 + slotIndex` 的等价
+     * 比较基准，由 `__shop.restock` 以「天 × 1000 + 时段」的单调计数写入）。
+     * 仅 `restock` 字段声明的条目登记；缺省 = 从未补货（首日立即可补）。
+     */
+    shopRestock: Record<string, number>;
   };
   npcs: Record<GameId, NpcState>;
   factions: Record<GameId, number>;

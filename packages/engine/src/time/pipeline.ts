@@ -52,6 +52,12 @@ export interface TimePipelineOptions {
   bodyRevert?: TimeStepProvider;
   /** 步骤 5：NPC 日程移动（§4.6；12 号挂载） */
   npcSchedule?: TimeStepProvider;
+  /**
+   * 步骤 4.5：商店补货（§5.3；17 号挂载，**每次推进都调用**——条目级
+   * `restock` 周期（时段数）由 `__shop.restock` 依 `world.shopRestock`
+   * 计时自判，故钩子须每时段评估而非仅跨天）。
+   */
+  shopRestock?: TimeStepProvider;
   /** 步骤 6：事件池评估（§4.4；10 号挂载） */
   eventEval?: TimeStepProvider;
   /** 步骤 7：任务截止/到期检查（§4.5 failWhen；11 号挂载） */
@@ -85,6 +91,7 @@ export class TimePipeline {
   readonly #statusTick: TimeStepProvider | undefined;
   readonly #bodyRevert: TimeStepProvider | undefined;
   readonly #npcSchedule: TimeStepProvider | undefined;
+  readonly #shopRestock: TimeStepProvider | undefined;
   readonly #eventEval: TimeStepProvider | undefined;
   readonly #questDeadline: TimeStepProvider | undefined;
   readonly #hooks: TimeHooks | undefined;
@@ -95,6 +102,7 @@ export class TimePipeline {
     this.#statusTick = options.statusTick;
     this.#bodyRevert = options.bodyRevert;
     this.#npcSchedule = options.npcSchedule;
+    this.#shopRestock = options.shopRestock;
     this.#eventEval = options.eventEval;
     this.#questDeadline = options.questDeadline;
     this.#hooks = options.hooks;
@@ -139,6 +147,8 @@ export class TimePipeline {
     this.#collect(effects, this.#bodyRevert, ctx);
     // 步骤 4：day_rollover 作者钩子（跨天时；日结算：房租/惩罚/总结）
     if (plan.crossedDay) this.#collect(effects, this.#hooks?.dayRollover, ctx);
+    // 步骤 4.5：商店补货（每时段评估；条目级计时自判）
+    this.#collect(effects, this.#shopRestock, ctx);
     // 步骤 5：NPC 日程移动
     this.#collect(effects, this.#npcSchedule, ctx);
     // 步骤 6：事件池评估

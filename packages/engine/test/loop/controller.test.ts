@@ -189,3 +189,55 @@ describe('19-C3 摘要填充（宿主面）', () => {
     expect(summary.loop).toBe(2);
   });
 });
+
+describe('19-C3 偏差②裁定：切换后回滚栈清空的显式断言（2026-09-23 人类追认）', () => {
+  it('切换前有多个回滚点 → 切换后回滚栈空、状态树 checkpoints 同步清空', async () => {
+    const { definition, runtime, baseline } = await makeWorld();
+    // 造 3 个回滚点
+    runtime.checkpoint('c1');
+    runtime.exec([{ add: { key: 'attr.insight', amount: 1 } }], {
+      source: 'choice',
+      where: { scene: 'market_street' },
+      rng: createRng(1),
+    });
+    runtime.checkpoint('c2');
+    runtime.exec([{ add: { key: 'attr.insight', amount: 1 } }], {
+      source: 'choice',
+      where: { scene: 'market_street' },
+      rng: createRng(1),
+    });
+    runtime.checkpoint('c3');
+    expect(runtime.state.checkpoints.length).toBe(3);
+
+    runLoopTransition(
+      runtime,
+      { openingScene: 'arrival' } as never,
+      { baseline, functionRegistry: new Map(), rng: createRng(1) },
+      definition,
+    );
+
+    // 状态树标记与内部栈同步清空（跨周目回滚无意义——设计意图）
+    expect(runtime.state.checkpoints).toEqual([]);
+    // 回滚尝试返回 ok: false（无可用回滚点）——不可回滚性的行为级证据
+    // （rollback 的失败面是返回值而非抛错，宿主据此提示「无可用回滚点」）
+    expect(runtime.rollback(1)).toEqual({ ok: false });
+  });
+
+  it('周目切换不可撤销：切换后状态不会被 rollback 还原（行为断言）', async () => {
+    const { definition, runtime, baseline } = await makeWorld();
+    runtime.checkpoint('before');
+    const insightBefore = runtime.state.player.attrs['insight'];
+    runLoopTransition(
+      runtime,
+      { openingScene: 'arrival', inherit: { attrs: 'inherit' } } as never,
+      { baseline, functionRegistry: new Map(), rng: createRng(1) },
+      definition,
+    );
+    // 切换后 loop 已递增；任何回滚尝试都不存在可用点
+    expect(runtime.state.loop).toBe(1);
+    expect(runtime.rollback(1)).toEqual({ ok: false });
+    // 状态仍为切换后（未被悄悄还原）
+    expect(runtime.state.loop).toBe(1);
+    expect(runtime.state.player.attrs['insight']).toBe(insightBefore);
+  });
+});

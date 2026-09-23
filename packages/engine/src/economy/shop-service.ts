@@ -1,7 +1,7 @@
 import type { GameId, Rng, ShopDef } from '@game/shared';
 import { EngineError } from '@game/shared';
 import { compileExpr, evalExpr } from '../expr-eval/index.js';
-import type { CompiledExpr, ExprFunctionRegistry } from '@game/shared';
+import type { CompiledExpr, ExprFunctionRegistry, ExprScope, ExprTimeView } from '@game/shared';
 import { buildExprScope, type GameState, type TimeViewProvider } from '../state/index.js';
 import type { ShopEntryView, ShopPrice } from './types.js';
 
@@ -27,6 +27,12 @@ export interface ShopServiceOptions {
   readonly state: () => GameState;
   /** 商店目录（加载器发布面） */
   readonly shops: ReadonlyMap<GameId, ShopDef>;
+  /**
+   * 物品目录（`item.<id>.price` 基准价的数据源，17 号缺口③方案 A）：
+   * 注入后定价表达式可写 `item.<id>.price * 0.9` 这类「按基准价打折」；
+   * 缺省不注入 → 该类引用 EVAL_ERROR（封闭域，显性化）。
+   */
+  readonly items?: ReadonlyMap<GameId, import('@game/shared').ItemDef>;
   /** 表达式函数注册表（与运行时同一实例，§3.2） */
   readonly functionRegistry: ExprFunctionRegistry;
   /** 库存读取缝（S2/S4 接存档域；缺省 = 全部无限库存） */
@@ -64,6 +70,22 @@ function requireShop(options: ShopServiceOptions, shopId: GameId): ShopDef {
   return shop;
 }
 
+/** 构造求值作用域（状态投影 + 可选视图；两处求值共用，保证口径一致） */
+function scopeOf(options: ShopServiceOptions): ExprScope {
+  const views: { time?: ExprTimeView; itemPrices?: Readonly<Record<string, number>> } = {};
+  if (options.timeView !== undefined) {
+    views.time = options.timeView(options.state().world.time);
+  }
+  if (options.items !== undefined && options.items.size > 0) {
+    const prices: Record<string, number> = {};
+    for (const [id, def] of options.items) {
+      if (typeof def.price === 'number') prices[id] = def.price;
+    }
+    views.itemPrices = prices;
+  }
+  return buildExprScope(options.state(), views);
+}
+
 /** 定价表达式求值（编译缓存 + 状态作用域；失败显性化） */
 function evalPrice(
   options: ShopServiceOptions,
@@ -80,10 +102,7 @@ function evalPrice(
   // 作用域经 buildExprScope 投影（bagCounts/npcLocationCache/time 视图等派生面
   // 只有投影后才有——直接传 GameState 会让 item.count / npc.<id>.at 类引用失真）
   const value = evalExpr(compiled, {
-    state: buildExprScope(
-      options.state(),
-      options.timeView !== undefined ? { time: options.timeView(options.state().world.time) } : {},
-    ),
+    state: scopeOf(options),
     rng: options.rng,
     registry: options.functionRegistry,
   });
@@ -135,12 +154,7 @@ export function createShopProjection(options: ShopServiceOptions): ShopServicePr
             cache.set(entry.showIf, compiled);
           }
           const shown = evalExpr(compiled, {
-            state: buildExprScope(
-              options.state(),
-              options.timeView !== undefined
-                ? { time: options.timeView(options.state().world.time) }
-                : {},
-            ),
+            state: scopeOf(options),
             rng: options.rng,
             registry: options.functionRegistry,
           });

@@ -225,8 +225,16 @@ function resolvePath(segments: string[], ctx: EvalContext, source: string): unkn
     }
     case 'flag':
       return state.world.flags[first as string]; // 渐进域：未设置 → undefined
-    case 'item':
+    case 'item': {
+      // item.<id>.price：基准价（17 号缺口③）——目录缺席/物品未声明 price 时
+      // EVAL_ERROR（封闭域语义：定价依赖的数据缺失不能静默为 0）
+      if (second === 'price') {
+        const prices = state.itemPrices;
+        const price = prices?.[first as string];
+        return strictValue(price, path, first as string, source);
+      }
       return state.bagCounts[first as string] ?? 0; // 渐进域：未持有 → 0
+    }
     case 'outfit': {
       const part = state.player.outfit[first as string];
       return part?.[second as string] ?? null; // 渐进域：该层未穿戴 → null

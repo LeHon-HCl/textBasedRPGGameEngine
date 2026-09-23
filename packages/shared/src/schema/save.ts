@@ -127,6 +127,8 @@ const worldStateSchema = z.strictObject({
    * 缺省 = 空（旧档兼容：无商店交易史的存档天然无此域）。
    */
   shopStock: z.record(z.string(), z.number().int().min(0)).optional(),
+  /** 商店补货计时（17 号缺口②；键同 shopStock，值 = 上次补货的时间计数） */
+  shopRestock: z.record(z.string(), z.number().int().min(0)).optional(),
 });
 
 /** NPC 运行时状态（设计 §2.4 / §3.1）：好感、阶段、是否已遇、记忆 flag */
