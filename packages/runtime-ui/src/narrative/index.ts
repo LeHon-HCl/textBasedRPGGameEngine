@@ -19,3 +19,5 @@ export type {
   NarrativeSegmentView,
   OptionView,
 } from './types.js';
+export { isSceneRead, useReadingControl } from './reading-control.js';
+export type { ReadingControl, ReadingControlOptions } from './reading-control.js';
