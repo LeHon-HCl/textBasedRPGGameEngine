@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng, type ShopDef } from '@game/shared';
 import { createBuiltinFunctionRegistry } from '../../src/expr-eval/index.js';
 import { newGameState } from '../../src/state/index.js';
+import { itemDefSchema } from '@game/shared';
 import { createShopProjection } from '../../src/economy/shop-service.js';
 
 /**
@@ -153,5 +154,104 @@ describe('17-S1 priceOf()：定价表达式矩阵（FR-ECON-02/03）', () => {
   it('卖价独立于买价（priceSell 表达式）', () => {
     const { service } = makeService();
     expect(service.priceOf('shop_market', 'warm_bun', 'sell').amount).toBe(5);
+  });
+});
+
+describe('17-S1 缺口③方案 A：定价表达式引用 item.<id>.price（基准价，2026-09-23 裁定实现）', () => {
+  const SHOPS_PRICE = new Map<string, ShopDef>([
+    [
+      'shop_priced',
+      {
+        id: 'shop_priced',
+        nameKey: 'shops.priced.name',
+        entries: [{ item: 'warm_bun' }, { item: 'guard_coat' }],
+        // 按基准价打折（声望 ≥ 5 时九折）——scheme A 的直接收益
+        priceBuy: 'item.warm_bun.price * (faction.town >= 5 ? 0.9 : 1)',
+        priceSell: 'item.warm_bun.price * 0.5',
+        currency: 'town_silver',
+      },
+    ],
+  ]);
+
+  const ITEMS = new Map([
+    [
+      'warm_bun',
+      itemDefSchema.parse({ id: 'warm_bun', nameKey: 'items.bun', type: 'consumable', price: 10 }),
+    ],
+    [
+      'guard_coat',
+      itemDefSchema.parse({ id: 'guard_coat', nameKey: 'items.coat', type: 'normal', price: 40 }),
+    ],
+  ]);
+
+  function makeService(factions: Record<string, number>) {
+    const state = newGameState(
+      {
+        versions: { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.1.0' },
+        attrs: { hp: 30 },
+        factions,
+      },
+      createRng(1),
+    );
+    return createShopProjection({
+      state: () => state,
+      shops: SHOPS_PRICE,
+      items: ITEMS,
+      functionRegistry: createBuiltinFunctionRegistry(),
+      rng: createRng(7),
+    });
+  }
+
+  it('item.<id>.price 可读：按基准价计算（原价 / 声望折扣）', () => {
+    expect(makeService({ town: 0 }).priceOf('shop_priced', 'warm_bun', 'buy').amount).toBe(10);
+    expect(makeService({ town: 5 }).priceOf('shop_priced', 'warm_bun', 'buy').amount).toBe(9);
+  });
+
+  it('卖价表达式同样可用（半价基准）', () => {
+    expect(makeService({ town: 0 }).priceOf('shop_priced', 'warm_bun', 'sell').amount).toBe(5);
+  });
+
+  it('未注入物品目录：item.<id>.price 引用 → EVAL_ERROR（封闭域显性化，不静默 0）', () => {
+    const state = newGameState(
+      {
+        versions: { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.1.0' },
+        attrs: { hp: 30 },
+        factions: { town: 0 },
+      },
+      createRng(1),
+    );
+    const service = createShopProjection({
+      state: () => state,
+      shops: SHOPS_PRICE,
+      functionRegistry: createBuiltinFunctionRegistry(),
+      rng: createRng(7),
+      // 未注入 items
+    });
+    expect(() => service.priceOf('shop_priced', 'warm_bun', 'buy')).toThrowError();
+  });
+
+  it('注入目录但物品未声明 price → EVAL_ERROR（不静默 0）', () => {
+    const itemsNoPrice = new Map([
+      [
+        'warm_bun',
+        itemDefSchema.parse({ id: 'warm_bun', nameKey: 'items.bun', type: 'consumable' }),
+      ],
+    ]);
+    const state = newGameState(
+      {
+        versions: { gameVersion: '1.0.0', schemaVersion: 1, minEngineVersion: '0.1.0' },
+        attrs: { hp: 30 },
+        factions: { town: 0 },
+      },
+      createRng(1),
+    );
+    const service = createShopProjection({
+      state: () => state,
+      shops: SHOPS_PRICE,
+      items: itemsNoPrice,
+      functionRegistry: createBuiltinFunctionRegistry(),
+      rng: createRng(7),
+    });
+    expect(() => service.priceOf('shop_priced', 'warm_bun', 'buy')).toThrowError();
   });
 });

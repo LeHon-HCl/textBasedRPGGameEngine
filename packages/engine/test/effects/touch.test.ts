@@ -46,6 +46,7 @@ const KNOWN_WRITE_DOMAINS: readonly string[] = [
   'world.eventCooldowns',
   'world.npcLocationCache',
   'world.shopStock',
+  'world.shopRestock',
   'npcs',
   'factions',
   'quests',

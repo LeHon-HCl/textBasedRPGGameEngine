@@ -42,8 +42,10 @@ export function writeStock(state: GameState, shopId: GameId, itemId: GameId, nex
 }
 
 /**
- * 补货钩子（管线 day_rollover 槽位，§4.3 步骤 4）：跨天时把全部有限库存条目
- * 重置为 ShopDef 声明的初始值。
+ * 补货钩子（管线步骤 4.5「shopRestock」槽位，§4.3/§5.3；17 号缺口②裁定实现）：
+ * **每次时间推进都调用**，由内部指令按条目级 `restock` 周期（时段数）自判是否
+ * 到期——「每 4 时段补货」这类商业节奏由此真实生效（跨天仅重置的旧行为保留在
+ * 未声明 `restock` 的条目上）。
  *
  * 返回**内部指令** `__shop.restock`（与 `__npc.resolve` / `__quest.deadline`
  * 同款——写状态域的操作以内部指令进事务，作者包内不可达）；管线契约要求钩子

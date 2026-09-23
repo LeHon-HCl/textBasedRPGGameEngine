@@ -29,6 +29,12 @@ export interface ExprScopeViews {
   time?: ExprTimeView;
   /** meta 根视图（缺省 = 空档投影：0 点数、无 Perk） */
   meta?: MetaView;
+  /**
+   * 物品基准价投影（itemId → ItemDef.price；`item.<id>.price` 的数据源，
+   * 17 号缺口③方案 A）。缺省缺席 → 该路径引用 EVAL_ERROR。
+   * 经济服务（定价）与需要按基准价计算的宿主填充本视图。
+   */
+  itemPrices?: Readonly<Record<string, number>>;
 }
 
 /**
@@ -94,6 +100,7 @@ export function buildExprScope(state: GameState, views: ExprScopeViews = {}): En
       npcLocationCache: state.world.npcLocationCache,
     },
     bagCounts,
+    ...(views.itemPrices !== undefined ? { itemPrices: views.itemPrices } : {}),
     npcs: state.npcs,
     factions: state.factions,
     quests: state.quests,
