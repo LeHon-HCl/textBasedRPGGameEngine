@@ -5,6 +5,10 @@
  * 单测，组件经 Testing Library 测渲染与交互。
  */
 export { describeEquipMods, projectStatusPanel } from './types.js';
+export { projectHistory } from './history-projection.js';
+export type { HistoryGroup, HistoryEntryView, HistoryTextResolver } from './history-projection.js';
+export { HistoryPanel } from './HistoryPanel.js';
+export type { HistoryPanelProps, HistoryPanelLabels } from './HistoryPanel.js';
 export type {
   StatusAttrView,
   StatusEffectView,
