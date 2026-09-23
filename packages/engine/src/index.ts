@@ -270,7 +270,68 @@ export type {
 } from './persistence/index.js';
 export type { SaveBlob } from '@game/shared';
 
+// ---- economy（§5.3 经济与商店：投影 / 定价 / 交易 / 库存补货，17 号） --------
+export {
+  createRestockProvider,
+  createShopProjection,
+  createShopService,
+  readStock,
+  stockKey,
+  writeStock,
+} from './economy/index.js';
+export type {
+  ShopEntryView,
+  ShopPrice,
+  ShopService,
+  ShopServiceDeps,
+  ShopServiceOptions,
+  ShopServiceProjection,
+} from './economy/index.js';
+
+// ---- achievements（§5.4 成就与元进度：评估器 / Profile / Perk，18 号） -------
+export {
+  AchievementEvaluator,
+  applyPerkEffects,
+  assertProfileValid,
+  bootstrapPerks,
+  chargePerk,
+  compensatePerk,
+  createEmptyProfile,
+  createMemoryProfileStore,
+  purchasePerk,
+  recordAchievements,
+  resetPoints,
+  validatePerkPurchase,
+} from './achievements/index.js';
+export type {
+  AchievementEvaluation,
+  AchievementGalleryEntry,
+  AchievementEvaluatorOptions,
+  AchievementProgress,
+  AchievementUnlocked,
+  MemoryProfileStoreOptions,
+  PerkPurchaseOutcome,
+  Profile,
+  ProfileStore,
+} from './achievements/index.js';
+
+// ---- loop（§5.5 周目系统：过渡执行器 / 强制重建 / 次序断言，19 号） ---------
+export {
+  applyLoopTransition,
+  assertLoadOrder,
+  fillSummary,
+  runLoopTransition,
+} from './loop/index.js';
+export type {
+  LoopSummary,
+  LoopTransitionOptions,
+  LoopTransitionResult,
+  LoopRunOptions,
+  LoopRunResult,
+} from './loop/index.js';
+
 // ---- media（§5.10 媒体解析引擎侧：意图解析 / 存在性核对 / 缺失占位，24 号） --
+
 export { MediaResolver } from './media/index.js';
 export type {
   MediaCatalogLike,

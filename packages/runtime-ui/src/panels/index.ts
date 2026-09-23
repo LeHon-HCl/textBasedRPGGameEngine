@@ -27,3 +27,10 @@ export { MapPanel } from './MapPanel.js';
 export type { MapPanelLabels, MapPanelProps, MapPosition } from './MapPanel.js';
 export { QuestLogPanel } from './QuestLogPanel.js';
 export type { QuestLogLabels, QuestLogPanelProps } from './QuestLogPanel.js';
+export { progressPercent, projectAchievementGallery } from './achievements-projection.js';
+export type { AchievementGalleryGroup, AchievementGalleryView } from './achievements-projection.js';
+export { AchievementGalleryPanel } from './AchievementGalleryPanel.js';
+export type {
+  AchievementGalleryLabels,
+  AchievementGalleryPanelProps,
+} from './AchievementGalleryPanel.js';

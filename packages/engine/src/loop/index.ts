@@ -7,3 +7,5 @@
 export type { LoopSummary, LoopTransitionResult } from './types.js';
 export { applyLoopTransition } from './transition.js';
 export type { LoopTransitionOptions } from './transition.js';
+export { assertLoadOrder, fillSummary, runLoopTransition } from './controller.js';
+export type { LoopRunOptions, LoopRunResult } from './controller.js';
