@@ -50,7 +50,7 @@ S0 契约冻结与迁移（串行）
 | **S0** | 类型与加载时序（子任务 1）：`ScriptSetupApi` 补 `onHook`/`transaction`；`ScriptHost` 骨架（构造 → setup → freeze → 运行期） | `scripts/types.ts`、`scripts/host.ts`、`loader/types.ts`（迁移） | 2 |
 | **A1** | `host.transaction`：exec 包装（脚本提交效果指令批，原子事务；返回 ExecOutcome） | `scripts/host.ts` | 1 |
 | **A2** | 能力面收窄（子任务 6）：架构断言（脚本 API 无 draft/无网络/无存储/无定时器）+ 运行期无 eval（lint 规则 + 测试） | `scripts/host.ts` + 架构测试 | 2 |
-| **B1** | `onHook` 四类挂点（子任务 5）：`time`（复用 TimeHooks 两槽）/ `loop_transition`（周目切换点）/ `battle_round_end`（战斗回合钩子）/ `load_complete`（读档完成） | `scripts/hooks.ts` + 各触发点接线 | 3 |
+| **B1** | `onHook` 四类挂点（子任务 5）：`time`（**补齐 `slot_advance` 槽，共三槽**）/ `loop_transition`（切换后）/ `battle_round_end`（**整回合结束**；`battle_action_end` 按需追加）/ `load_complete`（全部恢复完成后） | `scripts/hooks.ts` + 各触发点接线 | 3 |
 | **B2** | 钩子触发序（注册序）与错误隔离（单个 handler 抛错不阻断管线；错误经诊断出口显性化） | 同上 + 测试 | 2 |
 | **C1** | `touchState` 新域 warn（子任务 7）：内置域前缀清单（`world.`/`player.`/`npcs`/`factions`/`quests`/`seen.`/`readStats`/`meta.`）比对，清单外 → `SCRIPT_CONTRACT` 级诊断 | `scripts/touch-audit.ts` | 2 |
 | **C2** | 悬空契约补测（子任务 8）+ **伤害公式脚本覆盖打通**（16 号遗留：`registerCheckRule` 同款的注入面，接 `createDamagePresetResolver`） | `battle/damage.ts` 接线 + 测试 | 2 |
@@ -58,15 +58,25 @@ S0 契约冻结与迁移（串行）
 
 依赖：A/B/C 三线共享 S0 的 `ScriptHost` 契约；B1 的挂点需要各子系统（time/loop/battle/persistence）配合，故排在 S0 后；C2 的伤害公式接通依赖 S0 的脚本注册面。
 
-### 关键设计点（开工前需确认）
+### 关键设计点（**2026-09-25 人类裁定，全部闭环**）
 
-1. **`onHook` 的四类挂点语义**（设计只给了名字，未定细节）：
-   - `time`：映射到既有 `TimeHooks.beforeRollover`/`dayRollover` 两槽（需明确脚本注册的是哪一个，或两个都可）；
-   - `loop_transition`：周目切换前后？设计未说——建议**切换后**（新状态已就位，脚本可初始化周目专属数据）；
-   - `battle_round_end`：战斗回合结束钩子——16 号的状态 tick 挂在「新回合开始」，需明确两者关系（建议：脚本钩子在**每回合结束时**触发，与 tick 的时机语义不同但互补）；
-   - `load_complete`：读档完成（迁移 → 周目恢复之后，DD-10 次序的最后一环）——脚本据此重建运行时缓存。
-2. **`host.transaction` 的返回面**：脚本需要看到事务结果吗？建议返回 `ExecOutcome`（jumps/events/patches），但**jumps 不自动消费**（脚本若产生流程跳转，须由宿主处理或显式拒绝——建议**拒绝**：脚本不应控制叙事流，只改状态）。
-3. **OQ-11 复核的结论取向**：设计倾向「最小面起步：仅引擎事务 API + 纯计算，网络与文件系统默认不开放」。建议确认并写入冻结公告，同时明确**未来的开放路径**（若 M5 需要网络，走宿主注入而非引擎开放）。
+1. **`onHook` 四类挂点语义**：
+   - `time`：**补齐 `slot_advance` 槽**（设计 `TimeHook` 为三值，M1 实现只落两槽——本次修平差异）；
+     三个钩子位即 `before_rollover`（步骤 0）/ `slot_advance`（每次推进）/ `day_rollover`（步骤 4）；
+   - `loop_transition`：**切换后**触发（新状态已就位，脚本初始化周目专属数据；
+     切换前改状态会被整体 reset 冲掉，无实用价值）；
+   - `battle_round_end`：**整回合结束**（全部单位行动完、下一轮开始前）触发，每轮一次
+     ——与状态 tick（新回合开始）相邻互补（tick 管衰减，钩子管事件）；
+     「每次行动后」的 `battle_action_end` **记为按需追加**（additive，不破坏冻结；
+     反击/连携类需求优先走伤害公式脚本覆盖——本阶段 C2 已打通该能力）；
+   - `load_complete`：**全部恢复完成之后**触发（迁移 → 周目恢复 → 状态就位，DD-10 次序末环）。
+2. **`host.transaction` 的返回面与 jumps 处置**：返回 `{ events, patches }`（**不含 jumps**）；
+   脚本若提交流程指令（goto/back/ending/loop_transition）→ **抛 `SCRIPT_CONTRACT` 错误**。
+   边界：脚本只改状态，不控制叙事流（流程归数据层，符合 DD-11 精神）。
+3. **OQ-11 复核结论**：确认设计倾向的**最小面** —— 仅引擎事务 API + 纯计算；
+   网络 / 文件系统 / 定时器**均不开放**（各自的替代路径：云功能归宿主、持久化归存档、
+   延迟效果归时间管线）。**未来开放路径**：若 M5 有真实需求，由**宿主注入能力**给脚本，
+   引擎不开放裸 API。结论写入 API 冻结公告。
 
 ### 验收效果
 
