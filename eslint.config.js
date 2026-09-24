@@ -14,6 +14,31 @@ import tseslint from 'typescript-eslint';
 // 修改依赖规则前必须先修订 docs/detail-design.md §1.2（需求变更流程见 AGENTS.md）。
 
 // 设计 §1.2 R2：engine 中禁用的 DOM/BOM 全局（engine 可在 Node 无 DOM 环境运行）。
+/**
+ * 脚本能力面禁止项（OQ-11 复核结论 2026-09-25 的机械化保障）：
+ * 脚本 API 为**最小面**——仅引擎事务 + 纯计算；网络 / 定时器 / 文件不开放
+ * （各自的替代路径：云功能归宿主、延迟效果归时间管线、持久化归存档）。
+ * 该清单对 engine 全域生效（engine 本就无 IO，此处把约束显式化，
+ * 防止将来有人在 scripts/ 里偷偷引 fetch/setTimeout）。
+ */
+const SCRIPT_FORBIDDEN_GLOBALS = [
+  'fetch',
+  'XMLHttpRequest',
+  'WebSocket',
+  'EventSource',
+  'setTimeout',
+  'setInterval',
+  'setImmediate',
+  'queueMicrotask',
+  'Worker',
+  'SharedWorker',
+  'process',
+  'require',
+  'Buffer',
+  '__dirname',
+  '__filename',
+];
+
 const DOM_GLOBALS = [
   'window',
   'document',
@@ -110,6 +135,12 @@ export default tseslint.config(
         ...DOM_GLOBALS.map((name) => ({
           name,
           message: '设计 §1.2 R2：engine 禁止使用 DOM/BOM 全局，保持无 DOM 可在 Node 运行。',
+        })),
+        ...SCRIPT_FORBIDDEN_GLOBALS.map((name) => ({
+          name,
+          message:
+            'OQ-11（2026-09-25 裁定）：脚本能力面为最小面——网络/定时器/文件系统不开放；' +
+            '延迟效果走时间管线、持久化走存档、云功能由宿主注入。',
         })),
       ],
     },
