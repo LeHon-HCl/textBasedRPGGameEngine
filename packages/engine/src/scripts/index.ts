@@ -17,6 +17,8 @@ export {
   fireLoopTransition,
 } from './hooks.js';
 export type { HookTriggerDeps } from './hooks.js';
+export { auditTouchDomains, isKnownDomain, KNOWN_STATE_DOMAINS } from './touch-audit.js';
+export type { TouchDomainViolation } from './touch-audit.js';
 export type {
   HookContext,
   HookHandler,

@@ -6,6 +6,8 @@ import { compileExpr, evalExpr, truthy } from '../expr-eval/index.js';
 import { buildExprScope } from '../state/index.js';
 import { createAiResolver } from './ai.js';
 import { createDefaultDamageFn } from './damage.js';
+import type { DamagePresetResolver } from './damage.js';
+import type { DamageFn } from './types.js';
 import { buildOutcomeEffects, type OutcomeBranches } from './outcome.js';
 import { createEffectExecutor } from './resolution.js';
 import { BattleSession } from './session.js';
@@ -38,6 +40,15 @@ export interface BattleWiringInput {
   rng: Rng;
   /** 表达式求值缝（AI when 条件；战斗内作用域的表达式桥接归 W6/25B，缺省恒真） */
   evalCondition?: (source: string) => boolean;
+  /**
+   * 伤害预设解析器（16 号 W4 留的口子，23 号 C 线打通）：注入后按名取公式；
+   * 缺省用内置默认公式（`atk*mult − def`，defend 减半）。
+   * 作者脚本经 `ScriptSetupApi.registerEffect` 无法注册预设——
+   * 脚本注册面见 {@link damagePresetName}（脚本模块 setup 期经宿主收集）。
+   */
+  readonly damagePresets?: DamagePresetResolver;
+  /** 本场战斗使用的伤害预设名（缺省 'default'；未知名 → 显性化报错） */
+  readonly damagePresetName?: string;
   /** 事务定位（EFFECT_FAILED 错误卡片） */
   where?: { scene: GameId };
 }
@@ -84,7 +95,7 @@ export function createBattleController(input: BattleWiringInput): BattleControll
 
   const executor = createEffectExecutor({
     // 伤害公式：B 线默认预设（`atk*mult − def`）；命名预设切换随宿主装配扩展
-    damageFn: createDefaultDamageFn(),
+    damageFn: resolveDamageFn(input),
     // 附加效果缝：SkillRef.effects 经 runtime child 事务执行（DD-11 缝）
     applyEffects: (effects, _actor, ectx) => {
       input.runtime.exec(effects, baseCtx(ectx.rng));
@@ -168,4 +179,41 @@ export function createBattleController(input: BattleWiringInput): BattleControll
       return { outcome: result.outcome, effects, jumps };
     },
   };
+}
+
+/**
+ * 解析本场战斗的伤害公式（16 号 W4 的「可插拔预设」在 23 号打通）。
+ *
+ * 优先级：声明的预设名（经解析器）→ 内置默认公式。
+ * 预设名未注册 → **ERROR（不静默回落）**——公式被悄悄换掉是调试黑洞
+ * （与 damage.ts 的 register 重复检测同一立场）。
+ */
+function resolveDamageFn(input: BattleWiringInput): DamageFn {
+  const name = input.damagePresetName;
+  if (name === undefined || name === 'default') return createDefaultDamageFn();
+  const presets = input.damagePresets;
+  if (presets === undefined) {
+    throw new EngineError({
+      code: 'EFFECT_FAILED',
+      where: {
+        op: 'battle.damage',
+        preset: name,
+        detail: `声明了伤害预设 '${name}' 但未注入解析器（宿主装配缺陷）`,
+      },
+      messageKey: 'error.effects.instructionFailed',
+    });
+  }
+  const fn = presets.resolve(name);
+  if (fn === null) {
+    throw new EngineError({
+      code: 'EFFECT_FAILED',
+      where: {
+        op: 'battle.damage',
+        preset: name,
+        detail: `伤害预设 '${name}' 未注册（脚本未加载或名称拼写错误）`,
+      },
+      messageKey: 'error.effects.instructionFailed',
+    });
+  }
+  return fn;
 }

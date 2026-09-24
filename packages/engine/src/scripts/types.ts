@@ -97,6 +97,12 @@ export interface ScriptSetupApi {
    * 同一钩子可注册多个 handler——**按注册序依次执行**（确定性）。
    */
   onHook(hook: HookName, handler: HookHandler): void;
+  /**
+   * 注册伤害公式预设（16 号 W4 留的「作者可脚本注册覆盖」口子，23 号打通）：
+   * 名称必须 `x.<script>.<name>`（与 effect/function 同命名空间约束，DD-08）；
+   * 战斗中经 `BattleWiringInput.damagePresetName` 选择使用。
+   */
+  registerDamagePreset(name: string, fn: import('../battle/index.js').DamageFn): void;
 }
 
 /**

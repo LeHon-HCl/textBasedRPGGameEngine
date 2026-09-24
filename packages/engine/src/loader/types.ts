@@ -1,7 +1,6 @@
 import type {
   CompiledExpr,
   ErrCode,
-  ExprFunctionDef,
   ExprFunctionRegistry,
   GameId,
   Lang,
@@ -29,12 +28,7 @@ import type {
   StatsPageDef,
   TimeConfig,
 } from '@game/shared';
-import type {
-  CheckRule,
-  CheckRuleResolver,
-  EffectInstructionDef,
-  EffectRegistry,
-} from '../effects/index.js';
+import type { CheckRuleResolver, EffectRegistry } from '../effects/index.js';
 import type { LocationEntryMap } from './navigation.js';
 
 /**
@@ -191,30 +185,13 @@ export interface ValidatedPackage {
 // ---- 管线步骤 6 scripts（宿主注入脚本模块，§3.4 / §5.9 / FR-SCR-04） --------
 
 /**
- * 作者脚本模块注册 API（设计 §5.9 ScriptSetupApi 的加载期注册面）：
- * 脚本在管线步骤 6 内经此 API 注册效果指令 / 表达式函数 / 判定规则；
- * 步骤 6 完成后注册表冻结（EffectRegistry.freeze），注册窗口关闭。
- * 时间钩子（onHook）与事务入口（host.transaction）由 23 号脚本宿主
- * 接入时间管线时扩展，本 API 只承载加载期注册。
+ * 作者脚本模块注册 API（设计 §5.9 ScriptSetupApi）与模块接口（ScriptModule）：
+ * **权威定义在 `scripts/types.ts`**（23 号子系统），此处 re-export 避免双份漂移
+ * （2026-09-25 迁移；此前定义在本文件，23 号落地后统一）。
  */
-export interface ScriptSetupApi {
-  /** 注册作者扩展效果指令：id 必须 `x.<script>.<name>`（DD-08） */
-  registerEffect(def: EffectInstructionDef<unknown>): void;
-  /** 注册作者扩展表达式函数：name 必须 `x.<script>.<name>`（DD-08） */
-  registerFunction(def: ExprFunctionDef): void;
-  /** 注册作者扩展判定规则（§5.1 CheckRule；'x.<script>.<rule>' 可插拔） */
-  registerCheckRule(rule: CheckRule): void;
-}
-
-/**
- * 作者脚本模块（设计 §5.9 ScriptModule，§9.2 编译产物接口）：引擎只接受
- * 宿主注入的模块实例（NFR-19 / FR-SCR-06，运行期无任何动态加载）。
- */
-export interface ScriptModule {
-  /** 脚本模块 id（x.* 命名空间段使用） */
-  readonly id: string;
-  setup(api: ScriptSetupApi): void;
-}
+export type { ScriptModule, ScriptSetupApi } from '../scripts/types.js';
+// 本地使用面（LoadGameOptions.scripts 的类型）；与上面的 re-export 并存
+import type { ScriptModule } from '../scripts/types.js';
 
 // ---- 冻结产物（管线步骤 7，设计 §3.4 GameDefinition） ------------------------
 

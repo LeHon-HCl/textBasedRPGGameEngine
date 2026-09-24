@@ -8,6 +8,8 @@ import type {
   EffectRegistryOptions,
 } from '../effects/index.js';
 import { createBuiltinCheckResolver } from '../checks/index.js';
+import { createDamagePresetResolver, type DamagePresetResolver } from '../battle/damage.js';
+import { HookRegistry, hookRegistrarFor } from '../scripts/host.js';
 import { createBuiltinFunctionRegistry } from '../expr-eval/index.js';
 import type { LoadGameOptions, PackageDomains } from './types.js';
 import type { PackageInventory } from './walk.js';
@@ -65,6 +67,16 @@ export interface ScriptStepResult {
    * 无需注册表重建。
    */
   readonly checkResolver: CheckRuleResolver;
+  /**
+   * 脚本钩子注册表（23 号；`onHook` 的收集面）——宿主装配时经
+   * `createScriptTimeHooks` / `fire*` 接到 time/loop/battle/persistence 四处。
+   */
+  readonly hookRegistry: HookRegistry;
+  /**
+   * 伤害预设解析器（23 号打通 16 号 W4 口子）：脚本经 `registerDamagePreset`
+   * 注册的公式在此；战斗中经 `BattleWiringInput.damagePresetName` 选择。
+   */
+  readonly damagePresets: DamagePresetResolver;
 }
 
 /** scripts 步骤入口（管线步骤 6）：注册 → x.* 悬空校验 → 冻结 */
@@ -75,6 +87,8 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
   // 交予效果注册表，步骤末冻结——运行期经同一实例编译参数表达式）
   const functionRegistry = new Map<string, ExprFunctionDef>(createBuiltinFunctionRegistry());
   const scriptRules = new Map<string, CheckRule>();
+  const hookRegistry = new HookRegistry();
+  const damagePresets = createDamagePresetResolver();
 
   // 判定解析链（15 号）：脚本规则（setup 期间写入 scriptRules）→ 宿主解析器 →
   // 内置 coc/generic 兜底。合成实例先于注册表构造交付（check 指令在构造期捕获
@@ -132,10 +146,24 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
       }
       scriptRules.set(rule.id, rule);
     },
+    registerDamagePreset: (
+      name: string,
+      fn: Parameters<DamagePresetResolver['register']>[1],
+    ): void => {
+      if (!X_NAMESPACE_PATTERN.test(name)) {
+        throw new EngineError({
+          code: 'SCRIPT_CONTRACT',
+          where: { preset: name, detail: "伤害预设名必须为 'x.<script>.<name>'（DD-08）" },
+          messageKey: 'error.loader.scriptNamespace',
+        });
+      }
+      damagePresets.register(name, fn);
+    },
   };
 
   for (const module of options.scripts ?? []) {
-    module.setup(api);
+    // 每模块的 onHook 绑定其 id（诊断归因用）；其余注册面共用 api
+    module.setup({ ...api, onHook: hookRegistrarFor(hookRegistry, module.id) });
   }
 
   // —— x.* 悬空校验（FR-SCR-04，注册完成后执行） ——
@@ -150,7 +178,7 @@ export function runScriptStep(input: ScriptStepInput): ScriptStepResult {
   // —— 注册表冻结（§3.4 步骤 6 完成的分界） ——
   effectRegistry.freeze();
 
-  return { effectRegistry, functionRegistry, checkResolver };
+  return { effectRegistry, functionRegistry, checkResolver, hookRegistry, damagePresets };
 }
 
 /** x.* 引用核对的首个违约（call 指令与表达式函数的存在性、缓存位置纯度） */
