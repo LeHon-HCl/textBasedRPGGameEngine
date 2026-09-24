@@ -118,10 +118,39 @@ export class HookRegistry {
   }
 
   /**
-   * 触发钩子（按注册序）。
+   * 收集钩子效果（**不执行事务**，按注册序拼接）。
+   *
+   * 用途：时间管线契约要求「钩子只收集数据，执行由 runtime.exec 统一完成」
+   * （一次推进 = 一个 undo 点）——管线侧经本方法取效果，而非 {@link fire}。
+   * 抛错的 handler 记诊断后跳过（错误隔离）。
+   */
+  collect(host: ScriptHost, ctx: HookContext): readonly EffectData[] {
+    const bucket = this.#handlers.get(ctx.hook);
+    if (bucket === undefined) return [];
+    const effects: EffectData[] = [];
+    for (const entry of bucket) {
+      try {
+        const produced = entry.handler(host, ctx);
+        if (Array.isArray(produced)) effects.push(...produced);
+      } catch (error) {
+        this.#diagnostics.push({
+          hook: ctx.hook,
+          scriptId: entry.scriptId,
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }
+    return effects;
+  }
+
+  /**
+   * 触发钩子（按注册序，**各自独立事务**）。
    *
    * 每个 handler 独立调用：抛错 → 记诊断 → **继续执行后续 handler**（错误隔离，
    * 2026-09-25 裁定）。返回成功提交的效果条数（诊断面用）。
+   *
+   * 与 {@link collect} 的区别：本方法立即执行事务（用于非管线场景，如周目切换/
+   * 战斗回合/读档完成后的宿主动作）；管线场景用 collect（合并进同一次事务）。
    */
   fire(host: ScriptHost, ctx: HookContext): number {
     const bucket = this.#handlers.get(ctx.hook);

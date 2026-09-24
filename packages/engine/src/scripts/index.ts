@@ -9,6 +9,14 @@
  */
 export { createScriptHost, findFlowInstruction, HookRegistry, hookRegistrarFor } from './host.js';
 export type { HookDiagnostic } from './host.js';
+export {
+  collectHookEffects,
+  createScriptTimeHooks,
+  fireBattleRoundEnd,
+  fireLoadComplete,
+  fireLoopTransition,
+} from './hooks.js';
+export type { HookTriggerDeps } from './hooks.js';
 export type {
   HookContext,
   HookHandler,

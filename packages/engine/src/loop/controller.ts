@@ -31,6 +31,12 @@ export interface LoopRunOptions extends Omit<LoopTransitionOptions, 'baseline'> 
   readonly clearEventCooldowns?: boolean;
   /** 事件池重定位钩子（宿主提供；缺省跳过——引擎不持池实例） */
   readonly relocatePool?: (area: GameId, location?: GameId) => void;
+  /**
+   * 周目切换完成回调（23 号 `loop_transition` 脚本钩子的挂点，2026-09-25 裁定）：
+   * **切换后**触发（新状态已就位，脚本可初始化周目专属数据）。
+   * 参数为切换后的周目序号；效果由装配方（宿主 ScriptHost）提交。
+   */
+  readonly onLoopComplete?: (loop: number) => void;
 }
 
 export interface LoopRunResult extends LoopTransitionResult {
@@ -93,6 +99,9 @@ export function runLoopTransition(
     'player.equip',
     'player.body',
   ]);
+
+  // 周目切换完成钩子（切换后：新状态已就位，2026-09-25 裁定）
+  options.onLoopComplete?.(next['loop'] as number);
 
   return { ...result, openingScene: config.openingScene };
 }
