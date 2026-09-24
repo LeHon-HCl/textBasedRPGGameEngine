@@ -215,6 +215,8 @@ EndingDef.nextLoop 转场摘要、与迁移次序固定（DD-10）。
 
 ## 6. 阶段 6 —— 作者脚本宿主（23 号）+ API 冻结
 
+> 实施计划（Q0 前置核实结论 / 并行工作包 / 三处待确认设计点）：`docs/plans/M2-stage6-script-host-plan.md`（2026-09-24 人类裁定：全单线 + 内部并行，先五后六的收尾阶段）。
+
 ### 开发目标
 
 类型化注册 API 四类扩展点（registerEffect / registerFunction / registerCheckRule / onHook）、
