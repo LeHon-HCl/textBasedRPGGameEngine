@@ -54,6 +54,12 @@ export interface BattleSessionOptions {
   ) => ActionOutcome;
   /** 行动校验上下文（W1；物品持有缝等，缺省 = item 行动一律拒绝） */
   validation?: ActionValidationContext;
+  /**
+   * 整回合结束回调（23 号 `battle_round_end` 脚本钩子的挂点，2026-09-25 裁定）：
+   * 全部单位行动完、下一轮开始前触发，每轮一次（与状态 tick 相邻互补）。
+   * 返回的效果指令由**装配方**（宿主 ScriptHost）经事务提交——会话本身不改状态。
+   */
+  onRoundEnd?: (round: number) => void;
 }
 
 /**
@@ -78,6 +84,7 @@ export class BattleSession {
   readonly #executeAction: BattleSessionOptions['executeAction'];
   readonly #escapeRate: number;
   readonly #validation: ActionValidationContext;
+  readonly #onRoundEnd: ((round: number) => void) | undefined;
   /** 本回合 fleeing 标记（round_end 收敛 escaped 的依据） */
   #fledThisTurn = false;
   #result: BattleResult | null = null;
@@ -90,6 +97,7 @@ export class BattleSession {
     this.#executeAction = options.executeAction;
     this.#escapeRate = init.escapeRate ?? ESCAPE_RATE_DEFAULT;
     this.#validation = options.validation ?? {};
+    this.#onRoundEnd = options.onRoundEnd;
     if (init.escapeRate !== undefined && (init.escapeRate < 0 || init.escapeRate > 1)) {
       throw new EngineError({
         code: 'EFFECT_FAILED',
@@ -164,6 +172,10 @@ export class BattleSession {
     // 到期日志按当前相位（turn_order）入账；第一轮不经此分支（构造直入
     // #enterTurnOrder，初始状态完整持续一轮）。
     this.#log.push(...tickStatuses([...this.#units.values()]));
+    // 整回合结束钩子（23 号 `battle_round_end`，2026-09-25 裁定）：
+    // 在状态 tick 之后、新一轮行动序重算之前——「刚结束的那一轮」的收尾时刻。
+    // 钩子只做通知（效果由装配方提交），异常隔离由 HookRegistry 保证。
+    this.#onRoundEnd?.(this.#round);
     this.#enterTurnOrder();
     return this.beginTurn();
   }

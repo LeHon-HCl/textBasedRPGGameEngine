@@ -74,6 +74,12 @@ export interface TimePipelineOptions {
 export interface TimeHooks {
   /** 步骤 0：时钟推进前（跨天时）——房租预扣、跨天预警等作者逻辑 */
   beforeRollover?: TimeStepProvider;
+  /**
+   * 每次推进都触发（不论跨天与否）——对应设计的 `slot_advance` 钩子
+   * （2026-09-25 裁定补齐：设计 TimeHook 为三值，M1 只落两槽）。
+   * 用途：「每小时恢复一点体力」这类时段级逻辑。
+   */
+  slotAdvance?: TimeStepProvider;
   /** 步骤 4：状态 tick / 身体回退后、NPC 日程前（跨天时）——日结算（房租/惩罚/总结） */
   dayRollover?: TimeStepProvider;
 }
@@ -141,6 +147,9 @@ export class TimePipeline {
     if (plan.crossedDay) this.#collect(effects, this.#hooks?.beforeRollover, ctx);
     // 步骤 1：时钟推进（内部指令；钩子之外的位置对作者封闭）
     effects.push(this.#advanceInstruction(slots));
+    // 步骤 1.5：slot_advance 作者钩子（每次推进都触发——时段级逻辑，
+    // 如「每小时恢复一点体力」；2026-09-25 裁定补齐设计三值中的第三值）
+    this.#collect(effects, this.#hooks?.slotAdvance, ctx);
     // 步骤 2：状态效果 tick
     this.#collect(effects, this.#statusTick, ctx);
     // 步骤 3：临时身体回退

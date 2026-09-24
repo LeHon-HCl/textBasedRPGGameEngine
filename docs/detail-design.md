@@ -1026,6 +1026,32 @@ export interface ScriptModule { id: string; setup(api: ScriptSetupApi): void }  
 
 **独立测试**：以手工构造的 `ScriptModule` 桩测试注册/命名空间约束/事务包装/钩子触发序/悬空注册报错。
 
+> **API 冻结公告（2026-09-25，M2 阶段六收尾；OQ-11 复核结论）**
+>
+> 作者脚本 API 自本公告起冻结，M3 编辑器与 M4 导出依赖该冻结面。
+>
+> **冻结面**（`packages/engine/src/scripts/types.ts`）：
+> - 四类扩展点：`registerEffect` / `registerFunction` / `registerCheckRule` / `onHook`
+>   （均要求 `x.<script>.<name>` 命名空间，DD-08）；另有 `registerDamagePreset`
+>   （16 号 W4 的「伤害公式脚本注册覆盖」口子，与函数同命名空间约束）；
+> - 事务边界：`ScriptHost.transaction(effects)` 是脚本**唯一**状态入口——
+>   exec 包装、返回 `{events, patches}`（**不含 jumps**）、提交 goto/back/ending/
+>   loop_transition → `SCRIPT_CONTRACT` 错误（脚本只改状态，不控制叙事流）；
+> - 四类钩子：`before_rollover` / `slot_advance` / `day_rollover`（时间三槽）、
+>   `loop_transition`（切换后）、`battle_round_end`（整回合结束）、
+>   `load_complete`（全部恢复完成后）；按注册序触发、单 handler 抛错只记诊断
+>   （错误隔离，不阻断管线）。
+>
+> **能力面（OQ-11 复核结论：最小面）**：仅引擎事务 API + 纯计算；
+> **网络 / 文件系统 / 定时器均不开放**——替代路径分别为「云功能归宿主注入」
+> 「持久化归存档（含迁移保障）」「延迟效果归时间管线（保持确定性）」。
+> 机械化保障：eslint `SCRIPT_FORBIDDEN_GLOBALS` + 架构扫描测试（双保）。
+>
+> **变更政策**：**additive 可加**（如按需追加 `battle_action_end` 钩子）；
+> 破坏性变更需里程碑评审（M3/M4 依赖本面，变更成本由下游承担）。
+> 若 M5 需要网络等能力，由**宿主注入**给脚本（如宿主提供 fetch 函数），
+> 引擎不开放裸 API。
+
 ### 5.10 媒体解析【FR-MEDIA、DD-05】
 
 ```ts

@@ -73,6 +73,12 @@ export interface SaveServiceOptions {
    * 未注入时低版本返回 MIGRATION_FAILED（不静默接受形状不明的旧档）。
    */
   readonly migrate?: (blob: SaveBlob) => Promise<SaveBlob>;
+  /**
+   * 读档完成回调（23 号 `load_complete` 脚本钩子的挂点，2026-09-25 裁定）：
+   * **全部恢复完成后**触发（迁移 → 周目恢复 → 状态就位，DD-10 末环）——
+   * 脚本据此重建自己的缓存/派生数据。效果由宿主 ScriptHost 提交。
+   */
+  readonly onLoadComplete?: () => void;
   /** 时钟（createdAt 来源；缺省 Date.now——测试可注入固定时钟） */
   readonly now?: () => number;
 }
@@ -102,6 +108,7 @@ export class SaveService {
   readonly #versions: SaveServiceVersions | undefined;
   readonly #engineVersion: string | undefined;
   readonly #migrate: ((blob: SaveBlob) => Promise<SaveBlob>) | undefined;
+  readonly #onLoadComplete: (() => void) | undefined;
   readonly #now: () => number;
 
   constructor(options: SaveServiceOptions) {
@@ -109,6 +116,7 @@ export class SaveService {
     this.#versions = options.versions;
     this.#engineVersion = options.engineVersion;
     this.#migrate = options.migrate;
+    this.#onLoadComplete = options.onLoadComplete;
     this.#now = options.now ?? (() => Date.now());
   }
 
@@ -184,6 +192,8 @@ export class SaveService {
     }
     const validated = this.#validate(blob, slot);
     runtime.restore(validated);
+    // 读档完成钩子（全部恢复完成后触发，DD-10 末环；2026-09-25 裁定）
+    this.#onLoadComplete?.();
     return { ok: true, blob: validated };
   }
 

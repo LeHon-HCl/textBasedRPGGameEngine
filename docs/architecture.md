@@ -294,10 +294,27 @@ interface GameDefinition {
 | [`economy/`](../packages/engine/src/economy/) | 经济与商店：条目投影 / 定价 / 交易事务 / 库存补货 | `ShopService` / `createShopService` | 17 |
 | [`achievements/`](../packages/engine/src/achievements/) | 成就评估 / ProfileStore / Perk 两步协议 | `AchievementEvaluator` / `createMemoryProfileStore` | 18 |
 | [`loop/`](../packages/engine/src/loop/) | 周目切换：继承策略执行器 / 强制重建 / 次序断言 | `applyLoopTransition` / `runLoopTransition` | 19 |
+| [`scripts/`](../packages/engine/src/scripts/) | 作者脚本宿主：四类扩展点 / 事务边界 / 四类钩子 / 域校验 | `createScriptHost` / `HookRegistry` | 23 |
 | [`battle/`](../packages/engine/src/battle/) | 回合制战斗会话：八相位状态机 / 行动序 / 结算缝（W0 骨架，16 号进行中） | `BattleSession` | 16 |
 | [`persistence/`](../packages/engine/src/persistence/) | 存档服务：适配器契约、版本闸门、自动/快速存档 | `SaveService` / `MemoryAdapter` | 20 |
 
 ### 5.2 子系统详解（实现细节，按需展开）
+
+<details>
+<summary><b>scripts/ — 作者脚本宿主</b>（设计 §5.9，23 号，已完结；API 已冻结）</summary>
+
+- `types.ts`：契约（ScriptSetupApi 四类注册 + ScriptModule + ScriptHost +
+  HookName 六值）；**M2 末冻结面**——additive 可加，破坏性变更需里程碑评审；
+- `host.ts`：`createScriptHost`（事务门面：exec 包装、**流程指令拒绝**
+  （goto/back/ending/loop_transition → SCRIPT_CONTRACT）、返回面不含 jumps）+
+  `HookRegistry`（注册序触发 / 错误隔离 / collect 只收集不执行）；
+- `hooks.ts`：四类挂点适配层（time 三槽 via `createScriptTimeHooks`、
+  `fireLoopTransition` / `fireBattleRoundEnd` / `fireLoadComplete`）；
+- `touch-audit.ts`：`KNOWN_STATE_DOMAINS`（内置域权威清单）+ 写域校验（FR-SCR-05）；
+- 能力面（OQ-11 复核结论 2026-09-25）：**最小面**——仅引擎事务 + 纯计算；
+  网络/文件/定时器不开放（eslint 规则 + 源码扫描测试双保障）。
+
+</details>
 
 <details>
 <summary><b>achievements/ + loop/ — 成就与周目</b>（设计 §5.4/§5.5，18/19 号，已完结）</summary>
@@ -564,8 +581,7 @@ stateDiagram-v2
 ### 5.3 空占位子系统（M2+ 待实现）
 
 
-`loop/`（19 号）、`migration/`（21 号）、`scripts/`（23 号）——均为空目录（仅 `.gitkeep`），
-模块开工时填充。
+`migration/`（21 号）——空目录（仅 `.gitkeep`），M2.5 开工时填充。
 
 ---
 

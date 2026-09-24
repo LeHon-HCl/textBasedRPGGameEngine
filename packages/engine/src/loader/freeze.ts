@@ -80,6 +80,8 @@ export function buildGameDefinition(deps: {
     exprCache: artifacts.exprCache,
     functionRegistry: scriptResult.functionRegistry,
     effectRegistry: scriptResult.effectRegistry,
+    hookRegistry: scriptResult.hookRegistry,
+    damagePresets: scriptResult.damagePresets,
     mediaCatalog: artifacts.mediaCatalog,
     time: domains.time,
     locationEntries,
