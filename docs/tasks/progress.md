@@ -4,7 +4,7 @@
 |---|---|
 | 任务拆分依据 | docs/proposal.md（需求）+ docs/detail-design.md（设计，§1.4 模块清单） |
 | 模块数 | 29（含基础设施） |
-| 更新日期 | 2026-09-23 |
+| 更新日期 | 2026-09-25 |
 
 ## 使用约定
 
@@ -56,7 +56,7 @@
 - [x] [17 经济与商店](17-economy.md)（M2 阶段三 2026-09-21 完成：ShopService 全量 + shop/meet 指令 + C5 豁免清账 + demo 商店；三处设计缺口登记待人类裁定）
 - [x] [18 成就与元进度](18-achievements.md)（M2 阶段四 2026-09-21：评估器/ProfileStore/两步协议/bootstrap/resetPoints + demo 11 成就 4 Perk）
 - [x] [19 周目系统](19-loop.md)（M2 阶段四 2026-09-21：applyLoopTransition 五形态策略 + replaceState 强制重建；周目继承验收用例通过）
-- [ ] [23 作者脚本宿主](23-script-host.md)（API 冻结，OQ-11 复核）
+- [x] [23 作者脚本宿主](23-script-host.md)（M2 阶段六 2026-09-25 完成：四类扩展点 + 事务边界 + 四类钩子挂点 + 域校验 + **API 冻结**（OQ-11 复核：最小面）；16 号伤害公式脚本覆盖打通）
 - [ ] [25 runtime-ui 玩家界面](25-runtime-ui.md)（**A 组 + B 组已完成**（2026-09-23：QoL 六项全交付，M2 验收第 4 条通过）；C 组图鉴/统计/媒体播放器/E2E 冒烟待 M4）
 
 ## 里程碑 M2.5 —— 存档迁移机制

@@ -190,8 +190,10 @@ export interface ValidatedPackage {
  * （2026-09-25 迁移；此前定义在本文件，23 号落地后统一）。
  */
 export type { ScriptModule, ScriptSetupApi } from '../scripts/types.js';
-// 本地使用面（LoadGameOptions.scripts 的类型）；与上面的 re-export 并存
+// 本地使用面（LoadGameOptions.scripts 与 GameDefinition 的类型）；与 re-export 并存
 import type { ScriptModule } from '../scripts/types.js';
+import type { HookRegistry } from '../scripts/host.js';
+import type { DamagePresetResolver } from '../battle/damage.js';
 
 // ---- 冻结产物（管线步骤 7，设计 §3.4 GameDefinition） ------------------------
 
@@ -230,6 +232,16 @@ export interface GameDefinition {
   readonly functionRegistry: ExprFunctionRegistry;
   /** 冻结后的效果指令注册表（05 号；GameRuntime 的 effectExecutor 注入面） */
   readonly effectRegistry: EffectRegistry;
+  /**
+   * 脚本钩子注册表（23 号）：加载期经 `onHook` 收集；宿主装配时接到
+   * time/loop/battle/persistence 四处挂点（见 `scripts/hooks.ts`）。
+   */
+  readonly hookRegistry: HookRegistry;
+  /**
+   * 伤害预设解析器（23 号打通 16 号 W4 口子）：含脚本注册的公式；
+   * 战斗中经 `BattleWiringInput.damagePresetName` 选择。
+   */
+  readonly damagePresets: DamagePresetResolver;
   /** 媒体目录（DD-05：assetId → {path, hash, preload, type}） */
   readonly mediaCatalog: MediaCatalog;
   /** 时段制日历（§4.3 TimeConfig；data/time.yaml 缺省 = undefined，09 号） */
