@@ -32,6 +32,8 @@ export interface ExecContext {
     pipeline?: string;
     /** 商店交易定位（17 号：ShopService 交易事务的 where 面） */
     shop?: string;
+    /** 作者脚本定位（23 号：ScriptHost 事务与钩子的 where 面——脚本模块 id） */
+    script?: string;
   };
   /** 事务随机源（DD-09：指令内表达式与效果的随机消耗走同一序列） */
   rng: Rng;
