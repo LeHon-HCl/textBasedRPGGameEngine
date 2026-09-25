@@ -55,3 +55,5 @@ export type {
   DebugPanelProps,
   DebugWatchEntry,
 } from './DebugPanel.js';
+export { ShopPanel } from './ShopPanel.js';
+export type { ShopPanelLabels, ShopPanelProps } from './ShopPanel.js';

@@ -52,3 +52,10 @@ export type { TitleAction, TitleScreenLabels, TitleScreenProps } from './TitleSc
 export type { SaveSlotSummary, SaveVersions } from '../persistence/types.js';
 export { KEY_BINDING_DOCS, useKeyboardShortcuts } from './keyboard.js';
 export type { KeyActionHandlers, KeyboardShortcutsOptions } from './keyboard.js';
+export { openShop, projectBattleSession, projectShopSession, startBattle } from './panel-wiring.js';
+export type {
+  BattleActionRequest,
+  BattleSessionView,
+  ShopSessionHandle,
+  ShopSessionView,
+} from './panel-wiring.js';

@@ -197,3 +197,52 @@ export type { ContentWizardLabels, ContentWizardProps } from './onboarding/index
 // ---- app.host（§6.1/§6.2 集成层：定义 → 可玩会话；A 组验收载体） ---------------
 export { createGameHost, DEFAULT_HOST_SEED } from './app/game-host.js';
 export type { GameHost, GameHostOptions, HostError } from './app/game-host.js';
+
+// ---- 面板接线与 QoL（阶段五交付的组件与逻辑，2026-09-25 统一出口） -------------
+export {
+  AchievementGalleryPanel,
+  BattlePanel,
+  CheckResultPanel,
+  checkResultFromEvent,
+  DebugPanel,
+  HistoryPanel,
+  ShopPanel,
+  progressPercent,
+  projectAchievementGallery,
+  projectHistory,
+} from './panels/index.js';
+export type {
+  AchievementGalleryLabels,
+  AchievementGalleryPanelProps,
+  AchievementGalleryView,
+  BattleActionOption,
+  BattlePanelLabels,
+  BattlePanelProps,
+  BattleUnitView,
+  CheckResultLabels,
+  CheckResultPanelProps,
+  CheckResultView,
+  DebugPanelLabels,
+  DebugPanelProps,
+  HistoryGroup,
+  HistoryPanelLabels,
+  HistoryPanelProps,
+  ShopPanelLabels,
+  ShopPanelProps,
+} from './panels/index.js';
+export { isSceneRead, useReadingControl } from './narrative/index.js';
+export type { ReadingControl, ReadingControlOptions } from './narrative/index.js';
+export { KEY_BINDING_DOCS, useKeyboardShortcuts } from './app/index.js';
+export type { KeyActionHandlers, KeyboardShortcutsOptions } from './app/index.js';
+export {
+  openShop,
+  projectBattleSession,
+  projectShopSession,
+  startBattle,
+} from './app/panel-wiring.js';
+export type {
+  BattleActionRequest,
+  BattleSessionView,
+  ShopSessionHandle,
+  ShopSessionView,
+} from './app/panel-wiring.js';
