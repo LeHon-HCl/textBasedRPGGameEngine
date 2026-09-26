@@ -65,7 +65,12 @@ import {
   type ShopSessionHandle,
   type ShopSessionView,
 } from './panel-wiring.js';
-import { AchievementEvaluator, createMemoryProfileStore, recordAchievements } from '@game/engine';
+import {
+  AchievementEvaluator,
+  createBuiltinCheckResolver,
+  createMemoryProfileStore,
+  recordAchievements,
+} from '@game/engine';
 import type { BattleController } from '@game/engine';
 
 /**
@@ -543,6 +548,11 @@ export function createGameHost(options: GameHostOptions): GameHost {
         // 判「有限/无限库存」——不注入则所有商品被视为无限库存，交易不记账
         // （L2-A 检查 + panel-wiring 测试抓出；与 M1「事件零触发」同类装配遗漏）
         shops: definition.shops,
+        // 判定规则解析器（15 号）：`check` 指令经它解析 coc/generic 规则——
+        // **不注入则检定抛错**（EFFECT_FAILED，被 guard 吞进 lastError），
+        // 表现为「点了检定选项但什么都没发生」（L2-C 主线检查抓出；
+        // GameDefinition 未发布该面，属 06 号导出面缺口的第四例）。
+        checkResolver: createBuiltinCheckResolver(),
         timeConfig,
         // 事件池注入（`__events.eval` 需要；develop.md 约束 8「宿主接线完整性」）：
         // 此前缺失导致包内 10 条事件零触发（有 events.yaml 却无人评估）。

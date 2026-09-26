@@ -223,6 +223,22 @@ export class Driver {
   }
 
   /**
+   * 把「当前所在地点」同步到某场景所属的地点（**场景跳转不更新地点**）。
+   *
+   * 为什么需要：选项的 `goto` 只切换场景，`host.location()` 仍是旧地点——
+   * 而事件池的作用域按**地点**过滤（`pool.locate`）。若不同步，在 `town_gate`
+   * 场景里推进时间会按旧地点（如 market）评估事件，目标事件永不进入候选
+   * （L2-C 主线检查踩坑记录）。
+   *
+   * 做法：经地图移动 API 走一次「原地导航」——它的 `pool.locate` 会把池的
+   * 作用域更新到目标地点（moveCost 会消耗时段，故调用方需按需 setSlot 归位）。
+   */
+  syncLocationTo(area: string, location: string): void {
+    this.host.moveTo({ area, location });
+    this.drain();
+  }
+
+  /**
    * 设置时段（**构造时间前置**，不消耗时段、不触发事件评估）。
    *
    * 为什么需要：地点移动的 `moveCost` 各不同（shrine 是 2），逐时段推进会在

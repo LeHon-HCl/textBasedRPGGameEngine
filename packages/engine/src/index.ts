@@ -330,6 +330,9 @@ export type {
   LoopRunResult,
 } from './loop/index.js';
 
+// ---- checks（§5.1 判定系统：coc/generic 规则 + 内置兜底解析器，15 号） --------
+export { cocRule, createBuiltinCheckResolver, genericRule } from './checks/index.js';
+
 // ---- battle（§5.2 回合制战斗：会话 / 结算 / AI / 目标选择 / 接线，16 号） ----
 export {
   BattleSession,
