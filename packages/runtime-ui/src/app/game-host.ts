@@ -52,7 +52,26 @@ import { createUiStore } from './store.js';
 import type { SessionView, UiStoreApi } from './types.js';
 import { projectAreaViews } from '../panels/map-projection.js';
 import { projectStatusPanel } from '../panels/types.js';
+import { exploreCandidates } from '@game/engine';
 import { projectHistory } from '../panels/history-projection.js';
+import { projectAchievementGallery } from '../panels/achievements-projection.js';
+import {
+  openShop,
+  projectBattleSession,
+  projectShopSession,
+  startBattle,
+  type BattleActionRequest,
+  type BattleSessionView,
+  type ShopSessionHandle,
+  type ShopSessionView,
+} from './panel-wiring.js';
+import {
+  AchievementEvaluator,
+  createBuiltinCheckResolver,
+  createMemoryProfileStore,
+  recordAchievements,
+} from '@game/engine';
+import type { BattleController } from '@game/engine';
 
 /**
  * 游戏宿主（设计 §6.1/§6.2 的集成层，25 号 A 组的可运行载体）。
@@ -140,6 +159,25 @@ export interface GameHost {
   rollback(steps?: number): void;
   /** 历史回看投影（FR-READ-04；数据源 = SceneRunner.history 环形缓冲） */
   history(): ReturnType<typeof projectHistory>;
+
+  // —— 面板接线（2026-09-25；引擎能力早已就绪，本次补齐宿主消费面） ——
+
+  /** 当前商店会话（`shop_open` 事件置位；null = 未打开） */
+  shopSession(): ShopSessionView | null;
+  /** 商店操作：买 / 卖 / 关闭 */
+  shopBuy(itemId: string, count?: number): { readonly ok: boolean; readonly detail: string };
+  shopSell(itemId: string, count?: number): { readonly ok: boolean; readonly detail: string };
+  closeShop(): void;
+
+  /** 当前战斗会话（`battle_start` 事件置位；null = 未在战斗中） */
+  battleSession(): BattleSessionView | null;
+  /** 战斗操作：行动（skill/item/defend/flee）与目标选中 */
+  battleAct(action: BattleActionRequest): void;
+
+  /** 成就图鉴投影（FR-ACHV-04；Profile 在宿主侧以内存实现承接） */
+  achievementGallery(): ReturnType<typeof projectAchievementGallery>;
+  /** 成就进度刷新（事务后调用；评估器产出 → Profile 入账） */
+  refreshAchievements(): void;
   /** 移动地点（时间消耗经推进管线，FR-XPLR-02） */
   moveTo(target: { readonly area: GameId; readonly location: GameId }): void;
   /** 当前日历投影（ClockBadge 数据源） */
@@ -254,6 +292,27 @@ export function createGameHost(options: GameHostOptions): GameHost {
   const eventPoolHolder: { pool?: EventPool } = {};
   /** 接线缺口告警（constraint 8 自检产物；start() 时刷新，调试面板与测试消费） */
   let wiringWarnings: readonly WiringWarning[] = [];
+  /**
+   * 成就评估器持有者（装配期创建——需要 definition 的成就域与 refs 反查表）。
+   * 用 holder 是因为评估器在 start 时才可构造（依赖定义），而调用面在返回对象里。
+   */
+  const achievementEvaluatorHolder: {
+    evaluator: import('@game/engine').AchievementEvaluator | null;
+  } = { evaluator: null };
+
+  /** 商店会话（`shop_open` 事件置位；null = 未打开） */
+  let shopHandle: ShopSessionHandle | null = null;
+  /** 战斗控制器（`battle_start` 事件置位；null = 未在战斗中） */
+  let battleController: BattleController | null = null;
+  let battleEncounterId = '';
+  /** 成就 Profile（宿主侧内存实现——DD-04：Profile 不在引擎；Dexie 归 25C） */
+  const achievementStore = createMemoryProfileStore();
+  /**
+   * 已解锁成就缓存（同步镜像；评估器需要同步的已解锁集合，而 ProfileStore
+   * 是异步接口——启动与每次评估后刷新，避免求值路径 await）。
+   */
+  let unlockedAchievements = new Set<string>();
+
   /** 叙事会话（每次 start/rollback 重建） */
   let session: SceneRunnerType | undefined;
   let unsubscribeBridge: Unsubscribe | undefined;
@@ -485,6 +544,15 @@ export function createGameHost(options: GameHostOptions): GameHost {
         npcs: definition.npcs,
         factions: definition.factions,
         quests: definition.quests,
+        // 商店目录注入（约束 8 同款缺口）：`__shop.set_stock` 读 options.shops
+        // 判「有限/无限库存」——不注入则所有商品被视为无限库存，交易不记账
+        // （L2-A 检查 + panel-wiring 测试抓出；与 M1「事件零触发」同类装配遗漏）
+        shops: definition.shops,
+        // 判定规则解析器（15 号）：`check` 指令经它解析 coc/generic 规则——
+        // **不注入则检定抛错**（EFFECT_FAILED，被 guard 吞进 lastError），
+        // 表现为「点了检定选项但什么都没发生」（L2-C 主线检查抓出；
+        // GameDefinition 未发布该面，属 06 号导出面缺口的第四例）。
+        checkResolver: createBuiltinCheckResolver(),
         timeConfig,
         // 事件池注入（`__events.eval` 需要；develop.md 约束 8「宿主接线完整性」）：
         // 此前缺失导致包内 10 条事件零触发（有 events.yaml 却无人评估）。
@@ -527,6 +595,72 @@ export function createGameHost(options: GameHostOptions): GameHost {
     });
     unsubscribeBridge?.();
     unsubscribeBridge = bridgeRuntimeEvents(runtime, store);
+    // —— 面板接线（2026-09-25）：消费 shop_open / battle_start 事件 ——
+    // 这两个事件此前**无人消费**（引擎已 emit、宿主未订阅），导致浏览器里点
+    // 「逛杂货铺」「打岩鼠」完全没反应（L2-A 检查抓出的真实缺口）。
+    unsubscribeShop?.();
+    unsubscribeShop = runtime.on('shop_open', (event) => {
+      const handle = openShop(
+        {
+          definition,
+          runtime: requireRuntime(),
+          rng,
+          ...(definition.items.size > 0 ? { items: definition.items } : {}),
+        },
+        event.shop as never,
+      );
+      if (handle === null) {
+        lastError = {
+          code: 'UNKNOWN_SHOP',
+          messageKey: 'ui.error.unknown_shop',
+          detail: `商店 '${event.shop}' 不存在于游戏包`,
+        };
+        return;
+      }
+      shopHandle = handle;
+      store.getState().openPanel('shop' as never); // 'shop' 为本次新增面板 id
+    });
+    unsubscribeBattle?.();
+    unsubscribeBattle = runtime.on('battle_start', (event) => {
+      // 引擎的 battle_start 携带三分支（指令参数面）——控制器据此建会话
+      const controller = startBattle(
+        {
+          definition,
+          runtime: requireRuntime(),
+          rng,
+          // 玩家技能：从运行时技能表投影 + 一件缺省基础攻击（游戏包无战斗技能
+          // 声明时仍可行动——否则玩家在战斗里无任何可用指令，只能防御/逃跑）
+          playerSkills: (() => {
+            const skills = Object.entries(requireRuntime().state.player.skills).map(([id]) => ({
+              id,
+            }));
+            return skills.length > 0 ? skills : [{ id: 'strike' }];
+          })(),
+        },
+        event.encounter,
+        {
+          ...(event.onVictory !== undefined ? { onVictory: event.onVictory } : {}),
+          ...(event.onDefeat !== undefined ? { onDefeat: event.onDefeat } : {}),
+          ...(event.onEscape !== undefined ? { onEscape: event.onEscape } : {}),
+        },
+      );
+      battleController = controller;
+      battleEncounterId = event.encounter;
+      store.getState().openPanel('battle' as never);
+    });
+    // 成就评估（18 号）：解锁链路是「引擎评估 → 宿主 mutate Profile」——
+    // 启动时同步一次已解锁集合，事务后按 touched 增量评估（桥接来自 store）。
+    void achievementStore.load().then((profile) => {
+      unlockedAchievements = new Set(Object.keys(profile.achievements));
+    });
+    if (definition.achievements.size > 0) {
+      achievementEvaluatorHolder.evaluator = new AchievementEvaluator({
+        achievements: definition.achievements,
+        refs: definition.poolIndex.achievementRefs,
+        functionRegistry: definition.functionRegistry,
+        rng,
+      });
+    }
     lastError = null;
     // 接线自检（develop.md 约束 8）：把「包内有数据但宿主未接线」显性化。
     // 不阻断启动（这是装配告警而非数据错误），但必须可见——写控制台并记入
@@ -550,6 +684,10 @@ export function createGameHost(options: GameHostOptions): GameHost {
     session = createRunnerSession(runnerRuntime(), definition.manifest.entryScene);
     syncSession();
   };
+
+  /** 面板事件的订阅句柄（start 时建立；重复 start 前先解绑） */
+  let unsubscribeShop: (() => void) | undefined;
+  let unsubscribeBattle: (() => void) | undefined;
 
   /** 已启动才可推进（未启动即编程错误，显性化） */
   const withSession = (action: (runner: SceneRunnerType) => void): void => {
@@ -628,6 +766,93 @@ export function createGameHost(options: GameHostOptions): GameHost {
       }),
 
     history: () => projectHistory(session?.history() ?? []),
+
+    // —— 面板接线实现（2026-09-25） ——
+
+    shopSession: () => {
+      if (shopHandle === null) return null;
+      return projectShopSession(shopHandle, {
+        definition,
+        runtime: requireRuntime(),
+        // 运行时持有同一 Rng（DD-09 单一序列）——此处经公开面取用
+        rng: requireRuntime().rng,
+        ...(definition.items.size > 0 ? { items: definition.items } : {}),
+      });
+    },
+    shopBuy: (itemId, count = 1) => {
+      if (shopHandle === null) return { ok: false, detail: '未打开商店' };
+      const before = JSON.stringify(requireRuntime().state.player.bag);
+      try {
+        shopHandle.service.buy(shopHandle.shopId, itemId as never, count);
+      } catch (error) {
+        return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+      }
+      void before;
+      return { ok: true, detail: `已购买 ${itemId} ×${count}` };
+    },
+    shopSell: (itemId, count = 1) => {
+      if (shopHandle === null) return { ok: false, detail: '未打开商店' };
+      try {
+        shopHandle.service.sell(shopHandle.shopId, itemId as never, count);
+      } catch (error) {
+        return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+      }
+      return { ok: true, detail: `已出售 ${itemId} ×${count}` };
+    },
+    closeShop: () => {
+      shopHandle = null;
+      store.getState().openPanel(null);
+    },
+
+    battleSession: () => {
+      if (battleController === null) return null;
+      return projectBattleSession(battleController, battleEncounterId);
+    },
+    battleAct: (action) =>
+      guard(() => {
+        if (battleController === null) return;
+        const controller = battleController;
+        const session = controller.session;
+        if (session.result() === null) {
+          // 会话相位驱动：turn_order 起手 → await_player → 玩家行动
+          if (session.phase() === 'turn_order') session.beginTurn();
+          if (session.phase() === 'await_player') {
+            session.playerAction(action as never);
+          }
+        }
+        // 终局消费：pollOutcome 执行路由效果（rewards + 分支），jumps 注回叙事
+        const outcome = controller.pollOutcome();
+        if (outcome !== null) {
+          battleController = null;
+          store.getState().openPanel(null);
+          if (outcome.jumps.length > 0) {
+            withSession((runner) => runner.applyFlowJumps(outcome.jumps));
+          }
+        } else if (session.result() === null) {
+          // 未终局：继续推进到下一次玩家输入
+          if (session.phase() === 'turn_order') session.beginTurn();
+        }
+      }),
+
+    achievementGallery: () => {
+      const evaluator = achievementEvaluatorHolder.evaluator;
+      if (evaluator === null) {
+        return projectAchievementGallery([], { unlocked: 0, total: 0, rate: 0 });
+      }
+      const state = requireRuntime().state;
+      const entries = evaluator.gallery(state as never, unlockedAchievements);
+      const rate = evaluator.collectionRate(unlockedAchievements);
+      return projectAchievementGallery(entries, rate);
+    },
+    refreshAchievements: () => {
+      const evaluator = achievementEvaluatorHolder.evaluator;
+      if (evaluator === null) return;
+      const state = requireRuntime().state;
+      const newly = evaluator.all(state as never, unlockedAchievements);
+      if (newly.length === 0) return;
+      for (const entry of newly) unlockedAchievements.add(entry.id);
+      void recordAchievements(achievementStore, newly, Date.now());
+    },
     moveTo: (target) =>
       guard(() => {
         const area = definition.areas.get(target.area);
@@ -667,6 +892,25 @@ export function createGameHost(options: GameHostOptions): GameHost {
           runner.currentSceneId !== entryScene
         ) {
           session = createRunnerSession(runnerRuntime(), entryScene);
+        }
+        // **探索发现型事件**（`trigger.type === 'explore'`）的驱动点（2026-09-25 补）：
+        // 这类事件不参与时间管线的自动 select（评估器按设计把它们归入
+        // `untriggered(reason: 'explore')`，由宿主在**进入地点**时主动询问）。
+        // 此前宿主零调用 → 夹具里 4 条 explore 事件永不触发（L2-B 检查抓出，
+        // 与「事件零评估」「商店库存不记账」同类的宿主装配遗漏）。
+        if (session !== undefined && session.depth === 0 && session.phase !== 'finished') {
+          const candidates = exploreCandidates(definition.events, (source) =>
+            evalConditionSource(source),
+          );
+          const inScope = candidates.find((candidate) => {
+            const where = candidate.event.where;
+            if (where.area !== target.area) return false;
+            if (where.location !== undefined && where.location !== target.location) return false;
+            return candidate.event.scene !== session?.currentSceneId;
+          });
+          if (inScope !== undefined) {
+            session = createRunnerSession(runnerRuntime(), inScope.event.scene);
+          }
         }
         syncSession();
       }),

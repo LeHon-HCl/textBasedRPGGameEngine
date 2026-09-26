@@ -3,9 +3,14 @@ import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parse } from 'yaml';
 import { InMemoryPackageSource, loadGamePackage } from '@game/engine';
-import type { AttrDefs, ContentTagsDef, GameDefinition } from '@game/shared';
+import type { GameDefinition } from '@game/engine';
+import type { AttrDefs, ContentTagsDef } from '@game/shared';
 import {
+  AchievementGalleryPanel,
   AppShell,
+  BattlePanel,
+  HistoryPanel,
+  ShopPanel,
   ContentWizard,
   createGameHost,
   DEFAULT_SHORTCUT_HINTS,
@@ -24,7 +29,9 @@ import {
   StatusPanel,
   ToastStack,
   UiStoreProvider,
+  useKeyboardShortcuts,
   usePrefersReducedMotion,
+  useReadingControl,
   useUiSelector,
 } from '@game/runtime-ui';
 import type { GameHost, PanelId } from '@game/runtime-ui';
@@ -222,62 +229,212 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
       : '';
   const revealed = useRevealedChars(lastText, settings.textSpeed, phase === 'await_advance');
 
+  // 阅读 QoL（FR-READ-01/02）：跳读 + 自动播放（遇选项/判定/战斗自动暂停）
+  const reading = useReadingControl({
+    phase,
+    segmentKey: String(session.segments.length),
+    onAdvance: () => host.advance(),
+  });
+
+  // 快捷键（FR-READ-06）：1-9 选项 / Space 推进 / H 历史 / S·L 快存读 / R 回退
+  useKeyboardShortcuts({
+    phase,
+    choiceCount: session.choices.length,
+    advance: () => host.advance(),
+    choose: (index) => {
+      const choice = session.choices[index];
+      if (choice !== undefined) host.choose(choice.id);
+    },
+    toggleHistory: () =>
+      host.store
+        .getState()
+        .openPanel(host.store.getState().panels.open === 'history' ? null : 'history'),
+    rollback: () => host.rollback(),
+  });
+
   return (
-    <AppShell
-      screenTitle="旧镇迷雾 · mini-game"
-      headerExtra={<ClockBadge host={host} />}
-      narrative={
-        <NarrativeView
-          segments={session.segments}
-          resolver={host.resolver}
-          lang={settings.lang}
-          textSpeed={settings.textSpeed}
-          revealed={revealed}
-          {...(phase !== undefined ? { phase } : {})}
-          {...(session.endReason !== undefined ? { endReason: session.endReason } : {})}
-          {...(session.endingId !== undefined ? { endingId: session.endingId } : {})}
-          fontSize={settings.fontSize}
-          lineHeight={settings.lineHeight}
-          onAdvance={() => host.advance()}
+    <>
+      <div style={styles.qolBar} data-qol-bar>
+        <button type="button" onClick={() => reading.toggleSkip()} style={styles.qolButton}>
+          {reading.skipEnabled ? '跳过：开' : '跳过：关'}
+        </button>
+        <button type="button" onClick={() => reading.toggleAuto()} style={styles.qolButton}>
+          {reading.autoActive ? '自动：播放中' : reading.autoEnabled ? '自动：开' : '自动：关'}
+        </button>
+        <button type="button" onClick={() => host.rollback()} style={styles.qolButton}>
+          回退一步
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            host.store
+              .getState()
+              .openPanel(host.store.getState().panels.open === 'history' ? null : 'history')
+          }
+          style={styles.qolButton}
+        >
+          历史
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            host.store
+              .getState()
+              .openPanel(
+                host.store.getState().panels.open === 'achievements' ? null : 'achievements',
+              )
+          }
+          style={styles.qolButton}
+        >
+          成就
+        </button>
+      </div>
+      <OverlayPanels host={host} />
+      <AppShell
+        screenTitle="旧镇迷雾 · mini-game"
+        headerExtra={<ClockBadge host={host} />}
+        narrative={
+          <NarrativeView
+            segments={session.segments}
+            resolver={host.resolver}
+            lang={settings.lang}
+            textSpeed={settings.textSpeed}
+            revealed={revealed}
+            {...(phase !== undefined ? { phase } : {})}
+            {...(session.endReason !== undefined ? { endReason: session.endReason } : {})}
+            {...(session.endingId !== undefined ? { endingId: session.endingId } : {})}
+            fontSize={settings.fontSize}
+            lineHeight={settings.lineHeight}
+            onAdvance={() => host.advance()}
+          />
+        }
+        options={
+          <>
+            <ErrorCard host={host} />
+            {session.choices.length > 0 ? (
+              <OptionList
+                choices={session.choices}
+                resolver={host.resolver}
+                lang={settings.lang}
+                onChoice={(id) => host.choose(id)}
+              />
+            ) : null}
+          </>
+        }
+        statusPanel={
+          <StatusPanel
+            view={host.statusPanel()}
+            nameOf={(key) => host.textOf(key)}
+            highlights={highlights}
+            now={() => Date.now()}
+            onHighlightSeen={({ attr }) => host.store.getState().clearStatHighlights([attr])}
+          />
+        }
+        mapPanel={
+          <MapPanel
+            areas={host.areas()}
+            current={host.location()}
+            nameOf={(key) => host.textOf(key)}
+            onMove={(target) => host.moveTo({ area: target.area, location: target.location })}
+          />
+        }
+        questPanel={
+          <QuestLogPanel view={host.questLog()} nameOf={(key) => host.textOf(key)} tracked={[]} />
+        }
+        mobileTab={mobileTab}
+        onMobileTabChange={(tab) => host.store.getState().setMobileTab(tab)}
+        drawer={<Toasts host={host} />}
+      />
+    </>
+  );
+}
+
+/**
+ * 叠加面板区（2026-09-25 接线）：商店 / 战斗 / 历史 / 成就图鉴。
+ *
+ * 为什么集中在宿主页：这四个面板由**事件驱动**（`shop_open` / `battle_start`）
+ * 或**快捷键驱动**（H），宿主是唯一知道「现在该显示哪个」的地方。
+ * 面板本身是受控组件（数据经 props 注入、交互经回调上抛）。
+ */
+function OverlayPanels({ host }: { host: GameHost }): ReactNode {
+  // 会话修订订阅：面板数据随状态变化（交易后价格/库存、战斗后血量）
+  useUiSelector((state) => state.session);
+  const openPanel = useUiSelector((state) => state.panels.open);
+  // 面板/战斗的可变状态由宿主持有（不在 store 里）：用本地计数器强制重读投影
+  const [, setRevision] = useState(0);
+  const forceRender = useCallback(() => setRevision((n) => n + 1), []);
+  const shop = host.shopSession();
+  const battle = host.battleSession();
+  const nameOf = (key: string) => host.textOf(key);
+
+  return (
+    <div style={styles.overlay} data-overlay>
+      {shop !== null ? (
+        <ShopPanel
+          session={shop}
+          onBuy={(itemId) => {
+            host.shopBuy(itemId, 1);
+            forceRender();
+          }}
+          onSell={(itemId) => {
+            host.shopSell(itemId, 1);
+            forceRender();
+          }}
+          onClose={() => {
+            host.closeShop();
+            forceRender();
+          }}
         />
-      }
-      options={
-        <>
-          <ErrorCard host={host} />
-          {session.choices.length > 0 ? (
-            <OptionList
-              choices={session.choices}
-              resolver={host.resolver}
-              lang={settings.lang}
-              onChoice={(id) => host.choose(id)}
-            />
-          ) : null}
-        </>
-      }
-      statusPanel={
-        <StatusPanel
-          view={host.statusPanel()}
-          nameOf={(key) => host.textOf(key)}
-          highlights={highlights}
-          now={() => Date.now()}
-          onHighlightSeen={({ attr }) => host.store.getState().clearStatHighlights([attr])}
+      ) : null}
+      {battle !== null ? (
+        <BattlePanel
+          phase={battle.phase}
+          units={battle.units.map((unit) => ({
+            uid: unit.uid,
+            side: unit.side,
+            name: nameOf(unit.nameKey),
+            hp: unit.hp,
+            maxHp: unit.maxHp,
+            ...(unit.defending ? { defending: true } : {}),
+          }))}
+          log={battle.log}
+          activeUid={battle.units.find((unit) => unit.side === 'player')?.uid}
+          actions={battle.actions.map((action) => ({
+            id: action.id,
+            label: action.id === 'defend' ? '防御' : action.id === 'flee' ? '逃跑' : action.id,
+            kind: action.kind,
+            needsTarget: action.needsTarget,
+          }))}
+          onAction={(action) => {
+            if (action.kind === 'defend' || action.kind === 'flee') {
+              host.battleAct({ kind: action.kind });
+            } else {
+              // 技能：由 BattlePanel 的目标两步点选回调带 targetUid；此处无目标时
+              // 选第一个存活敌人（演示够用；多敌人目标选择归 W6 完善）
+              const target = battle.units.find((unit) => unit.side === 'enemy' && unit.hp > 0);
+              host.battleAct({
+                kind: 'skill',
+                skillId: action.id,
+                ...(target !== undefined ? { targetUid: target.uid } : {}),
+              });
+            }
+            forceRender();
+          }}
         />
-      }
-      mapPanel={
-        <MapPanel
-          areas={host.areas()}
-          current={host.location()}
-          nameOf={(key) => host.textOf(key)}
-          onMove={(target) => host.moveTo({ area: target.area, location: target.location })}
+      ) : null}
+      {openPanel === 'history' ? (
+        <HistoryPanel
+          groups={host.history()}
+          onRollback={(steps) => {
+            host.rollback(steps);
+            forceRender();
+          }}
         />
-      }
-      questPanel={
-        <QuestLogPanel view={host.questLog()} nameOf={(key) => host.textOf(key)} tracked={[]} />
-      }
-      mobileTab={mobileTab}
-      onMobileTabChange={(tab) => host.store.getState().setMobileTab(tab)}
-      drawer={<Toasts host={host} />}
-    />
+      ) : null}
+      {openPanel === 'achievements' ? (
+        <AchievementGalleryPanel view={host.achievementGallery()} />
+      ) : null}
+    </div>
   );
 }
 
@@ -373,6 +530,26 @@ void mount();
 
 /** demo 内联样式（最小展示；主题化归 FR-XTRA-05） */
 const styles: Record<string, React.CSSProperties> = {
+  qolBar: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+    padding: '8px 12px',
+    borderBottom: '1px solid rgba(128,128,128,0.25)',
+    fontSize: '0.85em',
+  },
+  qolButton: {
+    minHeight: '28px',
+    padding: '0 10px',
+    cursor: 'pointer',
+  },
+  overlay: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    padding: '0 12px 12px',
+  },
+
   badge: { fontSize: '13px', opacity: 0.8 },
   drawer: {
     position: 'fixed',

@@ -14,7 +14,19 @@ export type Screen = 'title' | 'creation' | 'perks' | 'game' | 'panels';
 
 /** 侧栏面板 id（Drawer 挂载面，§6.2 组件树） */
 export type PanelId =
-  'status' | 'map' | 'quest' | 'settings' | 'gallery' | 'achievements' | 'debug';
+  | 'status'
+  | 'map'
+  | 'quest'
+  | 'settings'
+  | 'gallery'
+  | 'achievements'
+  | 'debug'
+  /** 商店叠加面板（17 号；`shop_open` 事件置位） */
+  | 'shop'
+  /** 战斗叠加面板（16 号；`battle_start` 事件置位，OQ-04 嵌入形态） */
+  | 'battle'
+  /** 历史回看面板（FR-READ-04；快捷键 H 切换） */
+  | 'history';
 
 /** 移动端 Tab（§6.2 panels.mobileTab，FR-UI-09 侧栏折叠形态） */
 export type MobileTab = 'status' | 'map' | 'quest';
