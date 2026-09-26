@@ -52,6 +52,7 @@ import { createUiStore } from './store.js';
 import type { SessionView, UiStoreApi } from './types.js';
 import { projectAreaViews } from '../panels/map-projection.js';
 import { projectStatusPanel } from '../panels/types.js';
+import { exploreCandidates } from '@game/engine';
 import { projectHistory } from '../panels/history-projection.js';
 import { projectAchievementGallery } from '../panels/achievements-projection.js';
 import {
@@ -881,6 +882,25 @@ export function createGameHost(options: GameHostOptions): GameHost {
           runner.currentSceneId !== entryScene
         ) {
           session = createRunnerSession(runnerRuntime(), entryScene);
+        }
+        // **探索发现型事件**（`trigger.type === 'explore'`）的驱动点（2026-09-25 补）：
+        // 这类事件不参与时间管线的自动 select（评估器按设计把它们归入
+        // `untriggered(reason: 'explore')`，由宿主在**进入地点**时主动询问）。
+        // 此前宿主零调用 → 夹具里 4 条 explore 事件永不触发（L2-B 检查抓出，
+        // 与「事件零评估」「商店库存不记账」同类的宿主装配遗漏）。
+        if (session !== undefined && session.depth === 0 && session.phase !== 'finished') {
+          const candidates = exploreCandidates(definition.events, (source) =>
+            evalConditionSource(source),
+          );
+          const inScope = candidates.find((candidate) => {
+            const where = candidate.event.where;
+            if (where.area !== target.area) return false;
+            if (where.location !== undefined && where.location !== target.location) return false;
+            return candidate.event.scene !== session?.currentSceneId;
+          });
+          if (inScope !== undefined) {
+            session = createRunnerSession(runnerRuntime(), inScope.event.scene);
+          }
         }
         syncSession();
       }),

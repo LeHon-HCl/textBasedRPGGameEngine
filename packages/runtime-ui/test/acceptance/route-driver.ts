@@ -207,8 +207,45 @@ export class Driver {
     for (let i = 0; i < slots; i += 1) {
       this.host.moveTo({ area: location.area, location: location.location ?? 'market' });
       this.drain();
-      this.#escapeEventScene();
+      // 事件打断：默认清场（保证推进循环收敛）；L2-B 需要观察事件本身，
+      // 故提供 `keepEvents` 模式（**由调用方**决定何时处理事件场景）
+      if (!this.#keepEventScenes) this.#escapeEventScene();
     }
+  }
+
+  /** 是否保留事件场景（L2-B 检查用：停下让调用方观察；缺省 false = 自动清场） */
+  #keepEventScenes = false;
+
+  /** 切换事件保留模式（链式，便于测试用例设置） */
+  keepEventScenes(keep = true): this {
+    this.#keepEventScenes = keep;
+    return this;
+  }
+
+  /**
+   * 设置时段（**构造时间前置**，不消耗时段、不触发事件评估）。
+   *
+   * 为什么需要：地点移动的 `moveCost` 各不同（shrine 是 2），逐时段推进会在
+   * 奇偶时段上跳过——对「只在 night 触发」这类窄窗口事件，无法稳定命中。
+   * 直接把时钟设到目标时段是**构造前置**（检查的是「事件在该时段能否触发」，
+   * 而不是「玩家能否恰好走到那个时段」）。
+   *
+   * 经引擎内部指令写入时钟（与时间管线同一写入口，保持状态一致性）。
+   */
+  setSlot(slotIndex: number, slotsPerDay = 4): void {
+    const current = this.host.runtime.state.world.time;
+    // 只能**向前**推进（`__time.advance` 要求 slots ≥ 0）：目标时段在当前之后
+    // 就直接走，否则绕到下一天的同一时段（跨天对事件窗口判定无影响——
+    // 事件的 `when.slots` 只看时段，不看天）。
+    const delta =
+      slotIndex >= current.slotIndex
+        ? slotIndex - current.slotIndex
+        : slotsPerDay - current.slotIndex + slotIndex;
+    this.host.runtime.exec([{ '__time.advance': { slots: delta } } as never], {
+      source: 'debug',
+      where: { scene: this.sceneId },
+      rng: this.host.runtime.rng,
+    });
   }
 
   /** 触发过的事件场景（L2-B 的交叉验证数据） */
