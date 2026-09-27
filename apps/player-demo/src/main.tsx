@@ -523,7 +523,20 @@ async function mount(): Promise<void> {
     definition,
     ...(attrDefs !== undefined ? { attrDefs } : {}),
     ...(contentTags !== undefined ? { contentTags } : {}),
-    initialAttrs: { hp: 100, stamina: 30, insight: 0 },
+    // —— 为什么 demo 必须**显式给全**属性（#12 战斗伤害恒为 0 的修复）——
+    // 宿主 `start()` 里是 `attrs: { ...(options.initialAttrs ?? {}) }`：**只**用
+    // 本字段播种，**不消费** `attrDefs.numeric[id].init`（attrDefs 只被转交给
+    // GameRuntime 与 StatusPanel，见 game-host.ts 的 start/投影两处）。因此凡是
+    // 战斗与表达式要读的属性，都必须在这里出现，否则玩家态里该键不存在。
+    // 缺 `atk` 的后果不是「取默认值」而是「键不存在」：内置伤害公式
+    // `Math.max(0, (attacker['atk'] ?? 0) * mult - defender['def'])`
+    // （packages/engine/src/battle/damage.ts）里 `undefined ?? 0` → 玩家伤害恒为 0，
+    // 战斗无法取胜（敌人不受影响：enemies.yaml 的 rock_rat 自带 attrs）。
+    // 数值与 fixtures/mini-game/data/attrs.yaml 的 `numeric.*.init` 保持一致
+    // （atk 10 / def 3 / spd 5）——权威来源是包内 attrs.yaml，这里手抄是 as-built
+    // 宿主的契约要求。详见 docs/reviews/demo-issues-11.md 的 #12；
+    // 「宿主是否应在缺属性时回落 attrDefs.init」是待人类裁定的设计议题，本处不动宿主。
+    initialAttrs: { hp: 100, stamina: 30, insight: 0, atk: 10, def: 3, spd: 5 },
     developerMode,
     seed: 2026,
   });
