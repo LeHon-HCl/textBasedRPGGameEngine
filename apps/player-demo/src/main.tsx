@@ -391,6 +391,9 @@ function OverlayPanels({ host }: { host: GameHost }): ReactNode {
       {shop !== null ? (
         <ShopPanel
           session={shop}
+          // #6①：不传 labels 时面板回落显示 `shops.xxx.name` 原始键——
+          // 复用本组件既有的 nameOf 把名字物化。
+          labels={{ resolveName: nameOf }}
           onBuy={(itemId) => {
             host.shopBuy(itemId, 1);
             forceRender();
@@ -417,6 +420,9 @@ function OverlayPanels({ host }: { host: GameHost }): ReactNode {
             ...(unit.defending ? { defending: true } : {}),
           }))}
           log={battle.log}
+          // #6b：与商店同类——不传 labels 时日志回落显示 `battle.log.*` 原始键。
+          // 日志条目带 vars（伤害量/剩余 HP），须一并透传给 textOf 插值。
+          labels={{ resolveLog: (entry) => host.textOf(entry.key, entry.vars) }}
           activeUid={battle.units.find((unit) => unit.side === 'player')?.uid}
           actions={battle.actions.map((action) => ({
             id: action.id,
@@ -444,6 +450,9 @@ function OverlayPanels({ host }: { host: GameHost }): ReactNode {
       {openPanel === 'history' ? (
         <HistoryPanel
           groups={host.history()}
+          // #9c：不传时 `canRollback` 恒为 undefined → 回滚栈空时按钮仍可点、
+          // 点了报 NO_CHECKPOINT。据宿主回退栈状态派生禁用位。
+          canRollback={host.availableRollbackSteps() > 0}
           onRollback={(steps) => {
             host.rollback(steps);
             forceRender();
