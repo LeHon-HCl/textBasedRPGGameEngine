@@ -575,6 +575,21 @@ export interface ResolvedText {
 - 插值（FR-L10N-03）：`{path}` 取自 `InterpVars`（调用方预先经表达式准备好，引擎不做插值内求表达式——避免文本层触发副作用）；格式化子集 `{path|fmt:number:1}`（精度）。
 - 复数与选择（FR-L10N-04）：键值可为结构 `{plural: {one, other}, select: {expr结果→变体}}`；select 的 expr 在**数据加载期编译**（进 exprCache），求值在 resolve 时进行。
 - 缺失策略：目标语言缺 → 主语言 + `fallbackUsed` 标记 + `engine.warn`（控制台与调试面板可见）；主语言也缺 → 显示原始键 + `MEDIA_MISSING` 同级告警（调试期显性化，不静默）。
+- **引擎内置键的词典归属与合并优先级**（2026-09-27 裁定，`docs/plans/develop-revision-proposal.md` 提案 4）：
+  引擎在运行期产出的 `messageKey`（`ui.error.*` 等，实读 `game-host.ts` 现有 5 个：
+  `internal` / `no_checkpoint` / `not_started` / `unknown_location` / `unknown_shop`）与
+  引擎自有的界面键，由**引擎随包提供基础词典**（至少 zh-CN / en-US），随引擎版本发布。
+  - **合并优先级**：游戏包词典 **高于** 引擎基础词典（作者可覆盖引擎文案）；
+  - 游戏包**无需**为引擎内置键提供译文——否则每新增一个引擎错误码都要求作者补键。
+  - **与加载期检查的关系（实读核实）**：引擎内置键由运行期产出，**不出现在 `data/` 中**，
+    故悬空引用检查与 C6（约定拼接键齐备，实测只覆盖 `quests.<id>.name` /
+    `npcs.<id>.name`）本就覆盖不到它们——本条不需要新增豁免逻辑，
+    只需固定「谁提供译文」这一归属。
+  - **驱动案例**：`docs/reviews/demo-issues-11.md` #10（切英文后部分文案仍中文）的
+    一半根因即此边界未定义——游戏包词典里没有引擎侧键 → 回落显示键 / 中文。
+    （另一半是宿主页自持的中文硬编码，属 25 号 C 组收尾范围，与本条无关。）
+  - **实现范围**：本设计条目定义归属与优先级；基础词典的内容先落已产出的键，
+    其余随错误码增长补充（additive，不要求一次性补齐）。
 
 **独立测试**：纯函数——词典夹具断言插值/复数/select/回退链/格式化；无需运行时其他部分。
 
@@ -683,6 +698,16 @@ dispatch  —— 每个入选事件：登记冷却 → SceneRunner 子会话启�
 - **性能设计**（NFR-02，预算 16ms）：全量求值仅发生在包加载后首推；此后 require 重算仅限 refs 命中的事件（事务的 `TouchReport` 提供变更域）。16ms 预算的验证用例：1000 事件规模夹具 + 每时段仅 3% 事件重算的基准测试（Vitest bench，随 M1 入库）。
 - **探索发现型**（FR-XPLR-04③）：地点行动（FR-XPLR-08 自定义行动）触发时，从 `trigger.type==='explore'` 子池按条件+权重呈现交互点列表（不自动进入场景）。
 - **错过窗口**（FR-XPLR-06）：`when` 不匹配的事件不做排队（设计决策：排队语义复杂度高且 DoL 类玩法无此需求），作者用 `condition` 型 + 自定义 flag 实现预约式剧情。
+- **窄窗口 × 地点 `moveCost` 的时段对齐（2026-09-27 增补，作者须知）**：
+  地点移动一次推进 `moveCost` 个时段。若某事件的触发窗口很窄（如仅 `night`，`slotIndex = 3`），
+  而该地点 `moveCost = 2`，则**逐次移动只能在同奇偶的时段间跳，可能永远碰不到目标窗口**。
+  作者写窄窗口事件时须核算该地点的 `moveCost`（或让窗口跨奇偶，如 `evening || night`）。
+  - **为什么写进设计**：这是**作者与宿主都会踩**的坑（`docs/plans/open-items.md` L-3），
+    且约束 7 的 11 条连通性检**覆盖不到**——C2「事件可触发」只判「存在可达场景/时段满足条件」
+    这一**静态可判部分**，不模拟逐次移动的步长奇偶性。
+  - **驱动案例**：`packages/runtime-ui/test/acceptance/route-events.test.ts` 的
+    `ev_shrine_dream` 用例（神龛 `moveCost = 2`、窗口 `night`）——检查里须先让时钟落到
+    合适时段、再让一次移动正好落进目标窗口，注释即记录此坑。
 - **事件触发日志**（FR-DEBG-05）：评估过程写入 `debugLog`（collect/prune/select 各阶段计数与未触发原因），仅 debug 会话开启时记录。
 
 **独立测试**：注入固定 Rng + 手工 GameState：窗口/冷却/互斥/优先级/脏标记增量正确性（改 attr.x 只重算引用 attr.x 的事件）。
