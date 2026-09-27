@@ -4,8 +4,9 @@
 > **本文件是「可直接复制派发」的 prompt 正文**；派发时把 `<...>` 占位替换为实际值，其余原文照发。
 >
 > **总批次（按人类裁定的顺序）**：
-> 1. **批 1**：真 bug —— #4 / #8 / #9（含 #9b）
-> 2. **批 2**：接线遗漏 —— #2 / #5 / #6 / #11
+> 1. **批 1**：真 bug —— #4 / #8 / #9（含 #9b/#9c）——**已完成并合入（PR #56 / #57）**，
+>    真实浏览器复核通过（另抓出 #12，见 P2b）
+> 2. **批 2**：接线遗漏 —— #2 / #5 / #6 / #11（前置：#12 修复）
 > 3. **批 3**：UX 与内容 + 开发者规范 —— #1 / #3 / #7 / #10
 
 ---
@@ -25,6 +26,17 @@
 4. **不动 `study/`**：仓库根有 `study/` 新目录（新人学习用），
    **不要读、不要改、不要引用**，也不要把它计入任何检查
    （`docs/develop.md` 约束 1 的例外说明）。
+
+**批 1 的实操教训（2026-09-27，已验证的坑）**：
+
+- **`study/` 提交会落到你的分支上**：批 1 的两个子 Agent 各自报告「有不属于我的
+  `study/` 提交出现在我的分支」。原因是学习者在同一工作区独立 commit，
+  时间上夹在子 Agent 切分支与提交之间，于是成了子 Agent 提交的**父提交**。
+  **子 Agent 的正确做法**：不处理、不回滚，在报告中说明即可（批 1 两个 Agent 都做对了）；
+  **主会话的正确做法**：把 `study/` 提交分离到独立分支保存（避免丢失学习者进度），
+  再用 `git reset --hard <基线> && git cherry-pick <自己的提交>` 重建干净分支。
+- **子 Agent 的提交序列不保证是线性的**：P2 的两个 commit 被 `study/` 提交隔开，
+  重建时须**按序 cherry-pick 全部自己的 commit**，不能只 cherry-pick 最后一个。
 
 ---
 
@@ -287,13 +299,92 @@
 
 ---
 
+## Prompt P2b —— #12 战斗伤害恒为 0（**批 1 验收复核新发现，建议紧随批 1 派发**）
+
+> **为什么插在批 2 之前**：#8 已让战斗「能操作」，但玩家打不动敌人 → **战斗仍不可完成**。
+> 这条是「战斗可用」的最后一环，优先级高于批 2 的文案/入口类问题。
+
+```text
+你是实现 Agent，负责修复 demo 属性播种不完整导致战斗伤害恒为 0 的缺陷，完成后返回报告。
+
+## 开工程序（先做，勿跳）
+1. 先 `git checkout main && git pull`，再 `git checkout -b fix/demo-battle-attrs`
+2. `git log --oneline -1` 记录基线 hash，写进你的报告
+3. **只在本地提交，不要 push、不要建 PR**（由主会话验收后代为推送）
+4. 仓库根的 `study/` 目录与本次任务无关：不要读、不要改、不要引用
+
+## 任务：补齐 demo 的战斗属性播种（#12）
+
+### 背景与目标
+批 1 修好 #8 后，战斗面板的按钮已可见可点；但主会话用真实浏览器复核时实测：
+**反复攻击，敌人血量始终是 `6 / 6`**，玩家自己每轮掉血（`100 → 84 → 76`），战斗无法取胜。
+
+**根因（已由主会话实测确认，不必重新排查）**：
+`apps/player-demo/src/main.tsx` 传的是
+`initialAttrs: { hp: 100, stamina: 30, insight: 0 }`——**没有 `atk` / `def` / `spd`**。
+而宿主 `game-host.ts` 的 `start()` 里是 `attrs: { ...(options.initialAttrs ?? {}) }`，
+**只**用 `initialAttrs` 播种，**不消费** `attrDefs.numeric[id].init`
+（`attrDefs` 只被传给 `GameRuntime` 与 `projectStatusPanel`）。
+于是玩家的 `attrs.atk` 为 `undefined`，而内置伤害公式
+（`packages/engine/src/battle/damage.ts:28-30`）是
+`Math.max(0, (input.attacker['atk'] ?? 0) * input.mult - input.defender['def'])`
+——`undefined ?? 0` → **玩家伤害恒为 0**。
+敌人不受影响：`fixtures/mini-game/data/enemies.yaml` 的 `rock_rat` 显式声明了
+`attrs: { atk: 4, def: 1, spd: 4 }`。
+
+**实测验证（主会话已做）**：临时把 demo 的 `initialAttrs` 补上
+`atk: 10, def: 3, spd: 5` 后，同样路径下第一次攻击即打出 `岩鼠0/6`（一击击杀）。
+即根因确认为属性播种缺失。
+
+### 为什么既有检查都没抓到（供你理解，不必修）
+① 检查驱动层 `packages/runtime-ui/test/acceptance/route-driver.ts` 注入的是
+`CHECK_INITIAL_ATTRS`（**含** `atk: 10, def: 3, spd: 12`）——检查环境与浏览器宿主
+**初始属性集不同口径**；② `panel-wiring.test.ts` 的战斗用例只断言「敌人掉血**或**
+战斗已结束」，在属性齐全的检查环境里自然通过；③ E2E 不属默认门禁，未被执行。
+（这是约束 11「检查工具与被测系统同口径」的第二个实例。）
+
+### 交付物
+- [ ] `apps/player-demo/src/main.tsx`：`initialAttrs` 补齐 `atk: 10, def: 3, spd: 5`
+      （与 `fixtures/mini-game/data/attrs.yaml` 的 `numeric.*.init` 一致）
+- [ ] **加一条能抓住这类缺陷的机械防线**（二选一，择优选并在报告中说明选择理由）：
+      · **甲**：在 `packages/runtime-ui/test/acceptance/` 增加一条用例，
+        断言「**按 demo 的 `initialAttrs` 装配**（不是 `CHECK_INITIAL_ATTRS`）时，
+        战斗里玩家能对敌人造成伤害」——即把「宿主播种口径」纳入检查；
+      · **乙**：在 `packages/runtime-ui/test/app/` 增加一条用例，断言
+        「`initialAttrs` 未覆盖的属性在开档后**不应为 undefined**」
+        （若走乙，注意这可能牵出「宿主是否该回落 `attrDefs.init`」的设计问题——
+        **那是设计决策，不要擅自改宿主行为**，只写「当前行为下 demo 必须显式给全」
+        的断言与注释）。
+- [ ] 在代码注释里说明：**为什么 demo 必须显式给全属性**（宿主只用 `initialAttrs` 播种，
+      `attrDefs.init` 不参与），并指向本任务的问题编号 #12。
+
+### 硬约束
+- **允许改动**：`apps/player-demo/src/main.tsx`、
+  `packages/runtime-ui/test/acceptance/**`、`packages/runtime-ui/test/app/**`
+- **禁止改动**：`packages/runtime-ui/src/**`（宿主与组件行为**不得**改——
+  「宿主是否该回落 `attrDefs.init`」是待人类裁定的设计议题）、`packages/engine/**`、
+  `fixtures/**`、`docs/**`、`scripts/`
+- 提交粒度：一个 commit（`fix(demo): 补齐战斗属性播种，修复伤害恒为 0（#12）`）
+- **自测门禁**：`pnpm test` / `pnpm typecheck` / `pnpm lint` / `node scripts/validate-docs.mjs` 全绿
+
+### 完成定义
+- demo 的 `initialAttrs` 含 `atk` / `def` / `spd`
+- 新增的防线用例**在改回旧 `initialAttrs` 时会失败**（请在报告中贴出你实测的失败输出）
+- 四门禁全绿
+
+### 返回报告
+按 `docs/subagent-protocol.md` §5 格式，并附「防线可证伪」的实测输出。
+```
+
+---
+
 ## 批 2（待批 1 验收后派发）：接线遗漏 #2 / #5 / #6 / #11
 
 > 派发前需重新核算文件白名单（批 1 合入后行号会漂移）。初步方案：
 
 | 包 | 覆盖 | 文件白名单（初步） | 备注 |
 |---|---|---|---|
-| **P3** | #2 跳过开关 + #6① 商店文案 | `apps/player-demo/src/main.tsx` | demo 单文件 |
+| **P3** | #2 跳过开关 + #6①/#6b 商店与战斗日志文案 | `apps/player-demo/src/main.tsx` | demo 单文件 |
 | **P4** | #5 历史文本物化 | `packages/runtime-ui/src/app/game-host.ts` | 与 P3 不重叠 ✅ |
 | **P5** | #6②③ 价格标注 + 卖按钮禁用 | `packages/runtime-ui/src/panels/ShopPanel.tsx`、`packages/runtime-ui/src/app/panel-wiring.ts`、对应测试 | 与 P3/P4 不重叠 ✅ |
 | **P6** | #11 存读档入口 | `apps/player-demo/src/main.tsx` + 可能宿主 save API | **与 P3 同文件、与 P4 同文件 → 必须串行** |
