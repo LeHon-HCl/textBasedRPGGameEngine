@@ -100,6 +100,7 @@ export {
   describeEnding,
   NarrativeView,
   OptionList,
+  visibleChoices,
   withChoiceCheckpoint,
 } from './narrative/index.js';
 export type {

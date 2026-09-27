@@ -33,6 +33,7 @@ import {
   usePrefersReducedMotion,
   useReadingControl,
   useUiSelector,
+  visibleChoices,
 } from '@game/runtime-ui';
 import type { GameHost, PanelId } from '@game/runtime-ui';
 
@@ -236,13 +237,17 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
     onAdvance: () => host.advance(),
   });
 
-  // 快捷键（FR-READ-06）：1-9 选项 / Space 推进 / H 历史 / S·L 快存读 / R 回退
+  // 快捷键（FR-READ-06）：1-9 选项 / Space 推进 / H 历史 / S·L 快存读 / R 回退。
+  // 选项**索引口径**必须是玩家屏幕上看到的列表：经 visibleChoices 过滤后再取下标，
+  // 与 OptionList 渲染共用同一实现。此前按 session.choices 原始下标取，
+  // 屏幕上第 1 项与引擎原始第 1 项在存在隐藏选项时错位，按下即报
+  // error.narrative.choiceFiltered（docs/reviews/demo-issues-11.md #4）。
   useKeyboardShortcuts({
     phase,
-    choiceCount: session.choices.length,
+    choiceCount: visibleChoices(session.choices).length,
     advance: () => host.advance(),
     choose: (index) => {
-      const choice = session.choices[index];
+      const choice = visibleChoices(session.choices)[index];
       if (choice !== undefined) host.choose(choice.id);
     },
     toggleHistory: () =>
