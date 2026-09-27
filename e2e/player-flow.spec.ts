@@ -173,7 +173,12 @@ test.describe('M1 玩家流冒烟', () => {
     await page.locator('[data-choice="listen_rumor"]').click();
     await drainAdvance(page);
 
-    // 镇口 → 辨认徽记（接取 wall_rubbing）
+    // 镇口 → 先与老卫兵搭话，再辨认徽记（接取 wall_rubbing）。
+    // #7（2026-09-27）：inspect_wall 的 showIf 增加 `flag.old_guard_met`，与
+    // greet_guard（showIf `!flag.old_guard_met`）互补——搭话后 greet 消失、辨认才出现。
+    await page.locator('[data-choice="greet_guard"]').click();
+    await drainAdvance(page);
+
     await expect(page.locator('[data-choice="inspect_wall"]')).toBeVisible();
     await page.locator('[data-choice="inspect_wall"]').click();
     await drainAdvance(page);
