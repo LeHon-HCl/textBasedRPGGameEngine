@@ -17,7 +17,7 @@
 | **A 类：真 bug** | 3 | #4 #8 #9（含 9b/9c） | 宿主/demo 侧实现错误，影响可玩性，优先修 |
 | **B 类：接线遗漏** | 4 | #2 #5 #6 #11 | 组件能力已就绪、宿主未接（L-1 的第 7–10 例） |
 | **C 类：规范/内容** | 4 | #1 #3 #7 #10 | UX 与内容设计，连同开发者规范一并处理 |
-| **D 类：新发现** | 2 | #12（战斗伤害恒为 0）、#13（battle.* 键无译文） | 复核/复核跟进抓出，demo 或夹具侧 |
+| **D 类：新发现** | 3 | #12（战斗伤害恒为 0）、#13（battle.* 键无译文）、#14（成就面板白屏） | 复核/复核跟进抓出，demo / 夹具 / 组件侧 |
 
 > **修复进度（截至 2026-09-27）**：
 >
@@ -172,6 +172,21 @@
 >
 > 另注：`HistoryPanel` 的分组标题模板用的是 `sceneId` 而非场景译名——属同类表现，
 > 但分组标题设计本就用 id，是否物化需人类裁定（低优先）。
+
+### #14 打开成就面板导致**整个界面白屏**（钱包未播种 → 封闭域 EVAL_ERROR）
+
+| 项 | 内容 |
+|---|---|
+| **现象** | 点工具条「成就」，**页面整个白屏**（`#app` 内容被清空）。控制台抛 `[EVAL_ERROR] error.eval.missingKey (expr=wallet.town_silver, path=wallet.town_silver, key=town_silver, …)`，React 报 `The above error occurred in the <OverlayPanels> component`。 |
+| **根因** | `fixtures/mini-game/data/achievements.yaml` 的 `wealthy` 成就用 `when: 'wallet.town_silver >= 100'` / `progressExpr: 'wallet.town_silver'`，而 **demo 从未传 `initialWallet`**（`apps/player-demo/src/main.tsx` 只传 `initialAttrs`）。`wallet` 是**封闭域**——缺键即 `EVAL_ERROR`（这是 03 号刻意的语义，用于保护 ID 拼写错误）。`AchievementGalleryPanel` 求值成就 → 抛错 → 未被捕获 → **React 树整体崩掉**（`OverlayPanels` 在顶层）。 |
+| **为什么是设计上的「双重缺陷」** | ① **装配面**：demo 少播种钱包（与 #12 属性同源）；② **UI 面**：面板对「求值抛错」没有任何容错——一处数据问题导致**整个应用**白屏，而非局部降级。即便 ① 修好，② 仍会让将来**任何**包数据问题（成就表达式引用未播种的键）演变成白屏。**两根都要治**。 |
+| **与 #12 的关系（同一模式的第二次）** | #12 是「`initialAttrs` 少给 atk/def/spd → 战斗伤害恒 0」；本条是「`initialWallet` 未给 → 图鉴白屏」。检查驱动层注入了 `CHECK_INITIAL_WALLET = { town_silver: 50 }` 与 `CHECK_INITIAL_ATTRS`，**与浏览器宿主的播种口径不同**，故全部既有检查都漏掉。**约束 11 的又一实例。** |
+| **修复方案** | **甲（装配，必修）**：demo 补 `initialWallet: { town_silver: 50 }`（与检查层同值；权威语义是「新档起始银币」）。<br>**乙（UI 容错，建议同修）**：`OverlayPanels`（或面板投影层）对**求值类抛错**做捕获——单个面板的求值失败应表现为「该面板显示错误态」而不是整树白屏。参考既有 `guard()` 思路：捕获 → 转 `lastError` → 卡片可读。<br>**丙（宿主播种语义）**：与 #12 的方案乙同题——「`initialWallet` 缺键时是否回落包声明值」。同属**待裁定的设计议题**（两份播种口径不统一是两根的共同根源）。 |
+| **归属** | ① **demo 数据装配**；② **UI 容错（组件层）**；③ **设计议题**（待裁定）。 |
+| **依据** | 实测 Playwright：点「成就」后 `#app` 的 `innerHTML` 长度为 0、`button` 数从 12 变 0、控制台 `missingKey (expr=wallet.town_silver)`；**临时补 `initialWallet` 后**同路径下 13 个按钮、面板正常渲染、控制台零错误（探针已还原）；实读 `fixtures/mini-game/data/achievements.yaml:49-52`、`apps/player-demo/src/main.tsx`（无 `initialWallet`）、`packages/runtime-ui/test/acceptance/route-driver.ts:52`（`CHECK_INITIAL_WALLET`）、`game-host.ts:841-842`（`wallet: { ...(options.initialWallet ?? {}) }`）。 |
+| **优先级** | **高**——这是「打开一个面板就白屏」的严重可玩性缺陷，且暴露了「面板无容错」的系统性风险。 |
+
+---
 
 ### #13 引擎产出的 `battle.*` 键在夹具包内全部无译文（#6b 的深层根因）
 
