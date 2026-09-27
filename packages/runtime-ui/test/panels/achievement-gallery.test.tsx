@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { AchievementGalleryEntry } from '@game/engine';
 import {
   progressPercent,
@@ -109,5 +109,46 @@ describe('25B-C1 AchievementGalleryPanel（渲染）', () => {
     const view = projectAchievementGallery(ENTRIES, RATE);
     render(<AchievementGalleryPanel view={view} />);
     expect(screen.getByText(/ach\.b/)).toBeDefined();
+  });
+});
+
+/**
+ * #1 回归防线：面板的退出入口（additive 契约的正反两例）。
+ *
+ * 缺陷形态：`AchievementGalleryPanel` 此前没有 `onClose`，demo 把它渲染在叠加层
+ * 里也没有外部关闭手段 → 玩家点「成就」进来后出不去，只能刷新页面（对比：设置
+ * 抽屉有独立「关闭」按钮）。
+ *
+ * 修法是 **additive** 的：新增可选的 `onClose`，传入才渲染按钮——故本组用例必须
+ * 同时锁住「传了能关」与「没传不多渲染按钮」两侧，否则既有只读调用方会被动多出
+ * 一个点了没反应的按钮。
+ */
+describe('#1 AchievementGalleryPanel 关闭入口（additive 契约）', () => {
+  it('传 onClose：渲染关闭按钮且点击回调被调用', () => {
+    const view = projectAchievementGallery(ENTRIES, RATE);
+    const onClose = vi.fn();
+    render(<AchievementGalleryPanel view={view} onClose={onClose} />);
+    const button = screen.getByRole('button', { name: '关闭' });
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('传 onClose 且空态（无成就）：关闭按钮仍在（空面板同样要能退出）', () => {
+    const onClose = vi.fn();
+    render(
+      <AchievementGalleryPanel
+        view={{ groups: [], rate: { unlocked: 0, total: 0, rate: 0 } }}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('不传 onClose：不渲染任何按钮（保护既有只读调用方）', () => {
+    const view = projectAchievementGallery(ENTRIES, RATE);
+    render(<AchievementGalleryPanel view={view} />);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 });

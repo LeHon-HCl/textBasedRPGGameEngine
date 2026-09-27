@@ -32,6 +32,8 @@ export interface AchievementGalleryLabels {
   readonly points?: string;
   /** 分组标题（缺省用分组名） */
   readonly groupNames?: Readonly<Record<string, string>>;
+  /** 关闭按钮文案（传入 `onClose` 时使用） */
+  readonly close?: string;
 }
 
 const DEFAULT_LABELS: Required<Omit<AchievementGalleryLabels, 'groupNames'>> = {
@@ -41,12 +43,21 @@ const DEFAULT_LABELS: Required<Omit<AchievementGalleryLabels, 'groupNames'>> = {
   unlockedTag: '已解锁',
   empty: '暂无成就',
   points: '{points} 点',
+  close: '关闭',
 };
 
 export interface AchievementGalleryPanelProps {
   readonly view: AchievementGalleryView;
   /** 名称物化（成就 nameKey → 展示文本；缺省显示 key） */
   readonly resolveName?: (key: string) => string;
+  /**
+   * 关闭回调（**可选**，additive 契约）。
+   *
+   * 为什么可选：本面板此前是**纯展示**（无退出入口，叠加层里进来出不去，
+   * 只能刷新页面）。传入时面板底部渲染「关闭」按钮（与 `ShopPanel.onClose`
+   * 同规）；未传入则完全不渲染该按钮——既有调用方（只读展示场景）行为不变。
+   */
+  readonly onClose?: () => void;
   readonly labels?: AchievementGalleryLabels;
 }
 
@@ -128,11 +139,23 @@ function AchievementRow(props: {
 export function AchievementGalleryPanel(props: AchievementGalleryPanelProps): ReactNode {
   const labels = { ...DEFAULT_LABELS, ...props.labels };
   const { view } = props;
+  // 关闭按钮（仅在传入 onClose 时渲染；additive 契约——见 props TSDoc）
+  const closeButton =
+    props.onClose !== undefined ? (
+      <button
+        type="button"
+        onClick={() => props.onClose?.()}
+        style={{ minHeight: '32px', cursor: 'pointer' }}
+      >
+        {labels.close}
+      </button>
+    ) : null;
   if (view.groups.length === 0) {
     return (
       <section style={PANEL_STYLE} aria-label={labels.title}>
         <h3 style={{ margin: 0, fontSize: '1em' }}>{labels.title}</h3>
         <p style={{ margin: 0, opacity: 0.7 }}>{labels.empty}</p>
+        {closeButton}
       </section>
     );
   }
@@ -162,6 +185,7 @@ export function AchievementGalleryPanel(props: AchievementGalleryPanelProps): Re
           ))}
         </div>
       ))}
+      {closeButton}
     </section>
   );
 }
