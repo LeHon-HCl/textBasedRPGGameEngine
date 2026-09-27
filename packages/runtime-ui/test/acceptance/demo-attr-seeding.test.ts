@@ -70,6 +70,37 @@ export function readDemoInitialAttrs(): Record<string, number> {
   return attrs;
 }
 
+/**
+ * 从 demo 源文件提取它**真正**传给 `createGameHost` 的 `initialWallet`（#14）。
+ *
+ * 与 `readDemoInitialAttrs` 同法：读源码而非复述常量，使「改回旧值即失败」成立。
+ * `wallet` 是**封闭域**（缺键 → `EVAL_ERROR`），故播种缺失的后果与属性同源：
+ * 值不是默认 0，而是**键不存在**——包内任何按 `wallet.<id>` 求值的地方都会抛错
+ * （成就图鉴因此整树白屏）。
+ */
+export function readDemoInitialWallet(): Record<string, number> {
+  const source = readFileSync(DEMO_MAIN, 'utf8');
+  const candidates = [...source.matchAll(/\binitialWallet:\s*\{([^}]*)\}/g)].map(
+    (match) => match[1] as string,
+  );
+  const body = candidates.find((text) => text.trim().length > 0);
+  if (body === undefined) {
+    throw new Error(
+      `未能从 ${DEMO_MAIN} 解析出 initialWallet（源码结构可能已变，或 #14 回归：demo 又没播种钱包）`,
+    );
+  }
+  const wallet: Record<string, number> = {};
+  for (const part of body.split(',')) {
+    const [rawKey, rawValue] = part.split(':');
+    if (rawKey === undefined || rawValue === undefined) continue;
+    const key = rawKey.trim().replace(/^['"]|['"]$/g, '');
+    const value = Number(rawValue.trim().replace(/^['"]|['"]$/g, ''));
+    if (key === '') continue;
+    wallet[key] = value;
+  }
+  return wallet;
+}
+
 /** 读夹具包内 attrs.yaml 的 numeric.*.init（战斗属性的权威初值） */
 function readAttrsInit(): Record<string, number> {
   const defs = parse(readFileSync(ATTRS_YAML, 'utf8')) as AttrDefs;
@@ -96,7 +127,7 @@ function readPackage(): Record<string, string> {
  *
  * 为什么不复用 `makeHost`：它的缺省值是 `CHECK_INITIAL_ATTRS`（含 atk/def/spd），
  * 那正是掩盖缺陷的口径。改它的缺省会污染既有 40+ 条检查；故在用例内自建宿主。
- * 另注意：**不**注入 `initialWallet`——demo 也没给，保持同一口径。
+ * 属性与钱包都取 **demo 自己声明的值**（#12 / #14），保持「检查宿主 = 被测宿主」同口径。
  */
 async function makeDemoHost() {
   const files = readPackage();
@@ -108,10 +139,28 @@ async function makeDemoHost() {
     attrDefs,
     contentTags,
     initialAttrs: readDemoInitialAttrs(),
+    initialWallet: readDemoInitialWallet(),
     seed: 2026, // 与 demo 同种子（同口径）
   });
   host.start();
   return { host, driver: new Driver(host) };
+}
+
+/** 自建宿主：**故意不播种钱包**（复现 #14 的宿主口径，验证求值容错） */
+async function makeHostWithoutWallet() {
+  const files = readPackage();
+  const definition = await loadGamePackage(new InMemoryPackageSource(files));
+  const attrDefs = parse(files['data/attrs.yaml'] as string) as AttrDefs;
+  const contentTags = parse(files['data/content-tags.yaml'] as string) as ContentTagsDef;
+  const host = createGameHost({
+    definition,
+    attrDefs,
+    contentTags,
+    initialAttrs: readDemoInitialAttrs(),
+    seed: 2026,
+  });
+  host.start();
+  return host;
 }
 
 /** 敌人总血量（未倒下的也计入 0，便于「下降」断言覆盖击杀） */
@@ -191,5 +240,56 @@ describe('demo 属性播种防线（#12 战斗伤害恒为 0）', () => {
     );
     expect(hitEnemy, '战斗日志应记录「对敌人造成正数伤害」').toBe(true);
     expect(host.lastError()).toBeNull();
+  });
+});
+
+/**
+ * #14（2026-09-27）：打开成就面板**整树白屏**——同一「宿主播种口径」问题，
+ * 本次是 `initialWallet` 缺失（`wallet` 是封闭域，缺键 → `EVAL_ERROR`），
+ * 而 `achievements.yaml` 的 `wealthy` 成就读 `wallet.town_silver`；
+ * 求值抛错冒到 React 渲染层 → `OverlayPanels` 崩掉 → `#app` 清空。
+ *
+ * 两根都测：① demo 必须播种钱包（装配面）；② 求值失败不得掀翻整棵树（容错面）。
+ */
+describe('demo 钱包播种与图鉴求值容错防线（#14 成就面板白屏）', () => {
+  it('demo 声明了 initialWallet，且含包内被引用的货币键', () => {
+    const wallet = readDemoInitialWallet();
+    // 包内实际引用了哪些货币：从 data/ 里扫 `wallet.<id>`（不硬编码，随内容演进）
+    const referenced = new Set<string>();
+    for (const [path, content] of Object.entries(readPackage())) {
+      if (!path.startsWith('data/')) continue;
+      for (const match of content.matchAll(/wallet\.([a-z_]+)/g)) {
+        referenced.add(match[1] as string);
+      }
+    }
+    expect(referenced.size, '夹具应至少引用一种货币（否则本用例失去意义）').toBeGreaterThan(0);
+    for (const currency of referenced) {
+      expect(
+        wallet[currency],
+        `demo 的 initialWallet 缺 ${currency}（wallet 是封闭域，缺键即 EVAL_ERROR；` +
+          `包内 data/ 有 'wallet.${currency}' 引用；见 docs/reviews/demo-issues-11.md #14）`,
+      ).toBeTypeOf('number');
+    }
+  });
+
+  it('demo 播种口径下打开成就图鉴不抛错（能正常取到条目）', async () => {
+    const { host } = await makeDemoHost();
+    // 不抛错即通过；并确认确实拿到了图鉴数据（非空）
+    const view = host.achievementGallery();
+    expect(view.groups.length, '成就图鉴应有分组').toBeGreaterThan(0);
+    expect(host.lastError(), '正常播种下不应产生错误').toBeNull();
+  });
+
+  it('未播种钱包时求值失败**不抛出**，转为 lastError 并降级为空图鉴（#14 容错面）', async () => {
+    const host = await makeHostWithoutWallet();
+    // 核心断言：**不抛**（此前这里会把整个 React 树掀翻成白屏）
+    let view: ReturnType<typeof host.achievementGallery> | undefined;
+    expect(() => {
+      view = host.achievementGallery();
+    }, '#14：求值失败不得抛出（否则 React 整树崩掉 → 白屏）').not.toThrow();
+    expect(view?.groups.length, '降级为空图鉴').toBe(0);
+    // 但错误必须**显性化**（数据问题要看得见，不能静默吞掉）
+    expect(host.lastError()?.code, '错误应转到 lastError 可见').toBe('EVAL_ERROR');
+    expect(host.lastError()?.detail).toContain('town_silver');
   });
 });

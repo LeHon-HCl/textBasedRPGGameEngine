@@ -1482,9 +1482,20 @@ export function createGameHost(options: GameHostOptions): GameHost {
         return projectAchievementGallery([], { unlocked: 0, total: 0, rate: 0 });
       }
       const state = requireRuntime().state;
-      const entries = evaluator.gallery(state as never, unlockedAchievements);
-      const rate = evaluator.collectionRate(unlockedAchievements);
-      return projectAchievementGallery(entries, rate);
+      // 求值容错（#14，2026-09-27）：`gallery()` 对每个成就求 `when` / `progressExpr`，
+      // 若引用了**未播种的封闭域**（如 `wallet.town_silver` 未在 initialWallet 给出），
+      // 会抛 `EVAL_ERROR`。此前该异常一路冒到 React 渲染，**把整个应用打成白屏**
+      // （`OverlayPanels` 在顶层、无错误边界）——即「打开成就面板就白屏」。
+      // 现收敛在投影层：失败 → 空图鉴 + `lastError` 显性化（错误卡片可读），
+      // 与上方 `evaluator === null` 的降级同型。数据问题仍看得见，但不再掀翻整棵树。
+      try {
+        const entries = evaluator.gallery(state as never, unlockedAchievements);
+        const rate = evaluator.collectionRate(unlockedAchievements);
+        return projectAchievementGallery(entries, rate);
+      } catch (error) {
+        lastError = toHostError(error);
+        return projectAchievementGallery([], { unlocked: 0, total: 0, rate: 0 });
+      }
     },
     refreshAchievements: () => {
       const evaluator = achievementEvaluatorHolder.evaluator;

@@ -737,6 +737,15 @@ async function mount(): Promise<void> {
     // 宿主的契约要求。详见 docs/reviews/demo-issues-11.md 的 #12；
     // 「宿主是否应在缺属性时回落 attrDefs.init」是待人类裁定的设计议题，本处不动宿主。
     initialAttrs: { hp: 100, stamina: 30, insight: 0, atk: 10, def: 3, spd: 5 },
+    // —— 为什么钱包也必须播种（#14 成就面板白屏的修复）——
+    // 与属性同理：宿主是 `wallet: { ...(options.initialWallet ?? {}) }`，**只**用本字段播种。
+    // 而 `wallet` 是**封闭域**——缺键即 `EVAL_ERROR`（03 号刻意语义，用于保护 ID 拼写错误），
+    // 不是「取默认 0」。包内多处按 `wallet.town_silver` 取值（`achievements.yaml` 的
+    // `wealthy` 成就、`events.yaml` 的 require、`shops.yaml` 的 currency）；不播种时
+    // **打开成就图鉴会整树白屏**（求值抛错未被局部捕获 → React 崩掉 `OverlayPanels`）。
+    // 数值与检查层 `CHECK_INITIAL_WALLET` 一致（新档起始银币）。
+    // 详见 docs/reviews/demo-issues-11.md 的 #14 与 #12（同一「宿主播种口径」问题）。
+    initialWallet: { town_silver: 50 },
     developerMode,
     seed: 2026,
   });
