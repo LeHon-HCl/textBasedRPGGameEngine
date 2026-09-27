@@ -144,6 +144,14 @@ function ClockBadge({ host }: { host: GameHost }): ReactNode {
  * 但**界面上没有呈现点**时玩家只看到「点了没反应 / 选项消失」——2026-09-15
  * 用户实测的「卡死」正是这样被误解的。此处把 code/detail 显性化，并提供
  * 「回退一步」入口（宿主 rollback 已按 §6.3 rollback + 重建 session）。
+ *
+ * #3 两处修正（2026-09-26）：
+ * - 「回退一步」**按错误类型**决定可用性：`NO_CHECKPOINT` 表示回退栈为空
+ *   （`availableRollbackSteps() === 0`），此时点击必然再报同一个错——置灰而非
+ *   给一个「点了必失败」的按钮（与 HistoryPanel 的 `canRollback` 同口径）。
+ * - 加「关闭」按钮 → `host.clearError()`。此前 `lastError` 只在宿主 `guard()`
+ *   与 `start()` 时清空，玩家没有任何主动消掉的路径，一次失败后卡片常驻。
+ * 文案仍直接显示 `[CODE] detail`（既有行为；友好文案归 25 号 C 组 i18n 收尾）。
  */
 function ErrorCard({ host }: { host: GameHost }): ReactNode {
   // 订阅会话修订以在每次状态推进后重读 lastError（lastError 不是 store 切片）
@@ -151,15 +159,27 @@ function ErrorCard({ host }: { host: GameHost }): ReactNode {
   useUiSelector((state) => state.session);
   const error = host.lastError();
   if (error === null) return null;
+  // NO_CHECKPOINT = 回退栈空 → 回退必然再报同一个错，故禁用（#3）
+  const canRollback = error.code !== 'NO_CHECKPOINT';
   // 文案与 demo 其余 UI（「新游戏」「设置」「关闭」）同口径：demo 自持的中文硬编码。
   // 游戏包内的错误 messageKey（ui.error.*）本就不属游戏词典，全量 UI i18n 归 25 号 C 组。
   return (
     <div role="alert" data-error-card style={styles.errorCard}>
       <div style={styles.errorTitle}>操作失败</div>
       <div style={styles.errorDetail}>{`[${error.code}] ${error.detail}`}</div>
-      <button type="button" onClick={() => host.rollback()} style={styles.errorButton}>
-        回退一步
-      </button>
+      <div style={styles.errorActions}>
+        <button
+          type="button"
+          disabled={!canRollback}
+          onClick={() => host.rollback()}
+          style={styles.errorButton}
+        >
+          回退一步
+        </button>
+        <button type="button" onClick={() => host.clearError()} style={styles.errorButton}>
+          关闭
+        </button>
+      </div>
     </div>
   );
 }
@@ -775,6 +795,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorTitle: { fontWeight: 600 },
   errorDetail: { opacity: 0.85, wordBreak: 'break-word' },
+  // 两个按钮并排（回退 / 关闭）；与 SaveLoadBar 的 flexWrap 同口径防窄屏挤压
+  errorActions: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   errorButton: {
     alignSelf: 'flex-start',
     minHeight: '32px',

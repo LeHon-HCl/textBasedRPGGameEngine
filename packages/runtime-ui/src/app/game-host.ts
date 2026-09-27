@@ -274,6 +274,17 @@ export interface GameHost {
   setDisabledTags(disabledTags: readonly string[]): void;
   /** 最近一次错误（null = 无） */
   lastError(): HostError | null;
+  /**
+   * 清除最近一次错误（错误卡片的「关闭」入口；#3）。
+   *
+   * 为什么宿主必须提供：`lastError` 此前只在 `guard()`（每次操作开始）与
+   * `start()` 时清空——**玩家没有任何主动消掉的路径**，于是一次失败后红色卡片
+   * 常驻直到下一次成功操作。语义：置空并 `syncSession()`，让订阅会话切片的
+   * 卡片组件（`lastError` 不是 store 切片，需借会话修订触发重渲染）重渲染。
+   *
+   * 不改运行时状态（只清展示面），故无需回滚语义。
+   */
+  clearError(): void;
 
   // —— 存读档（FR-SAVE-01/03/04；demo-issues #11 的宿主入口） ——
 
@@ -1603,6 +1614,18 @@ export function createGameHost(options: GameHostOptions): GameHost {
       syncSession();
     },
     lastError: () => lastError,
+    /**
+     * 清除最近一次错误（#3 的关闭入口）。
+     *
+     * 为什么走 `syncSession()` 而不是让组件订阅 `lastError`：宿主没有为它开
+     * store 切片（错误不是状态，是展示面的一次性事件），故借「会话投影刷新」
+     * 这一既有信号触发重渲染——`ErrorCard` 本就订阅 `state.session`。
+     * 会话尚未建立时 `syncSession()` 短路，此时也不会有错误卡片（未开局）。
+     */
+    clearError: () => {
+      lastError = null;
+      syncSession();
+    },
 
     // —— 存读档（FR-SAVE；见各方法 TSDoc） ——
     saveToSlot,
