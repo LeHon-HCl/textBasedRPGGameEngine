@@ -484,6 +484,19 @@ export function createGameHost(options: GameHostOptions): GameHost {
     });
   }
 
+  /**
+   * 文本物化的**单一入口**（历史投影与 `textOf` 共用口径）。
+   *
+   * 语言来源 = {@link settingsMirror}.lang（当前设置语言），不是包主语言
+   * `mainLang`——切换语言后历史条目须随叙事区一起变（FR-L10N-05）。
+   * 每次调用现读镜像，故 `updateSettings` 之后无需重建投影即生效。
+   *
+   * 历史投影此前未传 resolver（`projectHistory(historyLog)`），缺省降级直接用键，
+   * 导致玩家在历史面板看到 `scenes.arrival.open` 这类原始文本键（问题 #5）。
+   */
+  const resolveText = (key: TextKey, vars?: InterpVars): string =>
+    resolver.resolve(key, settingsMirror.lang, vars).text;
+
   /** 起始地点推导：显式传入优先，否则取入口场景所在区域 */
   function resolveStartLocation(): { area: GameId; location?: GameId } {
     if (options.startLocation !== undefined) return options.startLocation;
@@ -1024,7 +1037,7 @@ export function createGameHost(options: GameHostOptions): GameHost {
      * ——会话在回滚时被重建，其历史缓冲为空（#9 的根因）。投影额外为每个分组
      * 附带 `rollbackSteps`（#9b：面板不再用「分组距离」冒充检查点步数）。
      */
-    history: () => withRollbackSteps(projectHistory(historyLog)),
+    history: () => withRollbackSteps(projectHistory(historyLog, resolveText)),
 
     availableRollbackSteps: () => rollbackMarks.length,
 
@@ -1196,7 +1209,7 @@ export function createGameHost(options: GameHostOptions): GameHost {
     // 语言口径（M1 收尾修正）：按**当前设置语言**解析，而非固定 mainLang ——
     // 面板/UI 文案须随设置面板的语言切换即时变更（FR-L10N-05 运行时切换）；
     // 固定 mainLang 会让切换语言后所有组件文案仍停留在主语言。
-    textOf: (key, vars) => resolver.resolve(key, settingsMirror.lang, vars).text,
+    textOf: (key, vars) => resolveText(key, vars),
     settings: () => settingsMirror,
     langs: () => [...definition.manifest.langs],
     // versions 在 start() 前也要可读（主菜单的设置抽屉会展示三版本号，FR-UI-05）：
