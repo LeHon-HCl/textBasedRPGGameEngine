@@ -69,8 +69,13 @@ describe('M1 验收路径：端到端结果断言（约束 10）', () => {
     drain(host);
     host.choose('listen_rumor');
     drain(host);
-    // 镇口：检视徽记会接取 wall_rubbing（同时置 old_guard 已遇见的 flag 由场景效果给出）
+    // 镇口：**先与老卫兵搭话**（#7 后 inspect_wall 的 showIf 要求
+    // `flag.old_guard_met`——不搭话则徽记选项不出现），再检视徽记接取
+    // wall_rubbing（旧注释「同时置 old_guard 已遇见的 flag 由场景效果给出」有误：
+    // 该 flag 由 greet_guard 显式置位，非场景进入的副作用）。
     expect(host.store.getState().session.sceneId).toBe('town_gate');
+    host.choose('greet_guard');
+    drain(host);
     host.choose('inspect_wall');
     drain(host);
     // 推进到傍晚（ev_wall_whisper 的窗口 slot=evening/night）：
@@ -92,7 +97,10 @@ describe('M1 验收路径：端到端结果断言（约束 10）', () => {
     drain(host);
     host.choose('listen_rumor');
     drain(host);
-    // 接取点：镇口「仔细辨认墙上的徽记」→ quest accept
+    // 接取点：镇口「仔细辨认墙上的徽记」→ quest accept。
+    // #7 后该选项要求 `flag.old_guard_met`，故先搭话。
+    host.choose('greet_guard');
+    drain(host);
     host.choose('inspect_wall');
     drain(host);
     const quests = host.runtime.state.quests;
@@ -108,18 +116,24 @@ describe('M1 验收路径：端到端结果断言（约束 10）', () => {
     const host = await makeHost();
     drain(host);
 
-    // 1) 集市听传闻（acceptIf 前置）→ 镇口接取
+    // 1) 集市听传闻（acceptIf 前置）→ 镇口搭话（#7 后 inspect_wall 要求
+    //    flag.old_guard_met）→ 接取
     host.choose('go_market');
     drain(host);
     host.choose('listen_rumor');
+    drain(host);
+    host.choose('greet_guard');
     drain(host);
     host.choose('inspect_wall');
     drain(host);
     expect(host.runtime.state.quests['wall_rubbing']?.state).toBe('active');
 
-    // 2) 达成两阶段：stage1 = flag.wall_rubbing_taken（事件场景设置，见路径 8），
-    //    stage2 = npc.old_guard.talked（镇口「跟老卫兵搭话」）。此处注入 stage1
-    //    的 flag（事件时序不确定，本用例聚焦「提交 → 奖励」这一段）。
+    // 2) 两阶段的达成条件：stage1 = flag.wall_rubbing_taken（事件场景设置，见路径 8），
+    //    stage2 = npc.old_guard.talked（上方搭话已置位）。此处注入 stage1 的 flag
+    //    （事件时序不确定，本用例聚焦「提交 → 奖励」这一段）。
+    //    为何必须**在接取之后**注入：任务派生器按事务触碰路径评估（不轮询），
+    //    `world.flags.wall_rubbing_taken` 正是 questRefs 登记的脏路径；接取事务本身
+    //    只触碰 `quests.*`/`attrs.insight`，故此时两个阶段都不会被评估。
     const rt = host.runtime;
     rt.exec(
       [{ flag: { name: 'wall_rubbing_taken' } }] as never,
@@ -129,11 +143,18 @@ describe('M1 验收路径：端到端结果断言（约束 10）', () => {
         rng: rt.rng,
       } as never,
     );
-    host.choose('greet_guard');
-    drain(host);
     expect(host.runtime.state.quests['wall_rubbing']?.state).toBe('ready_to_submit');
 
-    // 3) 提交：镇口「把徽记的纹样给老卫兵看」（showIf 仅在 ready_to_submit 出现）
+    // 3) 提交：镇口「把徽记的纹样给老卫兵看」（showIf 仅在 ready_to_submit 出现）。
+    //    上一步的调试事务不经宿主 `guard()`，故会话投影未刷新——离开镇口再回来
+    //    （真实玩家路径，纯 goto 不耗时段、不触发事件）让宿主重建会话并重新求值
+    //    showIf。这也顺带覆盖「任务状态跨场景往返保持」。
+    host.choose('back_market');
+    drain(host);
+    host.choose('back_arrival');
+    drain(host);
+    host.choose('go_gate');
+    drain(host);
     const choices = host.store
       .getState()
       .session.choices.filter((choice) => choice.hiddenByFilter !== true)
