@@ -1,4 +1,5 @@
 import { createRng } from '@game/shared';
+import { EngineError } from '@game/shared';
 import type {
   AttrDefs,
   CompiledExpr,
@@ -30,6 +31,7 @@ import {
   projectCalendar,
   projectQuestLog,
   QuestMachine,
+  SaveService,
   SceneRunner,
   TimePipeline,
 } from '@game/engine';
@@ -41,11 +43,27 @@ import type {
   NarrativeHistoryEntry,
   PlayerSettings,
   QuestLogView,
+  SaveBlob,
   SceneRunner as SceneRunnerType,
   SceneRunnerRuntime,
   TextResolver,
   Unsubscribe,
 } from '@game/engine';
+import { PersistenceError, selectAdapter } from '../persistence/index.js';
+import type {
+  AdapterSelection,
+  PersistenceAdapter,
+  SaveSlotSummary,
+} from '../persistence/index.js';
+// `UiPersistenceAdapter`（engine 契约 + `name` 诊断字段）尚未经 persistence 出口发布，
+// 且本切片出口归属另一模块（禁止改其 index.ts）。类型导入不改变运行期结构，
+// 故直接自内部 types 模块取用——与上方 `withSlotDisplayMeta` 同一理由。
+import type { UiPersistenceAdapter } from '../persistence/types.js';
+// `withSlotDisplayMeta` 在 persistence 切片的**内部**模块（types.ts）而不在其出口
+// （出口只发布 projectSaveMeta(slot, blob)——它要求调用方先持有 blob）。本宿主只
+// 有槽位元信息（listSaves 产物）、不需要读 blob，故直接取内部实现，避免为了一个
+// 展示字段去逐槽 load 整档。不修改 persistence 切片（其出口归属另一模块）。
+import { withSlotDisplayMeta } from '../persistence/types.js';
 import { bridgeRuntimeEvents } from './types.js';
 import { checkHostWiring } from './wiring-check.js';
 import type { WiringWarning } from './wiring-check.js';
@@ -131,6 +149,14 @@ export interface GameHostOptions {
    * 完整调试面板（变量查看/修改、跳场景、时间快进）属 25 号 C 组，不在此处。
    */
   readonly developerMode?: boolean;
+  /**
+   * 持久化适配器（缺省：`selectAdapter` 自动选择——浏览器 Dexie、不可用时回落内存）。
+   *
+   * 为什么留这个注入缝：宿主是**可测的装配逻辑**，而真实探测依赖 IndexedDB
+   * （jsdom 不提供）。测试据此注入 `MemoryAdapter` / 失败桩适配器，无需自己
+   * 重写一份探测（探测逻辑的唯一事实源仍是 `persistence/fallback.ts`）。
+   */
+  readonly persistence?: PersistenceAdapter;
 }
 
 /** 宿主级错误摘要（UI 错误卡片的数据面；控件不抛异常给 React） */
@@ -138,6 +164,24 @@ export interface HostError {
   readonly code: string;
   readonly messageKey: TextKey;
   readonly detail: string;
+}
+
+/**
+ * 持久化状态（存读档能力的环境诊断；`PrivacyBanner` 与控件禁用位的数据源）。
+ *
+ * 为什么发布到宿主面而不是让 UI 自己探测：探测是**异步一次**的装配动作
+ * （`selectAdapter`），宿主持有结果才能保证「横幅显示的状态」与「实际写入
+ * 用的适配器」是同一个（UI 再探一次会有竞态与双份真相）。
+ */
+export interface HostPersistenceStatus {
+  /** 适配器是否就绪（false = 装配失败，存读档不可用） */
+  readonly ready: boolean;
+  /** 是否已降级到内存适配器（NFR-10；true 时须常驻导出提醒） */
+  readonly degraded: boolean;
+  /** 实际生效的适配器标识（'dexie' | 'memory'；未就绪时为空串） */
+  readonly adapter: string;
+  /** 降级原因（degraded=true 时有值；横幅文案源） */
+  readonly reason?: string;
 }
 
 /** 游戏宿主公开面（apps 与测试的消费点） */
@@ -230,6 +274,51 @@ export interface GameHost {
   setDisabledTags(disabledTags: readonly string[]): void;
   /** 最近一次错误（null = 无） */
   lastError(): HostError | null;
+
+  // —— 存读档（FR-SAVE-01/03/04；demo-issues #11 的宿主入口） ——
+
+  /**
+   * 存档到槽位（FR-SAVE-01）。
+   *
+   * 语义：把**当前运行时状态**（`runtime.serialize()` + rngState + 版本三元组 +
+   * meta）经 `SaveService` 写入槽位。持久层由 {@link persistenceStatus} 报告的
+   * 适配器承载（浏览器 Dexie / 降级内存）。
+   *
+   * 失败显性化：写失败（quota 等）由 `SaveService` 抛 `SAVE_CORRUPT`，此处转成
+   * `lastError`（与 `guard()` 同口径）并返回 `{ok:false, detail}`——**不静默**。
+   *
+   * @param slot 槽位 id（宿主命名；UI 固定槽位如 `slot_manual` 或 `quick`）
+   */
+  saveToSlot(slot: string): Promise<{ readonly ok: boolean; readonly detail?: string }>;
+  /**
+   * 从槽位读档并恢复（FR-SAVE-03）。
+   *
+   * 收口次序（**不可交换**，见 {@link loadFromSlot} 的实现注释）：
+   * 状态就位（`SaveService.load` → `runtime.restore`，引擎已清回滚栈）
+   * → 清历史缓冲（{@link resetHistoryBuffers}）
+   * → 重建会话（{@link replaceSession}，场景取 `definition.manifest.entryScene`）
+   * → 同步投影。
+   *
+   * 失败显性化：空槽位/版本过高/迁移失败/档损坏 → `lastError` 且**状态不变**。
+   */
+  loadFromSlot(slot: string): Promise<{ readonly ok: boolean; readonly detail?: string }>;
+  /** 槽位摘要列表（存档/读档 UI 的数据源，FR-SAVE-01；空存储返回空数组） */
+  listSlots(): Promise<readonly SaveSlotSummary[]>;
+  /**
+   * 导出槽位（FR-SAVE-04）：返回可下载/复制的 `SaveBlob`（JSON 文档）。
+   *
+   * 实现即 `SaveService.exportSlot`（= `loadBlob` 的别名）——本次不新增语义，
+   * 宿主只是把它发布到公开面供 demo 触发下载。
+   */
+  exportSlot(slot: string): Promise<SaveBlob>;
+  /**
+   * 持久化状态（降级横幅 `PrivacyBanner` 的数据源，NFR-10）。
+   *
+   * `ready=false` = 适配器装配失败（连内存回落都不可用）——此时存读档一律
+   * 以 `lastError` 拒绝，UI 应禁用入口。
+   */
+  persistenceStatus(): HostPersistenceStatus;
+
   /**
    * 接线缺口告警（约束 8 自检产物；`start()` 时刷新）。
    *
@@ -338,6 +427,82 @@ export function createGameHost(options: GameHostOptions): GameHost {
   let lastError: HostError | null = null;
   /** 当前位置（宿主态；见模块 TSDoc「位置语义」） */
   let currentLocation: { area: GameId; location?: GameId } = resolveStartLocation();
+
+  // —— 存读档装配（FR-SAVE；demo-issues #11） ——
+  //
+  // **为什么在宿主而非 demo**：存读档不是「一根接线」，而是「宿主 API + 收口次序」
+  // 的装配——读档必须与宿主自持的历史缓冲/会话重建协同（见 loadFromSlot 的次序
+  // 注释），这些状态只有宿主持有。demo 只负责按钮与调用。
+  //
+  // 装配策略（**不自写探测**）：注入 `persistence` 则直接用；否则经既有
+  // `selectAdapter()`（`persistence/fallback.ts` 的探测与三条降级路径）挑选——
+  // 浏览器优先 DexieAdapter，不可用（隐私模式/无 IndexedDB/工厂抛错）时回落
+  // MemoryAdapter。探测是异步的，而宿主构造是同步的，故以 **promise 持有 + 就绪
+  // 回调** 承接：装配期立即发起，后续 save/load await 同一个 promise。
+  /**
+   * 适配器选择结果（异步装配；undefined 表示尚未完成）。
+   * 用 promise 而非 await 构造：`createGameHost` 是同步 API（demo 在 mount 里直接
+   * 调用并渲染），若改成异步会波及全部既有调用点（含 30+ 条测试）。
+   */
+  let adapterSelection:
+    { adapter: PersistenceAdapter; degraded: boolean; reason?: string } | undefined;
+  /** 适配器标识（诊断与降级提示；注入面可能给非 UI 侧适配器 → 取不到时回落 unknown） */
+  let adapterDisplayName = '';
+  /** 装配失败原因（连内存回落都不可用；仅在异常路径有值） */
+  let adapterFailure: string | undefined;
+  let saveService: SaveService | undefined;
+  const persistenceReady: Promise<void> = (async () => {
+    try {
+      const selection: AdapterSelection | { adapter: PersistenceAdapter; degraded: false } =
+        options.persistence !== undefined
+          ? // 外部注入：视为已就绪（调用方对自己的适配器负责，探测语义由其决定）
+            { adapter: options.persistence, degraded: false }
+          : await selectAdapter();
+      adapterSelection = selection;
+      adapterDisplayName = readAdapterName(selection.adapter);
+      saveService = new SaveService({ adapter: selection.adapter });
+    } catch (error) {
+      // `selectAdapter` 自身承诺不抛（探测/工厂异常都被它吞成降级结果），
+      // 走到这里的只有「内存回落也失败」这类不可恢复情形——显性化，不静默。
+      adapterFailure = error instanceof Error ? error.message : String(error);
+    }
+  })();
+
+  /**
+   * 等待持久层就绪并返回服务（未就绪即记 `lastError` 并返回 null）。
+   *
+   * 为什么每次存读档都 await 而非「就绪后再暴露按钮」：装配是异步的，而玩家可能
+   * 在装配完成前就点了按钮——await 同一 promise 让首次点击自然排队，不必让 UI
+   * 处理「还没好」。失败路径统一走 `lastError`（错误卡片可见）。
+   */
+  async function requireSaveService(): Promise<SaveService | null> {
+    await persistenceReady;
+    if (adapterFailure !== undefined) {
+      lastError = {
+        code: 'PERSISTENCE_UNAVAILABLE',
+        messageKey: 'ui.error.internal',
+        detail: `持久化适配器装配失败：${adapterFailure}`,
+      };
+      return null;
+    }
+    if (saveService === undefined) {
+      lastError = {
+        code: 'PERSISTENCE_UNAVAILABLE',
+        messageKey: 'ui.error.internal',
+        detail: '持久化服务未就绪',
+      };
+      return null;
+    }
+    return saveService;
+  }
+
+  /**
+   * 存档时刻所在场景 id（`SaveInput.location`，FR-SAVE-01「位置」）。
+   * 优先取当前会话场景；会话未建立时回落入口场景（此时也没什么东西可存）。
+   */
+  function currentSceneId(): GameId {
+    return session?.currentSceneId ?? definition.manifest.entryScene;
+  }
 
   // —— 历史保留与回退截断（demo-issues #9，2026-09-26） ——
   //
@@ -895,6 +1060,202 @@ export function createGameHost(options: GameHostOptions): GameHost {
     action(session);
   };
 
+  // —— 存读档实现（FR-SAVE；demo-issues #11） ——
+
+  /**
+   * 「未开始」守卫（存读档的公共前置）。
+   *
+   * 口径与 {@link withSession} 一致：`session === undefined` 即宿主未 start
+   * （start 同时建立 runtime 与 session；两者只在 dispose/未启动时缺失）。
+   * 处理方式也是同一风格——**记 `lastError` 并返回 false**，不抛异常、不静默：
+   * 未就绪时不写半成品档、也不做无意义的空恢复。
+   *
+   * @param action 动作名（错误文案用：'存档' / '读档'）
+   */
+  function requireStarted(action: '存档' | '读档'): boolean {
+    if (session !== undefined) return true;
+    lastError = {
+      code: 'NOT_STARTED',
+      messageKey: 'ui.error.not_started',
+      detail: `宿主尚未调用 start()，无法${action}（缺少可用的会话）`,
+    };
+    return false;
+  }
+
+  /**
+   * 存档：把当前运行时状态写入槽位。
+   *
+   * 失败路径**全部**转成 `lastError` 与 `{ok:false}`：
+   * - 未 start（`session === undefined`）→ `NOT_STARTED`（见 {@link requireStarted}）；
+   * - 适配器未就绪/装配失败 → `PERSISTENCE_UNAVAILABLE`；
+   * - 写失败（quota 等）→ `SaveService` 抛 `SAVE_CORRUPT` / `EngineError`，
+   *   经 {@link toHostError} 取 code 与 messageKey（保留 MIGRATION_FAILED /
+   *   SAVE_CORRUPT 等引擎码，不被抹成 INTERNAL）。
+   *
+   * @param slot 槽位 id（宿主命名；FR-SAVE-01）
+   */
+  async function saveToSlot(slot: string): Promise<{ ok: boolean; detail?: string }> {
+    if (!requireStarted('存档') || runtime === undefined) {
+      return { ok: false, detail: lastError?.detail ?? '宿主未启动' };
+    }
+    const service = await requireSaveService();
+    if (service === null) {
+      return { ok: false, detail: lastError?.detail ?? '持久化服务不可用' };
+    }
+    const rt = runtime;
+    try {
+      await service.save(slot, {
+        runtime: rt,
+        location: currentSceneId(),
+        // 游玩时长（FR-SAVE-01）：状态树 readStats.playSeconds 是权威累计面
+        // （时间管线/读取统计写入），meta 只是快照——不另立宿主计时器（双份真相）。
+        playSeconds: rt.state.readStats.playSeconds,
+      });
+      lastError = null;
+      return { ok: true };
+    } catch (error) {
+      lastError = toHostError(error);
+      return { ok: false, detail: lastError.detail };
+    }
+  }
+
+  /**
+   * 读档：从槽位恢复运行时状态并**收口**到可继续游玩。
+   *
+   * ## 收口次序（不可交换，逐条给理由）
+   *
+   * 1. **状态就位**：`SaveService.load(slot, runtime)` 内部完成「读取 → 版本闸门
+   *    → 迁移 → Zod 终验 → `runtime.restore(blob)`」。引擎的 `restore` 会清空
+   *    回滚栈（#246 已实现），故本步之后 `availableRollbackSteps()` 也应为 0
+   *    ——这正是「跨档不沿用旧检查点」的保证（旧检查点快照属于旧状态树，沿用
+   *    会退到不属于本档的状态）。
+   * 2. **清历史缓冲**：`historyLog` / `rollbackMarks` / `historySeq` 是宿主自持的
+   *    跨会话累积面（#9），**不属于状态树**，`runtime.restore` 不会碰它。不清则
+   *    旧档的历史会串进新档（历史面板显示不属于本档的段落，回退锚点指向错误的
+   *    截断界）。顺序上必须先于 `replaceSession`：后者会重置
+   *    `accumulatedInSession` 游标，若先重建再清缓冲，第 1 步 `accumulateHistory`
+   *    就可能把新会话的段落记进尚未清空的旧 `historyLog`。
+   * 3. **重建会话**：`replaceSession(entryScene)` —— 唯一的会话替换入口，同时清零
+   *    `accumulatedInSession` 游标（否则新会话历史从错误的游标起点累积）。场景取
+   *    `definition.manifest.entryScene`：**与 rollback 同规（口径甲，2026-09-23
+   *    人类裁定）**——状态精确还原，叙事位置按设计 §6.3 重建至入口场景（叙事
+   *    位置不保证）。存档里没有会话位置（`SaveMeta.location` 只是展示元信息），
+   *    若要精确还原需扩展 CheckpointMeta，属 M4 打磨项。
+   * 4. **同步投影**：`syncSession()` 把新会话投影进 store（组件据此重渲染）。
+   *
+   * ## 失败语义（状态不变）
+   * `SaveService.load` 的失败分支（`VERSION_UNSUPPORTED` / `MIGRATION_FAILED`）
+   * 与适配器/Zod 抛错（空槽位 → `SAVE_CORRUPT`）都在**触碰会话之前**返回/抛出，
+   * 故失败时运行时状态与会话均保持原样——只写 `lastError`（错误卡片可见）。
+   *
+   * @param slot 槽位 id
+   */
+  async function loadFromSlot(slot: string): Promise<{ ok: boolean; detail?: string }> {
+    if (!requireStarted('读档') || runtime === undefined) {
+      return { ok: false, detail: lastError?.detail ?? '宿主未启动' };
+    }
+    const service = await requireSaveService();
+    if (service === null) {
+      return { ok: false, detail: lastError?.detail ?? '持久化服务不可用' };
+    }
+    const rt = runtime;
+    let result: Awaited<ReturnType<SaveService['load']>>;
+    try {
+      result = await service.load(slot, rt);
+    } catch (error) {
+      // 空槽位（适配器抛）/ 档损坏（Zod 终验）：`runtime.restore` 未被调用，
+      // 状态不变——只显性化错误。
+      lastError = toHostError(error);
+      return { ok: false, detail: lastError.detail };
+    }
+    if (!result.ok) {
+      // 版本闸门拒绝（VERSION_UNSUPPORTED / MIGRATION_FAILED）：引擎承诺不触碰
+      // 运行时数据（FR-MIGR-02），宿主同样不收口——状态保持原样。
+      lastError = {
+        code: result.reason,
+        // 两个键都是**运行时产出**的引擎/宿主内部键（不出现在 data/ 中），
+        // 依 2026-09-27 裁定「引擎内置键由引擎随包提供基础词典」——宿主无需
+        // 为它们找游戏包译文（#10 的边界）。命名沿用引擎存档子系统的
+        // `error.save.*` 前缀（与 `error.save.writeFailed` / `slotMissing` 同域）。
+        messageKey:
+          result.reason === 'VERSION_UNSUPPORTED'
+            ? 'error.save.versionUnsupported'
+            : 'error.save.migrationFailed',
+        detail: result.detail,
+      };
+      return { ok: false, detail: result.detail };
+    }
+    // 收口（次序见 TSDoc）：状态已就位 → 清历史缓冲 → 重建会话 → 同步投影。
+    resetHistoryBuffers();
+    replaceSession(definition.manifest.entryScene);
+    lastError = null;
+    syncSession();
+    return { ok: true };
+  }
+
+  /** 槽位摘要列表（listSaves + UI 展示口径；空存储返回空数组） */
+  async function listSlots(): Promise<readonly SaveSlotSummary[]> {
+    const service = await requireSaveService();
+    if (service === null) return [];
+    try {
+      const metas = await service.listSaves();
+      // 叠加 UI 展示口径（slotName 分组字段）——单一事实源仍在 persistence 切片，
+      // 本处只做「元信息 → 展示摘要」的组合（不读 blob，避免逐槽 load 整档）。
+      return metas.map((meta) => withSlotDisplayMeta(meta.slot, meta));
+    } catch (error) {
+      lastError = toHostError(error);
+      return [];
+    }
+  }
+
+  /** 导出槽位（FR-SAVE-04：blob 即 JSON 文档，由 demo 触发下载） */
+  async function exportSlot(slot: string): Promise<SaveBlob> {
+    const service = await requireSaveService();
+    if (service === null) {
+      // 与其余失败路径同口径：`requireSaveService` 已记 `lastError`（错误卡片
+      // 可见），此处再抛。本方法返回类型是 SaveBlob（调用方要 blob 才能下载），
+      // 无法用 ok/detail 表达失败，故异常是唯一出口；用 EngineError 保持
+      // 「code + messageKey」三元组约定（UI 层禁裸 throw new Error）。
+      // messageKey 复用宿主既有的 `ui.error.internal`（不新造键——键面归属
+      // 是 #10 的收尾范围）。
+      throw new EngineError({
+        code: 'SAVE_CORRUPT',
+        messageKey: 'ui.error.internal',
+        where: { slot, operation: 'export' },
+      });
+    }
+    try {
+      return await service.exportSlot(slot);
+    } catch (error) {
+      lastError = toHostError(error);
+      throw error;
+    }
+  }
+
+  /** 持久化状态（降级横幅数据源；见 GameHost.persistenceStatus） */
+  function persistenceStatus(): HostPersistenceStatus {
+    if (adapterFailure !== undefined) {
+      return {
+        ready: false,
+        degraded: false,
+        adapter: '',
+        reason: adapterFailure,
+      };
+    }
+    const selection = adapterSelection;
+    if (selection === undefined) {
+      // 装配中：尚未探测完。报告「未就绪」但**不**报降级（避免横幅闪一下），
+      // UI 若要禁用入口应看 ready。
+      return { ready: false, degraded: false, adapter: '' };
+    }
+    return {
+      ready: true,
+      degraded: selection.degraded,
+      adapter: adapterDisplayName,
+      ...(selection.reason !== undefined ? { reason: selection.reason } : {}),
+    };
+  }
+
   // —— 战斗相位驱动（#8 死锁修复，2026-09-26） ——
 
   /**
@@ -1242,6 +1603,14 @@ export function createGameHost(options: GameHostOptions): GameHost {
       syncSession();
     },
     lastError: () => lastError,
+
+    // —— 存读档（FR-SAVE；见各方法 TSDoc） ——
+    saveToSlot,
+    loadFromSlot,
+    listSlots,
+    exportSlot,
+    persistenceStatus,
+
     wiringWarnings: () => wiringWarnings,
     dispose: () => {
       unsubscribeBridge?.();
@@ -1250,8 +1619,23 @@ export function createGameHost(options: GameHostOptions): GameHost {
   };
 }
 
-/** 错误 → 宿主摘要（EngineError 取三元组；其余取 message） */
+/**
+ * 错误 → 宿主摘要（EngineError 取三元组；持久化层错误映射到存档错误码；其余取 message）。
+ *
+ * 为什么单列 {@link PersistenceError}：适配器（MemoryAdapter/DexieAdapter）抛的是
+ * UI 包自有的错误类型，**不带** code/messageKey（它不属于引擎错误体系）。不映射
+ * 就会一律落成 `INTERNAL`——空槽位读档将表现为「内部错误」，玩家无从判断是
+ * 「没存过档」还是「引擎坏了」。映射后 code 为 `SAVE_CORRUPT`（存档面错误，
+ * 与引擎 `SAVE_CORRUPT` 同域），messageKey 指明槽位缺失。
+ */
 function toHostError(error: unknown): HostError {
+  if (error instanceof PersistenceError) {
+    return {
+      code: 'SAVE_CORRUPT',
+      messageKey: 'error.save.slotMissing',
+      detail: error.message,
+    };
+  }
   const candidate = error as { code?: string; messageKey?: string; message?: string };
   return {
     code: typeof candidate.code === 'string' ? candidate.code : 'INTERNAL',
@@ -1259,4 +1643,16 @@ function toHostError(error: unknown): HostError {
       typeof candidate.messageKey === 'string' ? candidate.messageKey : 'ui.error.internal',
     detail: typeof candidate.message === 'string' ? candidate.message : String(error),
   };
+}
+
+/**
+ * 适配器标识（诊断面）。 *
+ * runtime-ui 的两个实现都带 `name`（{@link UiPersistenceAdapter}），但
+ * `PersistenceAdapter` 契约本身没有该字段（engine 不感知平台）。故此处按结构
+ * 探测：注入面给了不带 name 的实现时回落 `unknown`，**不**改写引擎契约
+ * （DD-04 的边界；`persistenceStatus().adapter` 只是诊断信息）。
+ */
+function readAdapterName(adapter: PersistenceAdapter): string {
+  const name = (adapter as Partial<UiPersistenceAdapter>).name;
+  return typeof name === 'string' ? name : 'unknown';
 }
