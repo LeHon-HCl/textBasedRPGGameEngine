@@ -15,19 +15,30 @@
 | 类别 | 项数 | 条目 | 性质 |
 |---|---|---|---|
 | **A 类：真 bug** | 3 | #4 #8 #9（含 9b/9c） | 宿主/demo 侧实现错误，影响可玩性，优先修 |
-| **B 类：接线遗漏** | 4 | #2 #5 #6（含 6b）#11 | 组件能力已就绪、宿主未接（L-1 的第 7–10 例） |
+| **B 类：接线遗漏** | 4 | #2 #5 #6 #11 | 组件能力已就绪、宿主未接（L-1 的第 7–10 例） |
 | **C 类：规范/内容** | 4 | #1 #3 #7 #10 | UX 与内容设计，连同开发者规范一并处理 |
-| **D 类：新发现** | 1 | #12（战斗伤害恒为 0） | 批 1 浏览器复核抓出，demo 侧数据装配缺陷 |
+| **D 类：新发现** | 2 | #12（战斗伤害恒为 0）、#13（battle.* 键无译文） | 复核/复核跟进抓出，demo 或夹具侧 |
 
-**本次核对新发现 4 项**（均登记在对应条目内）：
+> **修复进度**：批 1（#4/#8/#9/#9b/#9c）与 #12 **已修复合入**；
+> 批 2 的 #2 已修（含 #9c 的 demo 侧接线），#6b **接线已修但内容未补**（见 #13）；
+> 其余待派发。
+
+**本次核对新发现 5 项**（均登记在对应条目内）：
 - **#9b**：历史面板「回退 N 步」用**分组距离**当步数，与检查点步数不一致（实测 5 个检查点 vs 7 个分组）；
-- **#6b**：战斗日志显示原始文本键（与 #6① 同一装配遗漏模式）；
+- **#6b**：战斗日志显示原始文本键；
 - **#9c**：`HistoryPanel.canRollback` 全仓无调用点 → 回退按钮永不置灰；
 - **#12**：**战斗伤害恒为 0**——demo 的 `initialAttrs` 少给 `atk/def/spd`，
-  而宿主**只**用 `initialAttrs` 播种属性（`attrDefs.init` 不参与播种），
+  而宿主**只**用 `initialAttrs` 播种（`attrDefs.init` 不参与播种），
   玩家 `atk` 为 `undefined` → 伤害公式 `(attr ?? 0) * mult − def` 恒为 0。
   **批 1 的真实浏览器复核抓出**（引擎单测与既有 L2 检查都覆盖不到——
   检查驱动层注入了完整属性，浏览器宿主没有）。详见下方 #12。
+- **#13**：引擎在战斗域产出的 **15 个 `battle.*` 键在夹具包内全部无译文**
+  （`locales/{zh-CN,en-US}/` 连 battle 域文件都没有）→ 修好 #6b 的接线后键仍原样显示。
+  属**夹具内容缺失**（实测作者本可提供：命名空间按路径推导、无白名单）。
+  **且补译文时又发现第二层**：这些键的 `vars` 传的是 **nameKey**（`actor`/`target`），
+  而 i18n 插值是字面替换、不做嵌套解析 → 只补译文会渲染出
+  `"battle.unit.player 攻击 enemies.rock_rat.name"`。**第二步（UI 层物化嵌套键）需人类裁定**。
+  详见下方 #13。
 
 另有 **1 项原登记问题被证伪**（原 T-2「`requires`/`showIf` 可见性缺陷」），见文末。
 
@@ -129,21 +140,45 @@
 | **归属** | **demo 接线**（`apps/player-demo/src/main.tsx`；可能需宿主补 save/load API）。 |
 | **依据** | 实读 `packages/engine/src/persistence/index.ts`（导出面）、`packages/runtime-ui/src/index.ts:157,66-67`、`apps/player-demo/src/main.tsx:442-469`；`game-host.ts` 全程无 save/load 方法（grep 仅命中 `achievementStore.load()`）。 |
 
-### #6b 战斗日志显示原始文本键（本次新发现，与 #6① 同类）
+### #6b 战斗日志显示原始文本键（**根因更正：不只是一处接线，而是整批键缺失**）
 
 | 项 | 内容 |
 |---|---|
-| **现象** | 战斗面板的日志条目直接显示 `battle.log.escape_success` 这类**文本键**，不是译文。 |
-| **根因** | 与 #6① **完全同类**：`BattlePanel` 支持 `labels.resolveLog`（`BattlePanel.tsx:206`：`labels.resolveLog !== undefined ? labels.resolveLog(entry) : entry.key`），**缺省时直接用键**；demo 渲染 `BattlePanel` 时**只传了 `data` props，没传 `labels`**（`main.tsx:389-424`，`nameOf` 只用于单位名，日志直接 `log={battle.log}`）。而战斗日志条目本就带 `key` + `vars`（`BattleLogEntry`），物化入口齐备。 |
-| **修复方案** | demo 传 `labels={{ resolveLog: (entry) => host.textOf(entry.key, entry.vars) }}`。**与 #6① 同一次修复**（同一处 `OverlayPanels` 的 labels 注入）。 |
-| **归属** | **demo 接线**（`apps/player-demo/src/main.tsx`）。 |
-| **依据** | 实读 `packages/runtime-ui/src/panels/BattlePanel.tsx:201-210`、`apps/player-demo/src/main.tsx:389-424`。 |
+| **现象** | 战斗面板的日志条目显示 `battle.log.setup` 之类的**文本键**；我方单位名显示 `battle.unit.player`。 |
+| **根因（2026-09-27 浏览器复核后更正，比初判更深）** | 初判只说对了一半：demo 确实**没传 `labels`**（`BattlePanel.tsx:206` 缺省用 `entry.key`），但**修好接线后键仍然原样显示**——因为**游戏包里根本没有 `battle.*` 的译文**。实测：`fixtures/mini-game/locales/zh-CN/` **没有** battle 域文件；引擎侧共产出 **15 个** `battle.*` 键（`battle.log.{setup,skill,skill_nontarget,damage,down,defend,item,escape_success,escape_fail,victory,defeat,escaped,status_expired,effects_unwired}` + `battle.unit.player`），**全部无译文**。 |
+| **为什么算** fixture **缺陷而非引擎缺陷**（已实测确认） | 加载器的语言包命名空间是**按文件路径推导**的（`validate.ts:237-243`：`locales/<lang>/<目录>/<文件>.yaml` → 命名空间），**没有域白名单**。实测：临时新建 `locales/zh-CN/battle.yaml` 并写入 `log.setup: ...`，`battle.log.setup` 立即解析成功（`found=true`）。即**作者本可以提供这些键**——只是夹具从没写。这与既有约定一致：夹具连引擎缺省键都要自己声明（如 `data/time.yaml` 用 `time.slot.morning` 而非引擎缺省的 `ui.time.slot.morning`，`locales/zh-CN/time.yaml` 提供译文）。 |
+| **修复方案** | 两件事，都要做：<br>① **demo 传 `labels`**（已由 P3 完成：`labels={{ resolveLog: (entry) => host.textOf(entry.key, entry.vars) }}`）；<br>② **补齐夹具译文**：新增 `fixtures/mini-game/locales/{zh-CN,en-US}/battle.yaml`，覆盖上述 15 个键（注意 `battle.log.*` 带 `vars`：`actor` / `target` / `amount` / `item` 等，译文需含插值占位）。<br>③ 顺带：`battle.unit.player`（我方单位名键）同样要译——它此前虽经 `nameOf` 物化，但同样查不到键而回落显示原键。 |
+| **归属** | ① **demo 接线**（已完成）；② **夹具内容**（`fixtures/mini-game/locales/**`）。**引擎与组件无需改**。 |
+| **依据** | 实测 Playwright：修好 `labels` 后 `battle.log.setup` 仍原样显示；`grep` 确认 `locales/{zh-CN,en-US}/` 无 battle 域；实测新增 `locales/zh-CN/battle.yaml` 后 `battle.log.setup` → `found=true`（探针已删除）；实读 `packages/engine/src/loader/validate.ts:237-243`（命名空间按路径推导，无白名单）、`fixtures/mini-game/data/time.yaml` + `locales/zh-CN/time.yaml`（作者自带键的既有约定）。 |
 
-> **合并说明**：`#6①`（商店名/物品名）与 `#6b`（战斗日志）是**同一个装配遗漏模式**——
-> 宿主渲染带 `labels` 契约的面板时未注入文本物化回调。建议合并为一个修复包，
-> 并顺手核查是否还有第三个面板存在同样问题（`HistoryPanel` 的 `groupTitle` 缺省模板
-> 用的是 `sceneId` 而非场景译名，见 #9 相关说明——属同类表现，但它的分组标题设计本就用 id，
-> 是否要物化需人类裁定）。
+> **合并说明**：`#6①`（商店名/物品名）与 `#6b` 的表层现象同类（缺 `labels` 注入），
+> 但根因**不同**：#6① 是纯接线（商店/物品的键在包里本来就有译文），#6b 是**接线 + 一整批键缺失**。
+> 因此 #6b 需要额外的夹具内容补齐，已单列为 **#13**（见下），以免修完接线就以为结清。
+>
+> 另注：`HistoryPanel` 的分组标题模板用的是 `sceneId` 而非场景译名——属同类表现，
+> 但分组标题设计本就用 id，是否物化需人类裁定（低优先）。
+
+### #13 引擎产出的 `battle.*` 键在夹具包内全部无译文（#6b 的深层根因）
+
+| 项 | 内容 |
+|---|---|
+| **现象** | 战斗面板的日志与单位名显示原始键（`battle.log.setup` / `battle.unit.player`）。 |
+| **根因（两层，第二层是 2026-09-27 补译文时实测发现的）** | **① 译文缺失**：引擎在战斗域产出 **15 个**文本键（见 #6b 列表），而 `fixtures/mini-game/locales/zh-CN/` 与 `en-US/` **都没有 battle 域文件**。加载器允许作者提供（命名空间按路径推导、无白名单，已实测），故属夹具内容缺失。<br>**② 插值变量是「名字键」而非译文**：`battle.log.damage` 等的 `vars` 传的是 **nameKey**（`actor: unit.nameKey`、`target: target.nameKey`，见 `session.ts:217-221`、`resolution.ts:143-149`），而 i18n 插值是**字面替换**、**不做嵌套解析**（`text-resolver.ts:586-618` 的 `interpolate` 只取 `vars` 的字面值）。实测：译文写成 `'{actor} 攻击 {target}，造成 {amount} 点伤害'` 时，渲染结果是<br>`"battle.unit.player 攻击 enemies.rock_rat.name，造成 8 点伤害"`——**嵌套的键原样露出来了**。<br>即：**只补译文不够**，还须有人把 `actor`/`target` 的 nameKey 先物化成译名再交给插值。 |
+| **修复方案** | 分两步，且**第二步需要设计判断**：<br>**① 补译文（夹具，可立即做）**：新增 `fixtures/mini-game/locales/{zh-CN,en-US}/battle.yaml`，镜像引擎键结构（`log:` / `unit:`）。<br>**② 物化插值变量（需先定归属，见下）**：把 `actor`/`target` 的 nameKey 解析为译名。候选方案：<br>· **甲**：`BattlePanel` 的 `resolveLog` 契约升级——由宿主在回调里**先物化 vars 再 resolve**（`main.tsx` 侧写 `resolveLog: (entry) => host.textOf(entry.key, materializeNames(entry.vars))`）；改动仅在 demo + 可能的宿主辅助函数。<br>· **乙**：引擎侧改日志条目语义——让 `vars` 直接带**已物化的文本**而非 nameKey。但这会让引擎接触文本解析（**违反 DD-04「引擎无 IO / 不持有词典」**），**不建议**。<br>· **丙**：约定 `vars` 中的 nameKey 用特殊标记（如 `{actorKey}`）并在 UI 层解析——增加一层隐式协议。<br>**建议甲**（唯一不触碰引擎边界的方案），但 `resolveLog` 的契约措辞（`BattlePanel.tsx:50` 写的是「宿主可注入 resolver 物化」）需要澄清「物化」是否含 vars 内的键。 |
+| **归属** | ① **夹具内容**（`fixtures/mini-game/locales/**`）；② **UI/宿主层**（待裁定后实施）。 |
+| **依据** | 实测 Playwright：修好 `labels` 注入后 `battle.log.setup` 仍原样显示；实测插值（临时加 `locales/zh-CN/battle.yaml`）渲染出 `"battle.unit.player 攻击 enemies.rock_rat.name，造成 8 点伤害"`（探针已删除）；实读 `packages/engine/src/i18n/text-resolver.ts:586-618`（`interpolate` 字面替换，无嵌套解析）、`packages/engine/src/battle/session.ts:217-221`、`resolution.ts:99-149`（vars 为 nameKey）、`packages/engine/src/battle/types.ts:113-123`（「engine 不渲染——键的解析与展示归 runtime-ui」）、`packages/runtime-ui/src/panels/BattlePanel.tsx:50`、`packages/engine/src/loader/validate.ts:237-243`（命名空间按路径推导）。 |
+| **优先级** | 中（不影响可玩性——战斗能打赢；影响可读性：日志显示键名与 key 混杂）。**② 的方案选择需人类裁定**，故本项不做自动派发。 |
+
+> **与 #10 的关系（重要区分）**：#10 讲的是「**引擎内置键该由谁提供译文**」这一**设计边界**
+> （`ui.error.*` 这类宿主/引擎内部键，作者不该被迫补）。而 #13 是**游戏内容用到的键**
+> （战斗日志是玩家读的正文）——这类键**本来就该由作者/夹具提供**，与 #10 无关。
+> 两者的分界线：**玩家在游戏里读到的文本**（应由包提供）vs **引擎/宿主的内部错误与 UI 键**
+> （应随引擎提供基础词典）。
+>
+> **顺带记录的设计观察**：`battle.*` 键的 `vars` 携带 nameKey 而非文本，是「引擎不持有词典」
+> （DD-04）的必然结果——这个边界本身是对的；缺的是**UI 层「物化嵌套键」这一步没有实现**。
+> 同类风险可能存在别处（凡 `vars` 传 nameKey 的键），**建议在批 3 的规范工作中加一条
+> 「日志/文案类键若以键为插值变量，UI 层须先物化」的约定**，避免以后每个面板各写一套。
 
 ---
 
