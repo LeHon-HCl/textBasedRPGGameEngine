@@ -75,6 +75,13 @@ const PANEL_TITLES: Record<PanelId, string> = {
   gallery: '图鉴',
   achievements: '成就',
   debug: '调试',
+  // 叠加面板（17/16/25B）：本页由 OverlayPanels 直接渲染、不经此处取标题，
+  // 但 `PanelId` 新增成员时必须同步补齐，否则 `Record<PanelId, string>` 编译不过。
+  // 2026-09-27 补：此前缺这三项——而本包当时**未被类型检查覆盖**（见下），
+  // 该编译错误因此藏了数周未被发现。
+  shop: '商店',
+  battle: '战斗',
+  history: '历史',
 };
 
 /**
