@@ -224,6 +224,107 @@ function SettingsDrawer({ host }: { host: GameHost }): ReactNode {
   );
 }
 
+/** 工具条槽位（demo 固定单一手动槽位；多槽位 UI 归 25 号 C 组） */
+const MANUAL_SLOT = 'slot_manual';
+
+/**
+ * 导出存档为可下载的 JSON（FR-SAVE-04 的最小可用形态）。
+ *
+ * 为什么不走 Toast：`pushNotification` 需要 `textKey`，而「已导出」这类 demo
+ * 自身文案没有游戏包内的键——新增键属 #10 的收尾范围（键面归属），不在本次。
+ * 故反馈统一走按钮旁的状态文本 + 既有错误卡片（`lastError`）。
+ */
+async function downloadSlot(host: GameHost, slot: string): Promise<void> {
+  const blob = await host.exportSlot(slot);
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(blob, null, 2)], { type: 'application/json' }),
+  );
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${slot}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 存读档工具条（demo-issues #11 的玩家入口）。
+ *
+ * 为什么反馈用按钮旁文本而非 Toast：`pushNotification` 的 `textKey` 必须落在
+ * 游戏包词典内，而「已存档 / 已读档」是 demo 自持文案（与「新游戏」「设置」同
+ * 类硬编码）。新增文本键属 #10 的收尾范围，本次不碰键面——故以本组件自持的
+ * `hint` 文本反馈，失败则额外经宿主 `lastError` 走既有错误卡片（显性化）。
+ *
+ * 异步竞态：三个操作都是 async（适配器装配 + IO），故用 `busy` 门控防重复点击；
+ * 卸载后不 setState（`disposed`）。
+ */
+function SaveLoadBar({ host }: { host: GameHost }): ReactNode {
+  const [hint, setHint] = useState('');
+  const busyRef = useRef(false);
+  const disposedRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      disposedRef.current = true;
+    },
+    [],
+  );
+
+  const run = useCallback(
+    async (label: string, action: () => Promise<{ ok: boolean; detail?: string }>) => {
+      if (busyRef.current) return;
+      busyRef.current = true;
+      try {
+        const result = await action();
+        if (disposedRef.current) return;
+        setHint(result.ok ? label : `${label}失败：${result.detail ?? '未知原因'}`);
+      } catch (error) {
+        if (disposedRef.current) return;
+        // 导出失败只有异常出口（返回值是 blob）：与宿主同口径显性化
+        setHint(`${label}失败：${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        busyRef.current = false;
+      }
+    },
+    [],
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void run('已存档', () => host.saveToSlot(MANUAL_SLOT))}
+        style={styles.qolButton}
+      >
+        存档
+      </button>
+      <button
+        type="button"
+        onClick={() => void run('已读档', () => host.loadFromSlot(MANUAL_SLOT))}
+        style={styles.qolButton}
+      >
+        读档
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void run('已导出', async () => {
+            await downloadSlot(host, MANUAL_SLOT);
+            return { ok: true };
+          })
+        }
+        style={styles.qolButton}
+      >
+        导出
+      </button>
+      {hint !== '' ? (
+        <span data-save-hint style={styles.saveHint}>
+          {hint}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 /** 游戏屏：叙事区 + 选项 + 侧栏三面板（全部受控） */
 function GameScreen({ host }: { host: GameHost }): ReactNode {
   const session = useUiSelector(selectSession);
@@ -314,6 +415,7 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
         >
           成就
         </button>
+        <SaveLoadBar host={host} />
       </div>
       <OverlayPanels host={host} />
       <AppShell
@@ -530,9 +632,49 @@ function App({ host, definition }: { host: GameHost; definition: GameDefinition 
         <TitleEntry host={host} />
       )}
       <SettingsDrawer host={host} />
-      {/* 隐私模式降级横幅：真实探测在下方 mount（Dexie 可用性） */}
-      <PrivacyBanner degraded={false} />
+      {/*
+        隐私模式降级横幅（NFR-10）。此前 demo 恒传 `degraded={false}`（占位），
+        故即便真的降级到内存也不会提示——「不静默丢档」的承诺没人兑现。
+        现读宿主真实探测结果（`persistenceStatus()`）：探测是异步的，此处在
+        游戏屏出现（存读档入口可用）后按 500ms 轮询刷新；已就绪即停表，
+        避免常驻定时器。
+      */}
+      <PersistenceBanner host={host} />
     </UiStoreProvider>
+  );
+}
+
+/**
+ * 持久化降级横幅（NFR-10 的宿主呈现面）。
+ *
+ * 两个状态点：`ready=false` 表示探测/装配尚未完成（不渲染，避免横幅闪一下）；
+ * `degraded=true` 且已就绪 → 渲染常驻横幅并给「导出存档」入口（复用存读档
+ * 工具条的导出路径，槽位取固定手动槽）。
+ */
+function PersistenceBanner({ host }: { host: GameHost }): ReactNode {
+  const [status, setStatus] = useState(host.persistenceStatus());
+  useEffect(() => {
+    if (status.ready) return undefined;
+    const timer = window.setInterval(() => {
+      const next = host.persistenceStatus();
+      setStatus(next);
+      if (next.ready) window.clearInterval(timer);
+    }, 500);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [host, status.ready]);
+
+  return (
+    <PrivacyBanner
+      degraded={status.ready && status.degraded}
+      {...(status.reason !== undefined ? { reason: status.reason } : {})}
+      // 导出失败（如尚未存过档）由宿主记入 lastError → 既有错误卡片呈现；
+      // 此处吞掉 rejection 只是避免控制台的 unhandled rejection 噪声。
+      onExport={() => {
+        void downloadSlot(host, MANUAL_SLOT).catch(() => undefined);
+      }}
+    />
   );
 }
 
@@ -591,6 +733,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0 10px',
     cursor: 'pointer',
   },
+  saveHint: { alignSelf: 'center', fontSize: '13px', opacity: 0.85 },
   overlay: {
     display: 'flex',
     flexDirection: 'column',
