@@ -243,3 +243,238 @@ describe('25B-B1 历史回看投影（FR-READ-04）', () => {
     expect(projectHistory(entries)[0]?.entries[0]?.text).toBe('[media]');
   });
 });
+
+/**
+ * #9 / #9b / #9c 回归防线（2026-09-26）。
+ *
+ * 背景（用户实测 #9）：走了很多步后点「回退一步」，历史面板从 7 组变成 1 组、
+ * 画面回到入口场景，看起来像「全部回退了」。**状态回退本身是精确的**（上方
+ * 既有用例已逐字段断言），真正原因是会话重建丢弃了历史环形缓冲——而
+ * `SceneRunner` 的历史属于会话对象，回滚重建会话后新会话历史为空。
+ *
+ * 设计决定（不在引擎侧改）：宿主累积 `historyLog` 跨会话保留，并维护与引擎
+ * 检查点栈同长同序的 `rollbackMarks`，回滚时把历史截断到对应的检查点位置。
+ *
+ * 走 `market_street ⇄ arrival` 的**可无限往返**路径（两个 goto 均无条件），
+ * 使「走 N 步 + 回退」可精确构造。
+ */
+describe('25B-B1 #9 回退保留历史并截断到对应位置', () => {
+  /** 走一步可往返的路径（每次选择前宿主自动打点） */
+  function stepOnce(host: GameHost): void {
+    advanceToChoices(host);
+    const choices = host.store.getState().session.choices;
+    const pick =
+      choices.find((choice) => choice.id === 'go_market' || choice.id === 'back_arrival') ??
+      choices[0];
+    host.choose(pick?.id as string);
+    advanceToChoices(host);
+  }
+
+  /** 各组「场景 + 条目数」的签名（截断断言的比较面） */
+  function groupSignature(host: GameHost): readonly string[] {
+    return host.history().map((group) => `${group.sceneId}:${String(group.entries.length)}`);
+  }
+
+  /** 全部历史条目的文本键（逐条断言首尾用） */
+  function entryKeys(host: GameHost): readonly string[] {
+    return host.history().flatMap((group) => group.entries.map((entry) => entry.text));
+  }
+
+  it('#9 回归防线：走 5 步后 rollback(1)，历史不塌成 1 组且截断到最后一步之前', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    // 走 5 步；`signatures[i]` = 第 i+1 步**之前**的历史签名（即该步的目标截断点）
+    const signatures: string[][] = [];
+    for (let i = 0; i < 5; i += 1) {
+      signatures.push([...groupSignature(host)]);
+      stepOnce(host);
+    }
+    const afterFive = [...groupSignature(host)];
+    const keysAfterFive = [...entryKeys(host)];
+    expect(afterFive.length, '走 5 步后历史应有多组').toBe(6);
+    expect(host.availableRollbackSteps()).toBe(5);
+
+    host.rollback(1);
+
+    // **核心断言（#9 的回归防线）**：历史仍在——旧实现因会话重建把历史缓冲
+    // 整个丢掉，面板从 6 组塌成入口场景 1 组。
+    const afterRollback = host.history();
+    expect(afterRollback.length, '#9：回退一步后历史不应塌成 1 组').toBeGreaterThan(1);
+    // 截断到「第 5 步之前」= signatures[4]（5 组 / 10 段）；随后重建的会话在
+    // 入口场景渲染 1 段，与末尾同场景组并合 → 末组由 2 段变 3 段。
+    const expected = [...(signatures[4] as string[])];
+    expect(expected.at(-1)).toBe('arrival:2'); // 末组恰好是入口场景（夹具往返路径）
+    expected[expected.length - 1] = 'arrival:3';
+    expect(groupSignature(host), '截断目标 = 第 5 步之前的检查点').toEqual(expected);
+    // 逐条断言：被回退的目标段之前的条目**逐条原样保留**（只截尾，不清空）
+    const surviving = entryKeys(host);
+    expect(surviving.slice(0, 10), '前 10 段（= 4 步的历史）原样保留').toEqual(
+      keysAfterFive.slice(0, 10),
+    );
+    expect(surviving[0], '历史起点（首段）没丢').toBe(keysAfterFive[0]);
+    expect(surviving.length, '12 段 − 被截掉的 2 段 + 重建会话的 1 段').toBe(11);
+    // 引擎侧同步：可用步数 -1；会话按口径甲重建到入口场景
+    expect(host.availableRollbackSteps()).toBe(4);
+    expect(host.store.getState().session.sceneId).toBe('arrival');
+  });
+
+  it('连续 rollback(2) 的截断位置正确（覆盖 off-by-one）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    // `afterStep[i]` = 走完第 i+1 步之后的历史签名
+    const afterStep: string[][] = [];
+    for (let i = 0; i < 5; i += 1) {
+      stepOnce(host);
+      afterStep.push([...groupSignature(host)]);
+    }
+    expect(host.availableRollbackSteps()).toBe(5);
+
+    // 回退 2 步 → 截断目标 = marks 中最早被弹出的那个 = 「第 3 步之前」的
+    // historyLog 长度 = 走完第 3 步之后的 8 段（= afterStep[2]）。
+    // off-by-one 会把这里留成 afterStep[3]（4 组）或退到 afterStep[1]。
+    host.rollback(2);
+    expect(groupSignature(host), '按 popped[0] 截断（最早被回退到的检查点）').toEqual([
+      ...(afterStep[2] as string[]),
+      'arrival:1', // 重建会话的入口场景段（末组是 market_street，故另开一组）
+    ]);
+    expect(host.availableRollbackSteps()).toBe(3);
+    expect(host.store.getState().session.sceneId).toBe('arrival');
+
+    // 再回退 3 步 → marks 见底（回到最初）→ 截断目标 = 0：
+    // 只保留重建会话在入口场景的 1 段
+    host.rollback(3);
+    expect(host.availableRollbackSteps()).toBe(0);
+    expect(groupSignature(host), '回退到最初后只剩重建会话的入口场景').toEqual(['arrival:1']);
+    expect(entryKeys(host)[0]).toBe('scenes.arrival.open');
+  });
+
+  it('检查点为 0 时回滚报 NO_CHECKPOINT 且历史不变（既有行为）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    stepOnce(host);
+    const before = [...entryKeys(host)];
+    expect(host.availableRollbackSteps()).toBe(1);
+
+    // 先退光回滚点，再退一次 → 报错
+    host.rollback(1);
+    expect(host.availableRollbackSteps()).toBe(0);
+    const afterFirst = [...entryKeys(host)];
+    host.rollback(1);
+    expect(host.lastError()?.code).toBe('NO_CHECKPOINT');
+    // 失败不改历史、也不改状态（与既有语义一致）
+    expect(entryKeys(host)).toEqual(afterFirst);
+    expect(entryKeys(host).length).toBeGreaterThan(0);
+    expect(before.length).toBeGreaterThan(afterFirst.length); // 前一次成功回退确实截断了
+  });
+
+  it('历史 seq 跨会话重建仍唯一且有序（宿主重编号）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    for (let i = 0; i < 4; i += 1) stepOnce(host);
+    const seqsBefore = host.history().flatMap((group) => group.entries.map((e) => e.seq));
+    expect(new Set(seqsBefore).size, 'seq 唯一').toBe(seqsBefore.length);
+
+    host.rollback(1); // 会话重建：会话内 seq 从 0 重来，宿主须重编号
+    stepOnce(host); // 重建后继续走 → 新条目入账
+    const seqsAfter = host.history().flatMap((group) => group.entries.map((e) => e.seq));
+    expect(new Set(seqsAfter).size, '跨会话重建后 seq 仍唯一（宿主重编号）').toBe(seqsAfter.length);
+    expect(
+      [...seqsAfter].sort((a, b) => a - b),
+      'seq 有序',
+    ).toEqual(seqsAfter);
+  });
+});
+
+describe('25B-B1 #9b/#9c 历史面板步数口径（宿主投影 + 面板渲染）', () => {
+  function stepOnce(host: GameHost): void {
+    advanceToChoices(host);
+    const choices = host.store.getState().session.choices;
+    const pick =
+      choices.find((choice) => choice.id === 'go_market' || choice.id === 'back_arrival') ??
+      choices[0];
+    host.choose(pick?.id as string);
+    advanceToChoices(host);
+  }
+
+  it('#9b：分组 rollbackSteps 与真实可用步数一致（按该步数回滚后状态 == 该组开始时）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    // 记录每一步之前的状态（= 该步对应组的「开始状态」）
+    const statesBeforeStep: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      statesBeforeStep.push(snapshotState(host));
+      stepOnce(host);
+    }
+    expect(host.availableRollbackSteps()).toBe(4);
+
+    const groups = host.history();
+    const withSteps = groups.filter((group) => group.rollbackSteps !== undefined);
+    expect(withSteps.length, '应有分组附带回退步数').toBeGreaterThan(0);
+
+    // 每个带步数的分组：步数不超过可用步数（点得动），且回滚后状态与该组开始一致
+    for (const group of withSteps) {
+      const steps = group.rollbackSteps as number;
+      expect(steps, '步数应在 1..可用步数 之间（否则按钮点了必报错）').toBeGreaterThan(0);
+      expect(steps).toBeLessThanOrEqual(host.availableRollbackSteps());
+    }
+
+    // **行为断言**（不只是数字自洽）：取最后一步对应的组，按其步数回滚，
+    // 状态应等于「该步开始时」的状态——这是 #9b「步数口径正确」的实证。
+    const fresh = await makeHost();
+    fresh.start();
+    advanceToChoices(fresh);
+    const target = statesBeforeStep[3] as string; // 第 4 步（最后一次选择）之前的状态
+    const lastGroupWithSteps = [...withSteps].at(-1);
+    expect(lastGroupWithSteps?.rollbackSteps, '末组应带步数（= 1，回到最后一步之前）').toBe(1);
+    fresh.history(); // 投影不改变状态（只读）
+    fresh.rollback(lastGroupWithSteps?.rollbackSteps as number);
+    expect(snapshotState(fresh), '按投影步数回滚后状态应等于该组开始时的状态').toBe(target);
+  });
+
+  it('#9b：无对应检查点的分组不附步数（面板据此不渲染按钮）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    stepOnce(host);
+    const groups = host.history();
+    // 实测签名：[arrival:2 (rb=1), market_street:2 (rb=undefined)]
+    // 当前所在组（末组）之后没有检查点 → 无步数：玩家已在「这里」，不给按钮
+    expect(groups.at(-1)?.rollbackSteps, '当前所在组无步数（无处可退）').toBeUndefined();
+    // 首组末尾有检查点（本次选择之前打的）→ 有步数：退 1 步即回到该组
+    expect(groups[0]?.rollbackSteps, '首组可退 1 步到达').toBe(1);
+  });
+
+  it('#9c：availableRollbackSteps 随打点/回滚变化（canRollback 的数据源）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    // 未做任何选择：无回滚点 → canRollback 应为 false
+    expect(host.availableRollbackSteps()).toBe(0);
+    stepOnce(host);
+    expect(host.availableRollbackSteps()).toBe(1);
+    stepOnce(host);
+    expect(host.availableRollbackSteps()).toBe(2);
+    host.rollback(1);
+    expect(host.availableRollbackSteps()).toBe(1);
+    host.rollback(1);
+    expect(host.availableRollbackSteps()).toBe(0); // 栈空 → 面板应置灰按钮
+  });
+
+  it('#9c：回退锚点与引擎快照栈同长（超深丢最旧，宿主同步 shift）', async () => {
+    const host = await makeHost();
+    host.start();
+    advanceToChoices(host);
+    // 引擎栈深上限 = PERF_GUARD.checkpointStackDepth = 5；走 7 步必然溢出
+    for (let i = 0; i < 7; i += 1) stepOnce(host);
+    const engineDepth = host.runtime.state.checkpoints.length;
+    expect(engineDepth, '引擎栈深上限 5').toBe(5);
+    // 宿主锚点必须与引擎**同长**——不同长则回滚截断会指向错误的界
+    // （#9b 的步数推导依赖「marks[i] ↔ 引擎第 i 个快照」的一一对应）
+    expect(host.availableRollbackSteps(), '宿主锚点数 == 引擎快照数').toBe(engineDepth);
+  });
+});

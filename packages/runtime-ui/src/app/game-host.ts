@@ -38,6 +38,7 @@ import type {
   ExecContext,
   GameDefinition,
   InterpVars,
+  NarrativeHistoryEntry,
   PlayerSettings,
   QuestLogView,
   SceneRunner as SceneRunnerType,
@@ -54,6 +55,7 @@ import { projectAreaViews } from '../panels/map-projection.js';
 import { projectStatusPanel } from '../panels/types.js';
 import { exploreCandidates } from '@game/engine';
 import { projectHistory } from '../panels/history-projection.js';
+import type { HistoryGroup } from '../panels/history-projection.js';
 import { projectAchievementGallery } from '../panels/achievements-projection.js';
 import {
   openShop,
@@ -157,8 +159,16 @@ export interface GameHost {
    * @param steps 回退的选择步数（缺省 1）
    */
   rollback(steps?: number): void;
-  /** 历史回看投影（FR-READ-04；数据源 = SceneRunner.history 环形缓冲） */
+  /** 历史回看投影（FR-READ-04；数据源 = 宿主累积历史 `historyLog`，见 #9 说明） */
   history(): ReturnType<typeof projectHistory>;
+  /**
+   * 当前可回退步数（历史面板 `canRollback` 的数据源，修 demo-issues #9c）。
+   *
+   * 语义：等于宿主回退锚点的条数（与引擎回滚栈同长同序，栈深上限
+   * `PERF_GUARD.checkpointStackDepth`）。0 = 回滚栈空 → 面板应置灰回退按钮
+   * （`canRollback={host.availableRollbackSteps() > 0}`）。
+   */
+  availableRollbackSteps(): number;
 
   // —— 面板接线（2026-09-25；引擎能力早已就绪，本次补齐宿主消费面） ——
 
@@ -329,6 +339,151 @@ export function createGameHost(options: GameHostOptions): GameHost {
   /** 当前位置（宿主态；见模块 TSDoc「位置语义」） */
   let currentLocation: { area: GameId; location?: GameId } = resolveStartLocation();
 
+  // —— 历史保留与回退截断（demo-issues #9，2026-09-26） ——
+  //
+  // **为什么宿主要自持历史**：`SceneRunner` 的历史环形缓冲属于**会话对象**，
+  // 而回滚必须重建会话（设计 §6.3：回滚只还原 GameState，叙事位置须重开会话
+  // ——M2 验收口径甲，已知且已裁定）。重建后新会话历史为空 → 历史面板从多组
+  // 塌成入口场景 1 组，玩家看到「退一步像全退了」（用户实测 #9）。历史缓冲
+  // 不属于状态树，回滚不该把它清掉——故在宿主侧累积并按其截断。
+  //
+  // 引擎无历史播种 API，且引擎 rollback 语义正确（弹出最近 steps 个快照）——
+  // 全部修复在宿主侧完成，**不改引擎**。
+  /**
+   * 跨会话重建累积的历史（FR-READ-04 的宿主权威数据面）。
+   *
+   * `seq` 由宿主重编号（{@link historySeq}）：`SceneRunner` 的 seq 是**会话内**
+   * 自增的，会话替换后从 0 重来——直接沿用会让投影的 seq 重复、历史面板的
+   * React key 冲突、排序失真。
+   */
+  const historyLog: NarrativeHistoryEntry[] = [];
+  /** 宿主侧单调递增序号分配器（跨会话可比、唯一且有序） */
+  let historySeq = 0;
+  /**
+   * **本会话已入账条数**（`historyLog` 累积的游标）。
+   *
+   * 为什么不用「seq 比对」判断是否已入账：会话内 seq 从 0 重新开始，会话被
+   * 替换后旧判据会把新会话的条目录成「已入账」（丢历史）或重复入账。
+   * **任何替换 session 的地方都必须把它清零**——见 `replaceSession()`。
+   */
+  let accumulatedInSession = 0;
+  /**
+   * 回退锚点（与引擎回滚栈**同长同序**）：每次打检查点的同一时刻记录当时的
+   * `historyLog.length`。引擎栈超深丢最旧（`PERF_GUARD.checkpointStackDepth`），
+   * 故宿主也必须 `shift()` 保持镜像——否则回滚截断会指向错误的界。
+   */
+  const rollbackMarks: number[] = [];
+
+  /**
+   * 把当前会话历史中**尚未入账的尾部**追加进 {@link historyLog}（重编号 seq）。
+   *
+   * 调用时机：每次 `syncSession()` 前（即状态推进后）。**必须先于**记录
+   * `rollbackMarks`——否则 mark 会指向错误的截断点（后续回滚会截错位置）。
+   */
+  function accumulateHistory(): void {
+    if (session === undefined) return;
+    const entries = session.history();
+    for (let i = accumulatedInSession; i < entries.length; i += 1) {
+      const entry = entries[i];
+      if (entry === undefined) continue; // 不可达：i < entries.length
+      historyLog.push({ ...entry, seq: historySeq });
+      historySeq += 1;
+    }
+    accumulatedInSession = entries.length;
+  }
+
+  /**
+   * 替换叙事会话（**唯一的会话替换入口**）：重建后清空「本会话已入账条数」游标，
+   * 使新会话的历史从下标 0 起被累积（历史本体跨会话保留——#9 的修复要点）。
+   *
+   * 为什么收敛到一个函数：会话替换点散落多处（rollback 重建、choose 失败重建、
+   * 设置/导航/事件切场景），任一处漏清游标都会导致历史丢失或重复入账。
+   */
+  function replaceSession(sceneId: GameId): void {
+    session = createRunnerSession(runnerRuntime(), sceneId);
+    accumulatedInSession = 0;
+  }
+
+  /**
+   * 记录回退锚点（在 `rt.checkpoint()` 的**同一时刻**调用；镜像引擎的丢最旧）。
+   *
+   * 顺序约定：调用方必须**先** {@link accumulateHistory} 再调本函数，
+   * 使 mark 指向「该检查点当时的 historyLog 长度」。
+   *
+   * @param limit 引擎回滚栈**当前的**深度（`rt.state.checkpoints.length`）。
+   *   用它而非硬编码 `PERF_GUARD.checkpointStackDepth`：宿主未配置
+   *   `checkpointLimit` 时两者同值，但以引擎的镜像为准可避免「将来有人在宿主
+   *   传入自定义栈深」时两份账本静默漂移（本函数的唯一职责就是与引擎同长同序）。
+   */
+  function markRollbackPoint(limit: number): void {
+    rollbackMarks.push(historyLog.length);
+    while (rollbackMarks.length > limit) rollbackMarks.shift();
+  }
+
+  /**
+   * 回滚时截断历史到对应的检查点位置（#9 的截断口径）。
+   *
+   * 与引擎 `rollback(steps)` 的对应关系：引擎弹出的是**最近的 steps 个**
+   * 快照（`popped[0]` 是最早的那个 = 我们将要恢复到的目标检查点）。故：
+   * - 宿主同样弹出最近 steps 个 mark：`splice(len - steps, steps)`；
+   * - 截断目标 = `popped[0]`——最早被回退到的那个检查点当时的 `historyLog.length`；
+   * - 若 steps **清空了** marks（回滚栈见底 = 回到最初状态）→ 截断目标 = 0：
+   *   此时玩家的状态就是开局状态，历史面板应只呈现重建后的入口场景，
+   *   不保留「回到最初之前」的残留（否则会显出与当前状态不符的重复分组）。
+   */
+  function truncateHistoryForRollback(steps: number): void {
+    if (steps <= 0) return;
+    const count = Math.min(steps, rollbackMarks.length);
+    const popped = count > 0 ? rollbackMarks.splice(rollbackMarks.length - count, count) : [];
+    // 栈见底 → 0；否则截到最早被弹出的那个检查点记下的长度
+    const target = popped.length === 0 || rollbackMarks.length === 0 ? 0 : (popped[0] as number);
+    if (historyLog.length > target) historyLog.length = target;
+  }
+
+  /** 清空历史缓冲与回退锚点（与引擎清空快照栈同规；读档/重开用） */
+  function resetHistoryBuffers(): void {
+    historyLog.length = 0;
+    rollbackMarks.length = 0;
+    historySeq = 0;
+    accumulatedInSession = 0;
+  }
+
+  /**
+   * 为历史分组附带**回退步数**（修 demo-issues #9b）。
+   *
+   * 语义：`rollbackSteps` = 从当前位置回退到**该组刚开始时**的状态所需的检查点
+   * 步数——即「回退 N 步到这里」的「这里」是该组本身。
+   *
+   * 推导（口径须与引擎 `rollback` 精确对齐，差一格就是点不动或退错位的按钮）：
+   * - 设分组边界 `e_0=0 < e_1 < … < e_m=L`（`e_j` = 前 j 组的条目数），组 `G_j`
+   *   覆盖 `[e_{j-1}, e_j)`；
+   * - {@link rollbackMarks}[i] = 第 i 次检查点**当时**的 `historyLog.length`。
+   *   `SceneRunner` 的选项只在段落揭示完毕后才出现，故「在 `G_j` 里做的第一次
+   *   选择」那时的历史长度恰好是 **`e_j`（该组的结束边界）**；
+   * - 引擎 `rollback(steps)` 恢复 `popped[0]` = marks 的第 `available-steps` 项
+   *   → `steps = available - index`（index = 命中的 mark 下标）；
+   * - 取**最早**命中者（`indexOf`）：该检查点的状态正是「`G_j` 的文本刚展示完、
+   *   尚未做出组内任何选择」= **该组开始时的状态**。取最新者会退到组内后续
+   *   选择之后的状态（退不回「这里」）。
+   *
+   * 无对应 mark 的组 → **不附字段**（面板据此不渲染按钮）：当前组若还没做过组内
+   * 选择（无处可退）、由时间推进/事件/战斗回流开出的组、或已随栈深丢最旧的组
+   * 都属此类。宁可没有按钮，也不给会报错的错按钮（自算「分组距离」正是 #9b 的病根）。
+   */
+  function withRollbackSteps(groups: readonly HistoryGroup[]): readonly HistoryGroup[] {
+    const available = rollbackMarks.length;
+    if (available === 0) return groups;
+    let end = 0;
+    return groups.map((group) => {
+      end += group.entries.length;
+      const index = rollbackMarks.indexOf(end);
+      if (index < 0) return group;
+      const steps = available - index;
+      if (steps <= 0) return group; // 不可达：index < available 恒成立，保留作纵深防御
+      return { ...group, rollbackSteps: steps };
+    });
+  }
+
   /** 起始地点推导：显式传入优先，否则取入口场景所在区域 */
   function resolveStartLocation(): { area: GameId; location?: GameId } {
     if (options.startLocation !== undefined) return options.startLocation;
@@ -447,7 +602,12 @@ export function createGameHost(options: GameHostOptions): GameHost {
   /** 同步会话到 store（每次状态推进后调用；组件经 selector 消费） */
   function syncSession(): void {
     if (session === undefined) return;
-    store.getState().setSession(projectSession(session));
+    // 历史累积（#9）：**投影之后**再累积——`projectSession` 内部的 `renderList()`
+    // 才是段落揭示/历史入账的触发点（`SceneRunner.#pushHistory` 在渲染时写入），
+    // 先累积会漏掉本次新揭示的段落（表现为 history() 总慢一拍）。
+    const view = projectSession(session);
+    accumulateHistory();
+    store.getState().setSession(view);
     store.getState().setScreen('game');
   }
 
@@ -698,7 +858,10 @@ export function createGameHost(options: GameHostOptions): GameHost {
     // FR-UI-05 设置面板）。此处把镜像同步进 store（受控回流），新档缺省由
     // newGameState 的 bootstrap.settings 承担（见上方 start 的 bootstrap 注入）。
     store.getState().setSettings(settingsMirror);
-    session = createRunnerSession(runnerRuntime(), definition.manifest.entryScene);
+    // 新档：历史缓冲与回退锚点必须清空——与引擎「新状态树的 checkpoints=[]」
+    // 同规（`newGameState` 已清空快照栈）；不清则上一局的历史会串进新档。
+    resetHistoryBuffers();
+    replaceSession(definition.manifest.entryScene);
     syncSession();
   };
 
@@ -800,7 +963,11 @@ export function createGameHost(options: GameHostOptions): GameHost {
           // 失败时会话可能停在 resolving，由宿主 rollback 恢复（§4.2 约定）
           const label = `choice:${runner.currentSceneId}:${choiceId}`;
           const sceneBefore = runner.currentSceneId;
+          // 回退锚点与引擎检查点**同时**记录：先累积本轮已渲染的历史（使 mark
+          // 指向该检查点当时的 historyLog 长度），再打点。顺序不可交换。
+          accumulateHistory();
           rt.checkpoint(label);
+          markRollbackPoint(rt.state.checkpoints.length);
           try {
             runner.choose(choiceId);
           } catch (error) {
@@ -810,7 +977,9 @@ export function createGameHost(options: GameHostOptions): GameHost {
             // `await_choice` 时返回列表——不重建则选项全部消失、玩家卡死在场景
             // （用户实测：重复点击「辨认徽记」触发 EFFECT_FAILED 后无任何选项）。
             // 在**失败前所在场景**重开会话：玩家留在原处、可另选其他选项。
-            session = createRunnerSession(runnerRuntime(), sceneBefore);
+            // 回退锚点同步弹出（引擎已 popped 一个快照；不弹则后续截断错位）。
+            truncateHistoryForRollback(1);
+            replaceSession(sceneBefore);
             throw error;
           }
         });
@@ -839,12 +1008,25 @@ export function createGameHost(options: GameHostOptions): GameHost {
           };
           return;
         }
+        // 历史截断（#9）：引擎刚弹出最近 steps 个检查点，宿主按其回退锚点把
+        // 累积历史截断到**最早被回退到的那个检查点**的位置——重建会话后历史
+        // 仍在（只少了回退掉的那一段），玩家能确认「只退了 steps 步」。
+        truncateHistoryForRollback(steps);
         // 会话重建：回滚只还原状态，叙事位置须重开会话（§6.3「重建 session」；
         // M2 验收口径甲 2026-09-23：仅状态一致，叙事位置回入口场景）
-        session = createRunnerSession(runnerRuntime(), definition.manifest.entryScene);
+        replaceSession(definition.manifest.entryScene);
       }),
 
-    history: () => projectHistory(session?.history() ?? []),
+    /**
+     * 历史回看投影（FR-READ-04）。
+     *
+     * 数据源 = 宿主的 {@link historyLog}（跨会话累积），**不是** `session.history()`
+     * ——会话在回滚时被重建，其历史缓冲为空（#9 的根因）。投影额外为每个分组
+     * 附带 `rollbackSteps`（#9b：面板不再用「分组距离」冒充检查点步数）。
+     */
+    history: () => withRollbackSteps(projectHistory(historyLog)),
+
+    availableRollbackSteps: () => rollbackMarks.length,
 
     // —— 面板接线实现（2026-09-25） ——
 

@@ -4,14 +4,16 @@ import type { HistoryGroup } from './history-projection.js';
 /**
  * 历史回看面板（设计 §6.4 / FR-READ-04，25 号 B1）。
  *
- * 数据面 = 宿主的 `history()` 投影（`projectHistory`：按「场景 + 游戏日」分组，
- * 数据源为 SceneRunner 环形缓冲 500 段）。本面板只承担 UI：
- * 分组标题（场景 + 日期）、段落列表、回退入口。
+ * 数据面 = 宿主的 `history()` 投影（`projectHistory`：按「场景 + 游戏日」分组）。
+ * 本面板只承担 UI：分组标题（场景 + 日期）、段落列表、回退入口。
  *
  * 受控契约（与 QuestLogPanel 同规）：
  * - 全部数据经 props 注入，面板不持有运行时引用；
- * - 回退经 `onRollback(steps)` 回调请求（步数由「本组之前的分组数」推导，
- *   玩家点某组标题的「回到这里」即回退到该组之前的检查点数量）。
+ * - 回退经 `onRollback(steps)` 回调请求。**步数取自 `group.rollbackSteps`**
+ *   （宿主按检查点账本投影，2026-09-26 修 #9b）——面板**不再自算**「分组距离」
+ *   当步数：分组边界（换场景/跨天）与检查点边界（每次选择）不是同一个量，
+ *   自算会给出点不动的错按钮（实测 5 检查点 vs 7 分组）。`rollbackSteps`
+ *   缺省时**不渲染**该组的回退按钮（宁可没有，也不给错按钮）。
  *
  * 性能：单次会话最多 500 段——规模可控，先用普通列表（虚拟化列在
  * `docs/plans/M2-stage5-qol-plan.md` 登记为「内容规模增长后再引入」）。
@@ -39,11 +41,11 @@ export interface HistoryPanelProps {
   /** 分组历史（宿主 history() 投影） */
   readonly groups: readonly HistoryGroup[];
   /**
-   * 回退请求：steps = 该组之前的选择步数（1 起；0 表示已在最前，不渲染按钮）。
+   * 回退请求：`steps` 来自 `group.rollbackSteps`（检查点步数，1 起）。
    * 口径甲（2026-09-23 裁定）：状态精确还原，叙事位置回入口场景。
    */
   readonly onRollback?: (steps: number) => void;
-  /** 回滚是否可用（宿主据 rollback 栈状态传入；false 时按钮禁用） */
+  /** 回滚是否可用（宿主据回退栈状态传入，如 `host.availableRollbackSteps() > 0`） */
   readonly canRollback?: boolean;
   readonly labels?: HistoryPanelLabels;
 }
@@ -79,8 +81,9 @@ const ENTRY_STYLE: CSSProperties = {
  * 历史回看面板。
  *
  * 「回退到这里」按钮的可用性：
- * - `canRollback === false`（回滚栈空）→ 全部按钮禁用；
- * - 组内步数 0（当前所在组）→ 不渲染按钮（无处可退）。
+ * - 该组**无 `rollbackSteps`** → 不渲染按钮（宿主持有检查点账本；缺字段说明
+ *   该组起点没有可达的检查点，给不出正确步数——宁可不给按钮，也不给错按钮）；
+ * - `canRollback === false`（回滚栈空）→ 全部按钮禁用。
  */
 export function HistoryPanel(props: HistoryPanelProps): ReactNode {
   const labels: Required<HistoryPanelLabels> = { ...DEFAULT_LABELS, ...props.labels };
@@ -93,15 +96,12 @@ export function HistoryPanel(props: HistoryPanelProps): ReactNode {
       </section>
     );
   }
-  const lastIndex = groups.length - 1;
   return (
     <section style={PANEL_STYLE} aria-label={labels.title}>
       <h3 style={{ margin: 0, fontSize: '1em' }}>{labels.title}</h3>
       {groups.map((group, index) => {
-        // 步数 = 该组之后的分组数（每换一场景/跨一天至少一次选择——
-        // 精确步数与 checkpoints 的对应关系由宿主保证；此处用组距近似并以
-        // 宿主 canRollback 兜底）
-        const steps = lastIndex - index;
+        // 步数由宿主投影给出（检查点口径，修 #9b）；缺省不渲染按钮（不给错按钮）
+        const steps = group.rollbackSteps;
         const title = labels.groupTitle
           .replace('{day}', String(group.day))
           .replace('{scene}', group.sceneId);
@@ -109,7 +109,7 @@ export function HistoryPanel(props: HistoryPanelProps): ReactNode {
           <div key={`${group.sceneId}-${group.day}-${index}`} style={GROUP_STYLE}>
             <div style={GROUP_HEAD_STYLE}>
               <span>{title}</span>
-              {steps > 0 && props.onRollback !== undefined ? (
+              {steps !== undefined && steps > 0 && props.onRollback !== undefined ? (
                 <button
                   type="button"
                   disabled={props.canRollback === false}
