@@ -10,24 +10,55 @@
 
 ---
 
-## 批 1 的并行分析（派发前必读）
+## 派发前必读：硬性操作说明（每次派发都要附在 prompt 里）
 
-| 包 | 覆盖 | 文件白名单 | 与其他包是否重叠 |
-|---|---|---|---|
-| **P1** | #4 键盘选择未过滤隐藏项 | `apps/player-demo/src/main.tsx`、`packages/runtime-ui/src/narrative/`（含新增 `choice-visibility.ts`）、`packages/runtime-ui/test/narrative/` | 否 |
-| **P2** | #8 战斗起步死锁 + #9/#9b 回退历史 | `packages/runtime-ui/src/app/game-host.ts`、`packages/runtime-ui/src/panels/HistoryPanel.tsx`、`packages/runtime-ui/src/panels/history-projection.ts`、`packages/runtime-ui/test/panels/`、`packages/runtime-ui/test/acceptance/` | 否 |
+以下四条是**每个**子 Agent 都必须遵守的开工程序（缺一即会踩坑）：
 
-**结论：P1 与 P2 文件白名单无交集，可同时派发。**
-（注意：`docs/plans/subagent-prompts.md` 本身、`docs/reviews/demo-issues-11.md`、
-`docs/plans/open-items.md`、`docs/tasks/progress.md` **均不在**任何子 Agent 的白名单内——
-文档由主会话维护。）
+1. **先切分支**：`git checkout -b <type>/<slug>`（从最新 `main` 切出）。
+   **禁止在 main 上提交**——仓库的 pre-commit 钩子会直接拦截
+   （`docs/develop.md` 约束 9），绕过钩子（`--no-verify`）是违规行为。
+2. **确认基线**：开工前 `git log --oneline -1` 记录基线 hash 并写进报告，
+   便于主会话核对「改动是否基于最新 main」。
+3. **只提交、不推送**：子 Agent 完成实现 + 自测后，**仅在本地分支提交**；
+   `git push` 与 `gh pr create` 由**主会话在验收通过后**执行
+   （协议 §2 第 4 步：验收通过才合入）。
+4. **不动 `study/`**：仓库根有 `study/` 新目录（新人学习用），
+   **不要读、不要改、不要引用**，也不要把它计入任何检查
+   （`docs/develop.md` 约束 1 的例外说明）。
 
 ---
 
-## Prompt P1 —— #4 数字键选到隐藏选项
+## 批 1 的并行分析（派发前必读）
+
+**结论：P1 与 P2 必须串行派发（同一工作区）**，尽管两者文件白名单不重叠。
+
+| 包 | 覆盖 | 文件白名单 | 与其他包是否重叠 |
+|---|---|---|---|
+| **P1** | #4 键盘选择未过滤隐藏项 | `apps/player-demo/src/main.tsx`、`packages/runtime-ui/src/narrative/`、`packages/runtime-ui/test/narrative/` | 文件层面否 |
+| **P2** | #8 战斗起步死锁 + #9/#9b/#9c 回退历史 | `packages/runtime-ui/src/app/game-host.ts`、`packages/runtime-ui/src/panels/History*`、`packages/runtime-ui/test/panels/`、`packages/runtime-ui/test/acceptance/` | 文件层面否 |
+
+**为什么不能并行**（协议 §4 的隔离要求）：两个 Agent 在**同一个工作目录**，
+而 git 工作树是共享的——两者各自 `git checkout -b` 会互相打断对方的分支与提交。
+协议 §4 明确「一个工作区同时只有一个子 Agent 在写」。
+
+**若要真并行**：需 `git worktree` 各开独立工作区 + 独立分支，
+代价是每个 worktree 一次 `pnpm install`（约 195MB 依赖）。批 1 的两个包体量都不大，
+**跑串行的总成本低于开 worktree**，故采用串行。
+
+**串行顺序**：先 P1（改动面小、自包含、验证快），验收合入后再派 P2。
+
+---
+
+## Prompt P1 —— #4 数字键选到隐藏选项（**第一个派发**）
 
 ```text
 你是实现 Agent，负责修复 demo 宿主页的键盘选择缺陷，完成后返回报告。
+
+## 开工程序（先做，勿跳）
+1. `git checkout -b fix/visible-choices-single-source`（从最新 main 切出）
+2. `git log --oneline -1` 记录基线 hash，写进你的报告
+3. **只在本地提交，不要 push、不要建 PR**（由主会话验收后代为推送）
+4. 仓库根的 `study/` 目录与本次任务无关：不要读、不要改、不要引用
 
 ## 任务：修复数字键选到被隐藏选项的缺陷（#4），并把「选项可见性口径」收敛为单一来源
 
@@ -101,10 +132,17 @@
 
 ---
 
-## Prompt P2 —— #8 战斗行动按钮死锁 + #9/#9b 回退历史
+## Prompt P2 —— #8 战斗行动按钮死锁 + #9/#9b/#9c 回退历史（**P1 验收合入后派发**）
 
 ```text
 你是实现 Agent，负责修复战斗会话起步死锁与回退历史丢失两处宿主缺陷，完成后返回报告。
+
+## 开工程序（先做，勿跳）
+1. `git checkout -b fix/battle-turn-start-and-rollback-history`（从最新 main 切出；
+   注意：P1 已合入 main，务必先 `git checkout main && git pull` 再切分支）
+2. `git log --oneline -1` 记录基线 hash，写进你的报告
+3. **只在本地提交，不要 push、不要建 PR**（由主会话验收后代为推送）
+4. 仓库根的 `study/` 目录与本次任务无关：不要读、不要改、不要引用
 
 ## 任务一：修复进入战斗后无行动按钮的死锁（#8）
 
@@ -166,12 +204,21 @@
 **不改引擎**（`SceneRunner` 无历史播种 API，且引擎 `rollback` 语义正确）。
 
 宿主维护两份并行数据：
-1. `historyLog: NarrativeHistoryEntry[]`——跨会话重建累积的历史（每次 `syncSession` 时
-   把当前会话 `history()` 中**尚未入账**的尾部条目追加进来）。跨会话的 `seq` 会重复，
-   故累积时由宿主**重编号**（用宿主自己的单调递增计数器），保证投影的 `seq` 唯一且有序。
+1. `historyLog: NarrativeHistoryEntry[]`——跨会话重建累积的历史。
+   累积时机：每次 `syncSession()` 调用前（即状态推进后）把当前会话 `history()` 中
+   **尚未入账的尾部**追加进来。
+   - **关键：需要一个「本会话已入账条数」计数器**（如 `accumulatedInSession`），
+     取 `session.history().slice(accumulatedInSession)` 追加，然后更新计数器。
+     理由：`SceneRunner.history()` 的 `seq` 是**会话内**自增的——会话被替换后新会话
+     从 seq 0 重新开始；若只按 `seq` 判断「是否已入账」，重建后会把新会话的条目录成
+     已入账（丢历史）或重复入账。**会话被替换的任何位置都要把该计数器清零**
+     （`rollback` 的重建处、`choose` 失败时的重建处）。
+   - 累积时由宿主**重编号** `seq`（用宿主自己的单调递增计数器），保证投影的
+     `seq` 唯一、有序且跨会话可比。
 2. `rollbackMarks: number[]`——**每次打检查点的同一时刻**（`choose` 里调 `rt.checkpoint(label)` 处）
    记录当时的 `historyLog.length`。它与引擎的检查点栈**同长同序**：
    引擎栈超深丢最旧（`PERF_GUARD.checkpointStackDepth = 5`），故宿主也要 `shift()` 保持镜像。
+   - 注意顺序：`historyLog` 的累积要先于记录 mark，否则 mark 会指向错误的截断点。
 
 **回滚时的截断口径**（务必按此实现，这里有 off-by-one 风险）：
 引擎 `rollback(steps)` 弹出的是**最近的 steps 个**（最深的最先被弹出），
@@ -203,6 +250,13 @@
       · 检查点为 0 时回滚报 `NO_CHECKPOINT` 且历史不变（既有行为）；
       · **#9b**：分组的 `rollbackSteps` 与真实可用步数一致——
         断言「按该步数回滚后，状态等于该组开始时的状态」
+
+> **明确不做（勿顺手实现）**：`demo-issues-11.md` #9 提到的「回退后加一条 Toast 说明」
+> （「已回退 1 步，画面回入口场景」）**不在本包范围**——它需要新的文本键，
+> 属 #10「i18n 键面归属」的收尾范围（批 3）。**不要为此硬编码中文文案**，
+> 否则会加剧 #10 的问题。本包只做「历史保留与截断」这件实事。
+> 修好历史保留后，玩家点「回退一步」能直接看到历史仍在、只少了最后一点——
+> 观感问题即已解决。
 
 ### 硬约束
 - **允许改动**：`packages/runtime-ui/src/app/game-host.ts`、
