@@ -16,6 +16,19 @@ export interface HistoryGroup {
   /** 组内首段的游戏日（分组标题的一部分） */
   readonly day: number;
   readonly entries: readonly HistoryEntryView[];
+  /**
+   * 回到本组所需的**回退步数**（= 检查点步数，1 起；additive，2026-09-26 修 #9b）。
+   *
+   * 为什么由宿主提供而非面板自算：面板此前用「分组距离」冒充步数
+   * （`lastIndex - index`），而 `rollback(steps)` 的 steps 是**检查点步数**
+   * ——分组边界是「换场景或跨天」，检查点边界是「每次选择」，两者不是同一个量
+   * （实测 5 个检查点 vs 7 个分组：面板会给出「回退 6 步」而栈只有 5 步，
+   * 点了必然 NO_CHECKPOINT）。步数只有宿主持有检查点账本才知道。
+   *
+   * **缺省 = 面板不渲染回退按钮**（宁可没有，也不给错按钮）：该组起点没有对应的
+   * 检查点时（如当前所在组、或已超出回滚栈深）无法精确回到该处。
+   */
+  readonly rollbackSteps?: number;
 }
 
 /** 单条历史条目视图 */
