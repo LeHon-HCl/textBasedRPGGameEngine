@@ -47,9 +47,11 @@ describe('L2-C-1 主线：任务链「墙中徽记」完整闭环', () => {
     driver.choose('listen_rumor');
     expect(driver.host.runtime.state.world.flags['heard_rumor']).toBe(true);
 
-    // 2. 镇口接取（inspect_wall：showIf insight >= 2）
+    // 2. 镇口接取（inspect_wall：showIf 现为 `attr.insight >= 2 &&
+    //    flag.old_guard_met`——#7 后必须先搭话，否则徽记选项不出现）
     driver.choose('back_arrival');
     driver.choose('go_gate');
+    driver.choose('greet_guard'); // 置 old_guard_met（#7 要求；同时满足 npc.old_guard.talked）
     driver.host.runtime.exec([{ add: { key: 'attr.insight', amount: 2 } }], {
       source: 'debug',
       where: { scene: driver.sceneId },
@@ -59,8 +61,7 @@ describe('L2-C-1 主线：任务链「墙中徽记」完整闭环', () => {
     driver.choose('inspect_wall');
     expect(host.runtime.state.quests['wall_rubbing']?.state).toBe('active');
 
-    // 3. 阶段 1：镇口事件「拓下徽记」（需 evening/night + old_guard_met）
-    driver.choose('greet_guard'); // 置 old_guard_met（同时满足 npc.old_guard.talked）
+    // 3. 阶段 1：镇口事件「拓下徽记」（需 evening/night + old_guard_met；flag 已由上方搭话置位）
     // **地点同步**：选项的 goto 只切场景、不更新地点；而事件池按地点过滤——
     // 不同步则时间评估发生在旧地点（market），gate 的事件永不入选
     driver.syncLocationTo('old_town', 'gate');
@@ -113,8 +114,9 @@ describe('L2-C-2 主线：任务链「山道勘察」完整闭环（含 requires
       rng: host.runtime.rng,
     });
     driver.drain();
-    driver.choose('inspect_wall');
+    // #7：先搭话（置 old_guard_met，inspect_wall 的 showIf 现要求它）再辨认徽记
     driver.choose('greet_guard');
+    driver.choose('inspect_wall');
     driver.syncLocationTo('old_town', 'gate');
     driver.setSlot(1);
     driver.keepEventScenes(true);

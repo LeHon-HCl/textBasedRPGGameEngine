@@ -124,8 +124,12 @@ const CHOICE_CASES: readonly ChoiceCase[] = [
   {
     scene: 'town_gate',
     choice: 'inspect_wall',
+    // #7（2026-09-26）：inspect_wall 的 showIf 现为 `attr.insight >= 2 &&
+    // flag.old_guard_met`——必须先与老卫兵搭话（greet_guard 置该 flag），
+    // 否则该选项永不出现。setup 保持覆盖（本用例仍断言「可达且有效果」）。
     setup: [
       { do: 'choose', id: 'go_gate' },
+      { do: 'choose', id: 'greet_guard' },
       { do: 'grantInsight', amount: 2 },
     ],
   },

@@ -18,7 +18,13 @@ choices:
       - notify: { textKey: 'scenes.town_gate.notify.guard_met' }
   - id: inspect_wall
     textKey: scenes.town_gate.choice.inspect_wall
-    showIf: 'attr.insight >= 2'
+    # #7（2026-09-26）：此前只要求 `attr.insight >= 2`，于是玩家还没和镇口老卫兵
+    # 搭过话就能「仔细辨认墙上的徽记」并接下「墙中徽记」——审查上不合理（卫兵未
+    # 提示过墙面），且与 `greet_guard`（showIf `!flag.old_guard_met`）天然互补：
+    # 搭话后 greet 消失、inspect 才出现，两者构成「先搭话 → 再辨认」的顺序。
+    # 另注：inspect_wall 接的任务其舞台事件 ev_wall_whisper 本就 require
+    # `flag.old_guard_met`，此改动使选项面与该前置一致。
+    showIf: 'attr.insight >= 2 && flag.old_guard_met'
     # 一次性（§4.2「once 选项」）：辨认徽记是「看过就完了」的动作，且其效果含
     # `quest: accept`——重复触发会被任务状态机合法拒绝（active→active 非 accept
     # 触发）。加 once 后选过即隐藏，与同夹具 survey/mark_shrine 的守卫口径一致。
