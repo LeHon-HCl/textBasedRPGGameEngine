@@ -569,7 +569,15 @@ function OverlayPanels({ host }: { host: GameHost }): ReactNode {
         />
       ) : null}
       {openPanel === 'achievements' ? (
-        <AchievementGalleryPanel view={host.achievementGallery()} />
+        <AchievementGalleryPanel
+          view={host.achievementGallery()}
+          // #1：此前未传 onClose → 面板无退出入口，叠加层里进来出不去（只能刷新）。
+          // 与同文件 ShopPanel 的 onClose 同写法：关面板 + 强制重读投影。
+          onClose={() => {
+            host.store.getState().openPanel(null);
+            forceRender();
+          }}
+        />
       ) : null}
     </div>
   );
