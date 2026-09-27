@@ -245,6 +245,64 @@ describe('25B-B1 历史回看投影（FR-READ-04）', () => {
 });
 
 /**
+ * 问题 #5（2026-09-26）：宿主 `history()` 曾**不传 resolver** 调用
+ * `projectHistory(historyLog)`，落到「缺省直接用键」的降级分支，玩家在历史面板
+ * 看到 `scenes.arrival.open` 这类原始文本键。
+ *
+ * 上方 FR-READ-04 用例组已覆盖投影层的两分支（注入 resolver / 缺省回落）；
+ * 本组补的是**宿主装配层**——投影层正确不等于宿主接线正确（本项目已发生多次
+ * 「引擎就绪但玩家点了没反应」的装配缺口）。断言打到 `host.history()` 的输出。
+ */
+describe('FR-READ-04 问题 #5：宿主 history() 条目文本物化', () => {
+  /** 原始文本键的形态（`scenes.arrival.open` / `items.herb.name`） */
+  const KEY_SHAPE = /^[a-z_]+\.[a-z_.]+$/;
+
+  it('条目文本是译文而非原始键；与 textOf 同源', async () => {
+    const host = await makeHost();
+    host.start();
+    host.advance();
+    advanceToChoices(host);
+
+    const entries = host.history().flatMap((group) => group.entries);
+    expect(entries.length, '入口场景推进后应有历史条目').toBeGreaterThan(0);
+
+    for (const entry of entries) {
+      const title = `条目 seq=${String(entry.seq)}`;
+      expect(entry.text.length, `${title} 文本非空`).toBeGreaterThan(0);
+      // 核心断言：展示文本**不是**原始文本键（缺陷的直接表征）
+      expect(entry.text, `${title} 不应是文本键`).not.toMatch(KEY_SHAPE);
+    }
+    // 首段 = 入口场景开场白：与 textOf 同源（语言口径一致）且是 zh-CN 译文
+    expect(entries[0]?.text).toBe(host.textOf('scenes.arrival.open'));
+    expect(entries[0]?.text).not.toBe('scenes.arrival.open');
+    expect(entries[0]?.text).toContain('石板路');
+  });
+
+  it('切换语言到 en-US 后条目文本随之变化（语言来源 = 当前设置语言）', async () => {
+    const host = await makeHost();
+    host.start();
+    host.advance();
+    advanceToChoices(host);
+    const zhEntries = host.history().flatMap((group) => group.entries);
+    const zh = zhEntries.map((entry) => entry.text);
+    expect(zh[0], '主语言（zh-CN）译文').toContain('石板路');
+
+    host.updateSettings({ lang: 'en-US' });
+    const enEntries = host.history().flatMap((group) => group.entries);
+    const en = enEntries.map((entry) => entry.text);
+
+    // 抓「传了 resolver 但语言写死 zh-CN / mainLang」的错误：文本必须变
+    expect(en[0], '切语言后历史文本应变化').not.toBe(zh[0]);
+    expect(en[0]).toBe(host.textOf('scenes.arrival.open'));
+    expect(en[0]).toContain('flagstones');
+    // 只换语言，不改历史：条目数与 seq 不变
+    expect(en).toHaveLength(zh.length);
+    expect(enEntries.map((entry) => entry.seq)).toEqual(zhEntries.map((entry) => entry.seq));
+    for (const text of en) expect(text, '切换后仍不应出现原始键').not.toMatch(KEY_SHAPE);
+  });
+});
+
+/**
  * #9 / #9b / #9c 回归防线（2026-09-26）。
  *
  * 背景（用户实测 #9）：走了很多步后点「回退一步」，历史面板从 7 组变成 1 组、
@@ -275,7 +333,7 @@ describe('25B-B1 #9 回退保留历史并截断到对应位置', () => {
     return host.history().map((group) => `${group.sceneId}:${String(group.entries.length)}`);
   }
 
-  /** 全部历史条目的文本键（逐条断言首尾用） */
+  /** 全部历史条目的展示文本（逐条断言首尾用；已物化译文） */
   function entryKeys(host: GameHost): readonly string[] {
     return host.history().flatMap((group) => group.entries.map((entry) => entry.text));
   }
@@ -347,7 +405,10 @@ describe('25B-B1 #9 回退保留历史并截断到对应位置', () => {
     host.rollback(3);
     expect(host.availableRollbackSteps()).toBe(0);
     expect(groupSignature(host), '回退到最初后只剩重建会话的入口场景').toEqual(['arrival:1']);
-    expect(entryKeys(host)[0]).toBe('scenes.arrival.open');
+    // 语义修正（问题 #5）：宿主 history() 已物化文本，首段是入口场景开场白译文，
+    // 不再是原始键 'scenes.arrival.open'。与 textOf 同源（同一 resolver + 语言）。
+    expect(entryKeys(host)[0]).toBe(host.textOf('scenes.arrival.open'));
+    expect(entryKeys(host)[0]).not.toBe('scenes.arrival.open');
   });
 
   it('检查点为 0 时回滚报 NO_CHECKPOINT 且历史不变（既有行为）', async () => {
