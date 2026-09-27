@@ -4,6 +4,7 @@ import { RichText } from '../text/RichText.js';
 import { sanitizeRichText } from '../text/sanitize.js';
 import { sliceRichTextNodes } from '../text/typewriter.js';
 import { TOUCH_TARGET_PX } from '../app/AppShell.js';
+import { visibleChoices } from './choice-visibility.js';
 import { DEFAULT_NARRATIVE_LABELS, describeEnding } from './types.js';
 import type {
   NarrativeLabels,
@@ -161,7 +162,8 @@ function varsOf(segment: NarrativeSegmentView): Readonly<Record<string, unknown>
  * 选项列表（FR-READ-03 的唯一交互入口）。
  *
  * 渲染规则：
- * - `hiddenByFilter` 的选项**不渲染**（FR-CGRD-03 应用点 3）；
+ * - `hiddenByFilter` 的选项**不渲染**（FR-CGRD-03 应用点 3）——口径经
+ *   {@link visibleChoices} 取用，与宿主键盘选择共用同一实现；
  * - `enabled=false` 的选项渲染为禁用按钮并在下方显示原因（可见不可点）；
  * - 点击经 `onChoice(id)` 回调——checkpoint 由宿主在该回调内完成
  *   （{@link withChoiceCheckpoint}），组件不接触运行时（保持可测与受控）。
@@ -177,7 +179,7 @@ export function OptionList({
   readonly lang: string;
   readonly onChoice: (id: string) => void;
 }): ReactNode {
-  const visible = choices.filter((choice) => choice.hiddenByFilter !== true);
+  const visible = visibleChoices(choices);
   return (
     <div style={styles.options} role="group" aria-label="选项">
       {visible.map((choice) => {

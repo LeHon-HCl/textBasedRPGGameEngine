@@ -3,9 +3,12 @@
  *
  * 组件：NarrativeView / OptionList —— 全部 props 受控、可 Testing Library 测。
  * 编排：createChoiceCheckpoint / withChoiceCheckpoint —— 选择前打点（FR-READ-03）。
+ * 口径：visibleChoices —— 选项可见性唯一来源（FR-CGRD-03 应用点 3；渲染与
+ * 键盘索引两侧共用，见 `docs/reviews/demo-issues-11.md` #4）。
  */
 export { NarrativeView, OptionList } from './NarrativeView.js';
 export type { NarrativeViewProps } from './NarrativeView.js';
+export { visibleChoices } from './choice-visibility.js';
 export {
   choiceCheckpointLabel,
   createChoiceCheckpoint,
