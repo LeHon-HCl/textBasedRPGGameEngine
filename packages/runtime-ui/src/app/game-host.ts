@@ -235,6 +235,15 @@ export interface GameHost {
 export const DEFAULT_HOST_SEED = 2026;
 
 /**
+ * 战斗相位驱动的迭代上限（#8 死锁修复的防御边界）。
+ *
+ * 正常数据下「驱动到玩家可行动」只需几次 `beginTurn()`（队列长度 + 换轮），
+ * 上限只为防御异常数据（如 AI 决策反复不收敛）导致的死循环——超限即经
+ * `lastError` 显性化，不静默吞掉（与引擎「数据问题要看得见」同规）。
+ */
+const BATTLE_DRIVE_LIMIT = 100;
+
+/**
  * 创建游戏宿主（见模块 TSDoc）。
  *
  * @param options 定义与初始数据（见 {@link GameHostOptions}）
@@ -647,6 +656,14 @@ export function createGameHost(options: GameHostOptions): GameHost {
       battleController = controller;
       battleEncounterId = event.encounter;
       store.getState().openPanel('battle' as never);
+      // **起步驱动（#8，2026-09-26）**：会话构造后相位是 turn_order，而面板只在
+      // await_player 渲染行动按钮——不在此驱动，玩家看不到任何按钮（「等待你的
+      // 行动…」是假提示：此时等的是宿主），战斗永久卡死。驱动到玩家可行动或终局。
+      driveBattle(controller);
+      if (controller.session.result() !== null) {
+        // 起步即终局（如首轮敌方全灭/玩家倒下）：与 battleAct 的终局消费同一条路径
+        consumeBattleOutcome(controller);
+      }
     });
     // 成就评估（18 号）：解锁链路是「引擎评估 → 宿主 mutate Profile」——
     // 启动时同步一次已解锁集合，事务后按 touched 增量评估（桥接来自 store）。
@@ -701,6 +718,68 @@ export function createGameHost(options: GameHostOptions): GameHost {
     }
     action(session);
   };
+
+  // —— 战斗相位驱动（#8 死锁修复，2026-09-26） ——
+
+  /**
+   * 把战斗会话从 `turn_order` 驱动到**玩家可行动或终局**（有界循环）。
+   *
+   * 为什么必须有这个函数：`BattleSession` 构造后相位是 `turn_order`（八相位状态机
+   * 第一相），而 `BattlePanel` 只在 `phase === 'await_player'` 时渲染行动按钮
+   * （`BattlePanel.tsx` 的 `canAct`）——`turn_order` 落进 else 只显示
+   * 「等待你的行动…」。此前的宿主只在**收到玩家行动之后**才调 `beginTurn()`，
+   * 没有按钮就没人能发出第一次行动 → 战斗永久卡死（用户实测 #8）。
+   *
+   * 相位语义（引擎 `session.ts#beginTurn`）：弹出队首——玩家侧 → 返回
+   * `await_player`（停，等输入）；敌方侧 → **内部完成 AI 决策与结算**并把相位
+   * 收敛到 `victory`/`defeat`/`escaped`/`turn_order`。故须循环：相位仍为
+   * `turn_order` 就继续 `beginTurn()`，直到玩家可行动或终局。
+   *
+   * 迭代上限（{@link BATTLE_DRIVE_LIMIT}）防御异常数据导致的死循环——超限经
+   * `lastError` 显性化，**不静默吞掉**（与宿主既有错误机制同规）。
+   *
+   * 异常捕获：`driveBattle` 会在 `battle_start` 订阅内被调用，而引擎的事件送达
+   * 会**隔离监听器异常**（`GameRuntime.#dispatch` 的 try/catch 静默）——不在此
+   * 捕获则 AI/结算异常会变成「面板打开但相位停在 turn_order」的静默死锁。
+   * 故统一转成 `lastError`（错误卡片可消费），与 `guard()` 同口径。
+   */
+  function driveBattle(controller: BattleController): void {
+    const battleSession = controller.session;
+    try {
+      for (let guard = 0; battleSession.result() === null; guard += 1) {
+        // 玩家可行动 = 停点；其余非 turn_order 相位（理论上不可达）也停，避免空转
+        if (battleSession.phase() !== 'turn_order') return;
+        if (guard >= BATTLE_DRIVE_LIMIT) {
+          lastError = {
+            code: 'BATTLE_DRIVE_LIMIT',
+            messageKey: 'ui.error.internal',
+            detail: `战斗相位驱动超过 ${String(BATTLE_DRIVE_LIMIT)} 次仍未到玩家可行动或终局（encounter=${battleEncounterId}）`,
+          };
+          return;
+        }
+        battleSession.beginTurn();
+      }
+    } catch (error) {
+      lastError = toHostError(error);
+    }
+  }
+
+  /**
+   * 终局消费（与 `battleAct` 同一条路径，两处不漂移）：`pollOutcome()` 执行路由
+   * 效果（rewards + 分支）→ 清控制器 → 关面板 → `jumps` 经 `withSession` 注回叙事。
+   *
+   * @returns 是否已消费终局（false = 会话未终局或已消费过）
+   */
+  function consumeBattleOutcome(controller: BattleController): boolean {
+    const outcome = controller.pollOutcome();
+    if (outcome === null) return false;
+    battleController = null;
+    store.getState().openPanel(null);
+    if (outcome.jumps.length > 0) {
+      withSession((runner) => runner.applyFlowJumps(outcome.jumps));
+    }
+    return true;
+  }
 
   return {
     store,
@@ -810,27 +889,23 @@ export function createGameHost(options: GameHostOptions): GameHost {
     },
     battleAct: (action) =>
       guard(() => {
-        if (battleController === null) return;
         const controller = battleController;
-        const session = controller.session;
-        if (session.result() === null) {
-          // 会话相位驱动：turn_order 起手 → await_player → 玩家行动
-          if (session.phase() === 'turn_order') session.beginTurn();
-          if (session.phase() === 'await_player') {
-            session.playerAction(action as never);
+        if (controller === null) return;
+        const battleSession = controller.session;
+        if (battleSession.result() === null) {
+          // 会话相位驱动：正常路径下 battle_start 的起步驱动已把相位停在
+          // await_player（#8），此处 turn_order 分支是纵深防御（不空转、不漂移）。
+          if (battleSession.phase() === 'turn_order') driveBattle(controller);
+          if (battleSession.phase() === 'await_player') {
+            battleSession.playerAction(action as never);
           }
         }
-        // 终局消费：pollOutcome 执行路由效果（rewards + 分支），jumps 注回叙事
-        const outcome = controller.pollOutcome();
-        if (outcome !== null) {
-          battleController = null;
-          store.getState().openPanel(null);
-          if (outcome.jumps.length > 0) {
-            withSession((runner) => runner.applyFlowJumps(outcome.jumps));
-          }
-        } else if (session.result() === null) {
-          // 未终局：继续推进到下一次玩家输入
-          if (session.phase() === 'turn_order') session.beginTurn();
+        // 终局消费：pollOutcome → 清控制器 → 关面板 → jumps 注回叙事（与起步驱动同路径）
+        if (!consumeBattleOutcome(controller) && battleSession.result() === null) {
+          // 未终局：继续推进到下一次玩家输入（敌方可能连续行动多轮——有界循环）
+          driveBattle(controller);
+          // 续推可能直接终局（敌方把玩家打倒等）——终局消费不能漏
+          consumeBattleOutcome(controller);
         }
       }),
 

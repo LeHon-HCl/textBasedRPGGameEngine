@@ -118,6 +118,46 @@ describe('面板接线：战斗（battle_start 消费）', () => {
     expect(host.store.getState().panels.open).toBe('battle');
   });
 
+  // —— #8 死锁回归防线（2026-09-26）——
+  // 既有用例只断言「会话建立 + 面板打开」，漏掉了「无行动按钮」的死锁：
+  // BattleSession 构造后相位是 turn_order，而 BattlePanel 只在 await_player
+  // 渲染按钮——宿主不主动驱动就永远没有第一次行动。故此处**必须**断言相位。
+  it('进入战斗后相位为 await_player（#8：玩家可行动，不是 turn_order 死锁）', async () => {
+    const { host, driver } = await enterBattle();
+    driver.choose('fight_rats');
+
+    const session = host.battleSession();
+    expect(session, '战斗会话应已建立').not.toBeNull();
+    // 这条断言就是 #8 的回归防线：turn_order 时面板只显示「等待你的行动…」
+    // （假提示——那时等的是宿主），玩家无任何按钮可点、战斗永久卡住。
+    expect(session?.phase, '进入战斗后相位应为 await_player（否则面板无行动按钮）').toBe(
+      'await_player',
+    );
+    // 相位对了还要**有按钮可渲染**：投影出的行动列表非空
+    expect(session?.awaitingPlayer).toBe(true);
+    expect(
+      session?.actions.length,
+      '玩家应有可用行动（至少缺省 strike/防御/逃跑）',
+    ).toBeGreaterThan(0);
+    // 未提前误判终局：面板仍开着，等待玩家
+    expect(host.store.getState().panels.open).toBe('battle');
+    expect(host.lastError()).toBeNull();
+  });
+
+  it('进入战斗后可直接行动（无需任何前置宿主调用）', async () => {
+    const { host, driver } = await enterBattle();
+    driver.choose('fight_rats');
+    // 立刻行动即可生效——证明起步驱动已完成，玩家不必先「唤醒」宿主
+    host.battleAct({ kind: 'skill', skillId: 'strike' });
+    const session = host.battleSession();
+    const attacked =
+      session === null ||
+      session.log.some(
+        (entry) => entry.key === 'battle.log.skill' || entry.key === 'battle.log.damage',
+      );
+    expect(attacked, '首次行动应被会话接受（相位已在 await_player）').toBe(true);
+  });
+
   it('玩家攻击 → 敌人掉血（会话真实推进）', async () => {
     const { host, driver } = await enterBattle();
     driver.choose('fight_rats');
@@ -132,17 +172,20 @@ describe('面板接线：战斗（battle_start 消费）', () => {
     expect(after === null || hpAfter === undefined || hpAfter < hpBefore).toBe(true);
   });
 
-  it('防御行动：置位 defending（会话语义）', async () => {
+  it('防御行动：日志留下 defend 记录，回合继续推进', async () => {
     const { host, driver } = await enterBattle();
     driver.choose('fight_rats');
     host.battleAct({ kind: 'defend' });
     const session = host.battleSession();
-    // 防御后可能轮到敌方（会话推进），玩家单位的 defending 标记在下一轮清除
-    expect(
-      session === null ||
-        session.phase !== 'await_player' ||
-        session.units.some((u) => u.defending),
-    ).toBe(true);
+    // 防御的会话语义 = 日志记账（`battle.log.defend`）；defending 标记持续到
+    // **下一轮开始**（引擎 #enterTurnOrder 清除），故此处只断言「行动已被接受」。
+    // 修 #8 前这条用例写的是「防御后要么轮不到玩家、要么有人 defending」——
+    // 那是死锁状态下的宽松兜底断言，起步驱动落地后不再适用。
+    expect(session?.log.some((entry) => entry.key === 'battle.log.defend')).toBe(true);
+    // 敌方已行动（AI 结算）→ 回合回到玩家或已终局；两者都说明会话在推进
+    const stillRunning = session !== null;
+    const backToPlayer = session?.phase === 'await_player';
+    expect(!stillRunning || backToPlayer).toBe(true);
   });
 
   it('战斗终局：胜利后路由效果入账（flag + 面板关闭）', async () => {
