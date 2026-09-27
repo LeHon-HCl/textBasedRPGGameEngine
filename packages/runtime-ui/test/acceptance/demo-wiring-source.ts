@@ -113,3 +113,53 @@ export function callAt(source: string, name: string): number {
   if (match === null) throw new Error(`源码中未找到 ${name} 的调用`);
   return match.index;
 }
+
+/**
+ * 取名为 `name` 的**函数声明体**（`function name(...) { ... }` 的大括号内文本）。
+ *
+ * 为什么需要：`jsxTag` 只能取「某组件在某处的**使用**标签」，但组件内部的
+ * 渲染逻辑（如 `ErrorCard` 的两个按钮与分支判断）位于其**定义体**里——全文
+ * grep 无法区分「这个分支属于 ErrorCard」还是「属于恰好也叫按钮的别处」。
+ * 本函数把断言范围收窄到该函数的定义体，与 `jsxTag` 同一口径。
+ *
+ * 括号配对：先跳过参数列表（可能含解构 `{ host }`），再跨过返回类型注解定位
+ * 函数体 `{`，最后配对到对应的 `}`。找不到函数、参数列表或函数体未闭合时抛错。
+ */
+export function functionBody(source: string, name: string): string {
+  const marker = `function ${name}(`;
+  const start = source.indexOf(marker);
+  if (start === -1) throw new Error(`源码中未找到 function ${name}(`);
+  if (!/[\s({]/.test(source[start + marker.length] ?? '')) {
+    throw new Error(`function ${name}( 不是独立函数名`);
+  }
+  const bodyStart = findBodyOpen(source, start + marker.length - 1);
+  let depth = 0;
+  for (let i = bodyStart; i < source.length; i += 1) {
+    const ch = source[i] as string;
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(bodyStart + 1, i);
+    }
+  }
+  throw new Error(`function ${name} 的函数体未闭合`);
+}
+
+/** 从参数列表左括号起，跨过参数与返回类型注解，返回函数体 `{` 的下标 */
+function findBodyOpen(source: string, paramsOpen: number): number {
+  let depth = 0;
+  for (let i = paramsOpen; i < source.length; i += 1) {
+    const ch = source[i] as string;
+    if (ch === '(') depth += 1;
+    else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        // 参数列表结束 → 下一个 `{` 即函数体起点（跳过 `: ReactNode` 之类注解）
+        const body = source.indexOf('{', i);
+        if (body === -1) throw new Error('函数体未找到');
+        return body;
+      }
+    }
+  }
+  throw new Error('参数列表未闭合');
+}

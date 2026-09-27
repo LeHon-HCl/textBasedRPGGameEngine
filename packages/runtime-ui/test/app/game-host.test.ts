@@ -164,6 +164,60 @@ describe('选择前 checkpoint（FR-READ-03）', () => {
   });
 });
 
+/**
+ * #3 宿主关闭入口：`clearError()`。
+ *
+ * 缺陷形态：`lastError` 此前只在 `guard()`（每次操作开始）与 `start()` 时清空，
+ * 玩家**没有主动消掉的路径** → 错误卡片常驻；且卡片上唯一的「回退一步」在无
+ * 回退点时点了必然再报同一个错（`NO_CHECKPOINT`）。宿主补 `clearError()` 后，
+ * demo 侧才有可接的关闭入口。
+ */
+describe('#3 宿主 clearError：错误展示面可被玩家主动清除', () => {
+  /** 在空回滚点上制造一个 lastError（rollback 的 NO_CHECKPOINT 非异常路径） */
+  async function makeHostWithError(): Promise<GameHost> {
+    const host = await makeHost();
+    host.start();
+    host.rollback();
+    expect(host.lastError()?.code).toBe('NO_CHECKPOINT');
+    return host;
+  }
+
+  it('清掉 lastError 并刷新会话投影（订阅 session 的卡片据此重渲染）', async () => {
+    const host = await makeHostWithError();
+    const sceneBefore = host.store.getState().session.sceneId;
+    host.clearError();
+    expect(host.lastError()).toBeNull();
+    // 会话投影被重新写入（syncSession 的信号）；叙事位置不受影响
+    expect(host.store.getState().session.sceneId).toBe(sceneBefore);
+  });
+
+  it('不改变运行时状态（展示面操作，无回滚语义）', async () => {
+    const host = await makeHostWithError();
+    const before = host.runtime.serialize();
+    host.clearError();
+    expect(host.runtime.serialize()).toEqual(before);
+  });
+
+  it('清除后不影响后续操作：新错误仍会被记入（非永久静音）', async () => {
+    const host = await makeHostWithError();
+    host.clearError();
+    expect(host.lastError()).toBeNull();
+    // 再点一次无回退点的回退 → 错误照常显性化（clearError 不是「关闭错误上报」）
+    host.rollback();
+    expect(host.lastError()?.code).toBe('NO_CHECKPOINT');
+  });
+
+  it('无错误时调用是幂等的（不抛错、状态不变）', async () => {
+    const host = await makeHost();
+    host.start();
+    expect(host.lastError()).toBeNull();
+    const before = host.runtime.serialize();
+    host.clearError();
+    expect(host.lastError()).toBeNull();
+    expect(host.runtime.serialize()).toEqual(before);
+  });
+});
+
 describe('选择失败后的会话恢复（2026-09-15 用户实测缺陷）', () => {
   /**
    * 背景：某选项的效果在运行期失败（典型：`quest: accept` 被状态机拒绝）时，
