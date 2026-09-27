@@ -79,16 +79,22 @@ const PANEL_TITLES: Record<PanelId, string> = {
 
 /**
  * 打字机驱动：按速度逐字推进（组件层只做展示，进度归宿主）。
- * 减弱动画或速度 ≤0 时立即全显（NFR-26 / FR-READ-05）。
+ * 减弱动画、速度 ≤0 或 `revealInstantly`（FR-READ-01 已读/跳过）时立即全显
+ * （NFR-26 / FR-READ-05）。
  */
-function useRevealedChars(text: string, speed: number, active: boolean): number {
+function useRevealedChars(
+  text: string,
+  speed: number,
+  active: boolean,
+  revealInstantly: boolean,
+): number {
   const reduced = usePrefersReducedMotion();
   const total = text.length;
   const [revealed, setRevealed] = useState(total);
   const timerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (!active || reduced || speed <= 0 || total === 0) {
+    if (!active || reduced || speed <= 0 || revealInstantly || total === 0) {
       setRevealed(total);
       return undefined;
     }
@@ -106,7 +112,7 @@ function useRevealedChars(text: string, speed: number, active: boolean): number 
     return () => {
       if (timerRef.current !== undefined) window.clearInterval(timerRef.current);
     };
-  }, [text, speed, active, reduced, total]);
+  }, [text, speed, active, reduced, revealInstantly, total]);
 
   return revealed;
 }
@@ -228,14 +234,22 @@ function GameScreen({ host }: { host: GameHost }): ReactNode {
     lastTextSegment?.key !== undefined
       ? host.resolver.resolve(lastTextSegment.key, settings.lang, lastTextSegment.vars).text
       : '';
-  const revealed = useRevealedChars(lastText, settings.textSpeed, phase === 'await_advance');
-
-  // 阅读 QoL（FR-READ-01/02）：跳读 + 自动播放（遇选项/判定/战斗自动暂停）
+  // 阅读 QoL（FR-READ-01/02）：跳读 + 自动播放（遇选项/判定/战斗自动暂停）。
+  // 调用次序：`useReadingControl` **必须**在 `useRevealedChars` 之前——后者的
+  // 「立即全显」入参就是前者的 `revealInstantly`（#2：此前只吃 textSpeed，跳过
+  // 开关状态算出来却无人消费）。两者均为无条件调用，重排不影响 Rules of Hooks。
   const reading = useReadingControl({
     phase,
     segmentKey: String(session.segments.length),
     onAdvance: () => host.advance(),
   });
+
+  const revealed = useRevealedChars(
+    lastText,
+    settings.textSpeed,
+    phase === 'await_advance',
+    reading.revealInstantly,
+  );
 
   // 快捷键（FR-READ-06）：1-9 选项 / Space 推进 / H 历史 / S·L 快存读 / R 回退。
   // 选项**索引口径**必须是玩家屏幕上看到的列表：经 visibleChoices 过滤后再取下标，
