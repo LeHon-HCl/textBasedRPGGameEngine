@@ -5,22 +5,29 @@
 > 供人类过目后按批次派发子 Agent（派发 prompt 见 `docs/plans/subagent-prompts.md`）。
 > **核对方式**：根因均经**主会话实读代码或实跑检查**确认（《依据》列标注证据位置），
 > 非推测。核对日期 2026-09-26。
-> **状态**：待人类审查。
+> **状态**：批 1（#4/#8/#9）已修复合入（PR #56 / #57）；其余待派发。
+> 2026-09-27 增补 **#12**（批 1 验收的真实浏览器复核新发现）。
 
 ## 结论摘要
 
-**引擎核心无缺陷。** 11 项归为三类（另发现 3 项同源问题，一并登记）：
+**引擎核心无缺陷。** 11 项归为三类（另发现 4 项同源问题，一并登记）：
 
 | 类别 | 项数 | 条目 | 性质 |
 |---|---|---|---|
-| **A 类：真 bug** | 3 | #4 #8 #9（含 9b） | 宿主/demo 侧实现错误，影响可玩性，优先修 |
+| **A 类：真 bug** | 3 | #4 #8 #9（含 9b/9c） | 宿主/demo 侧实现错误，影响可玩性，优先修 |
 | **B 类：接线遗漏** | 4 | #2 #5 #6（含 6b）#11 | 组件能力已就绪、宿主未接（L-1 的第 7–10 例） |
 | **C 类：规范/内容** | 4 | #1 #3 #7 #10 | UX 与内容设计，连同开发者规范一并处理 |
+| **D 类：新发现** | 1 | #12（战斗伤害恒为 0） | 批 1 浏览器复核抓出，demo 侧数据装配缺陷 |
 
-**本次核对新发现 3 项**（均登记在对应条目内）：
+**本次核对新发现 4 项**（均登记在对应条目内）：
 - **#9b**：历史面板「回退 N 步」用**分组距离**当步数，与检查点步数不一致（实测 5 个检查点 vs 7 个分组）；
 - **#6b**：战斗日志显示原始文本键（与 #6① 同一装配遗漏模式）；
-- **#9c**：`HistoryPanel.canRollback` 全仓无调用点 → 回退按钮永不置灰。
+- **#9c**：`HistoryPanel.canRollback` 全仓无调用点 → 回退按钮永不置灰；
+- **#12**：**战斗伤害恒为 0**——demo 的 `initialAttrs` 少给 `atk/def/spd`，
+  而宿主**只**用 `initialAttrs` 播种属性（`attrDefs.init` 不参与播种），
+  玩家 `atk` 为 `undefined` → 伤害公式 `(attr ?? 0) * mult − def` 恒为 0。
+  **批 1 的真实浏览器复核抓出**（引擎单测与既有 L2 检查都覆盖不到——
+  检查驱动层注入了完整属性，浏览器宿主没有）。详见下方 #12。
 
 另有 **1 项原登记问题被证伪**（原 T-2「`requires`/`showIf` 可见性缺陷」），见文末。
 
@@ -184,6 +191,27 @@
 | **修复方案** | 分两步：① **规范层**——明确「引擎内置 `ui.*` 键」的词典归属（建议：引擎随包提供基础词典 zh-CN/en-US，宿主合并游戏包词典时以游戏包优先）；② **demo 层**——把硬编码中文提为键（可先只做工具条与标题）。<br>②可与本批 C 类一起做，①建议写成规范条目后再实现。 |
 | **归属** | ① **规范 + 引擎**（新增基础词典）；② **demo**。 |
 | **依据** | 实读 `packages/runtime-ui/src/app/game-host.ts`（grep `ui\.[a-z_.]*` 得 5 个键）、`apps/player-demo/src/main.tsx:69-77,116,140,258-290,442-469`；`fixtures/mini-game/locales/en-US/` 无 `ui.yaml`。 |
+
+---
+
+## D 类：验收复核新发现
+
+### #12 战斗伤害恒为 0（玩家打不动敌人）
+
+| 项 | 内容 |
+|---|---|
+| **现象** | 真实浏览器里进入战斗、行动按钮已可见可点（#8 已修），但**反复攻击敌人的血量始终是 `6 / 6`**；战斗日志在增长（`battle.log.skill` / `battle.log.damage`），玩家自己的血却每轮掉。玩家无法取胜。 |
+| **实测证据**（Playwright，批 1 验收时抓出） | `after1`：`logN=10 enemies=["岩鼠6/6","岩鼠6/6"] party=["battle.unit.player84/100"]`；`after2`：`logN=15 enemies` 仍为 `6/6`、玩家降到 `76/100`。即**每轮敌人打玩家 8 点、玩家打敌人 0 点**。 |
+| **根因** | **demo 的属性播种不完整**。`apps/player-demo/src/main.tsx` 传 `initialAttrs: { hp: 100, stamina: 30, insight: 0 }`——**没有 `atk` / `def` / `spd`**。而宿主 `start()` 里是 `attrs: { ...(options.initialAttrs ?? {}) }`——**只**用 `initialAttrs`，**不消费** `attrDefs.numeric[].init`（`game-host.ts:649`；`attrDefs` 只被传给 `GameRuntime` 与 `projectStatusPanel`，见 `:701` / `:1178`）。于是玩家的 `attrs.atk` 是 `undefined`，而内置伤害公式是 `Math.max(0, (input.attacker['atk'] ?? 0) * input.mult - input.defender['def'])`（`packages/engine/src/battle/damage.ts:28-30`）——`undefined ?? 0` → **伤害恒为 0**。<br>敌人不受影响：`fixtures/mini-game/data/enemies.yaml` 的 `rock_rat` 显式声明了 `attrs: { atk: 4, def: 1, spd: 4 }`。 |
+| **为什么全部既有检查都没抓到** | ① 引擎单测与 `packages/runtime-ui/test/acceptance/**` 的检查驱动层 `route-driver.ts` 注入的是 `CHECK_INITIAL_ATTRS`（**含** `atk: 10, def: 3, spd: 12`）——检查环境与浏览器宿主**属性集不同**；② `panel-wiring.test.ts` 的战斗用例只断言「敌人掉血**或**战斗已结束」（`after === null \|\| hpAfter < hpBefore`），在检查环境里属性齐全所以通过；③ 该断言在浏览器里根本没被执行（E2E 不属默认门禁）。<br>**这正是约束 11（检查工具与被测系统同口径）的第二个实例**：检查驱动层与真实宿主的**初始属性集不同口径**，掩盖了缺陷。 |
+| **修复方案** | **甲（推荐，最小且贴合语义）**：`apps/player-demo/src/main.tsx` 的 `initialAttrs` 补齐 `atk: 10, def: 3, spd: 5`（与 `fixtures/mini-game/data/attrs.yaml` 的 `init` 一致）。<br>**乙（更根本，但属设计决策）**：让宿主在 `initialAttrs` 缺某属性时**回落到 `attrDefs.numeric[id].init`**——即「属性初值的权威来源是包内 `attrs.yaml`，宿主只覆盖想覆盖的」。这需要一次设计判断（`attrDefs` 目前是「不再发布面上」的显式注入项，见其 TSDoc），**建议先按甲修 demo，同时把乙登记为设计议题**（避免每个宿主都要手抄一遍属性初值）。 |
+| **归属** | **demo 侧数据装配**（甲）；**设计议题**（乙，待人类裁定后再动宿主与设计文档）。 |
+| **依据** | 实测 Playwright 输出（上表）；实读 `apps/player-demo/src/main.tsx:526`、`packages/runtime-ui/src/app/game-host.ts:649,701,1178`、`packages/engine/src/battle/damage.ts:26-34`、`packages/runtime-ui/test/acceptance/route-driver.ts:43-50`、`fixtures/mini-game/data/enemies.yaml:3-9`、`fixtures/mini-game/data/attrs.yaml`。 |
+
+> **顺带发现（低优先，登记不修）**：浏览器控制台有 React 告警
+> 「Encountered two children with the same key ... spacing」——
+> `NarrativeView` 渲染 `spacing` 段落时 key 重复（`NarrativeView.tsx` 的段落 key 生成）。
+> 不影响功能（React 会用其中一个），但属**键唯一性缺陷**，建议随 25C 收尾一并清理。
 
 ---
 
